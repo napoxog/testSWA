@@ -1,0 +1,1248 @@
+\documentclass[]{article}
+\usepackage{lmodern}
+\usepackage{amssymb,amsmath}
+\usepackage{ifxetex,ifluatex}
+\usepackage{fixltx2e} % provides \textsubscript
+\ifnum 0\ifxetex 1\fi\ifluatex 1\fi=0 % if pdftex
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+\else % if luatex or xelatex
+  \ifxetex
+    \usepackage{mathspec}
+  \else
+    \usepackage{fontspec}
+  \fi
+  \defaultfontfeatures{Ligatures=TeX,Scale=MatchLowercase}
+\fi
+% use upquote if available, for straight quotes in verbatim environments
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+% use microtype if available
+\IfFileExists{microtype.sty}{%
+\usepackage{microtype}
+\UseMicrotypeSet[protrusion]{basicmath} % disable protrusion for tt fonts
+}{}
+\usepackage[margin=1in]{geometry}
+\usepackage{hyperref}
+\hypersetup{unicode=true,
+            pdftitle={app.R},
+            pdfauthor={GritsenkoAM},
+            pdfborder={0 0 0},
+            breaklinks=true}
+\urlstyle{same}  % don't use monospace font for urls
+\usepackage{color}
+\usepackage{fancyvrb}
+\newcommand{\VerbBar}{|}
+\newcommand{\VERB}{\Verb[commandchars=\\\{\}]}
+\DefineVerbatimEnvironment{Highlighting}{Verbatim}{commandchars=\\\{\}}
+% Add ',fontsize=\small' for more characters per line
+\usepackage{framed}
+\definecolor{shadecolor}{RGB}{248,248,248}
+\newenvironment{Shaded}{\begin{snugshade}}{\end{snugshade}}
+\newcommand{\KeywordTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{\textbf{#1}}}
+\newcommand{\DataTypeTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{#1}}
+\newcommand{\DecValTok}[1]{\textcolor[rgb]{0.00,0.00,0.81}{#1}}
+\newcommand{\BaseNTok}[1]{\textcolor[rgb]{0.00,0.00,0.81}{#1}}
+\newcommand{\FloatTok}[1]{\textcolor[rgb]{0.00,0.00,0.81}{#1}}
+\newcommand{\ConstantTok}[1]{\textcolor[rgb]{0.00,0.00,0.00}{#1}}
+\newcommand{\CharTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\SpecialCharTok}[1]{\textcolor[rgb]{0.00,0.00,0.00}{#1}}
+\newcommand{\StringTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\VerbatimStringTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\SpecialStringTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\ImportTok}[1]{#1}
+\newcommand{\CommentTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textit{#1}}}
+\newcommand{\DocumentationTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\AnnotationTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\CommentVarTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\OtherTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{#1}}
+\newcommand{\FunctionTok}[1]{\textcolor[rgb]{0.00,0.00,0.00}{#1}}
+\newcommand{\VariableTok}[1]{\textcolor[rgb]{0.00,0.00,0.00}{#1}}
+\newcommand{\ControlFlowTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{\textbf{#1}}}
+\newcommand{\OperatorTok}[1]{\textcolor[rgb]{0.81,0.36,0.00}{\textbf{#1}}}
+\newcommand{\BuiltInTok}[1]{#1}
+\newcommand{\ExtensionTok}[1]{#1}
+\newcommand{\PreprocessorTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textit{#1}}}
+\newcommand{\AttributeTok}[1]{\textcolor[rgb]{0.77,0.63,0.00}{#1}}
+\newcommand{\RegionMarkerTok}[1]{#1}
+\newcommand{\InformationTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\WarningTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\AlertTok}[1]{\textcolor[rgb]{0.94,0.16,0.16}{#1}}
+\newcommand{\ErrorTok}[1]{\textcolor[rgb]{0.64,0.00,0.00}{\textbf{#1}}}
+\newcommand{\NormalTok}[1]{#1}
+\usepackage{graphicx,grffile}
+\makeatletter
+\def\maxwidth{\ifdim\Gin@nat@width>\linewidth\linewidth\else\Gin@nat@width\fi}
+\def\maxheight{\ifdim\Gin@nat@height>\textheight\textheight\else\Gin@nat@height\fi}
+\makeatother
+% Scale images if necessary, so that they will not overflow the page
+% margins by default, and it is still possible to overwrite the defaults
+% using explicit options in \includegraphics[width, height, ...]{}
+\setkeys{Gin}{width=\maxwidth,height=\maxheight,keepaspectratio}
+\IfFileExists{parskip.sty}{%
+\usepackage{parskip}
+}{% else
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{6pt plus 2pt minus 1pt}
+}
+\setlength{\emergencystretch}{3em}  % prevent overfull lines
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+\setcounter{secnumdepth}{0}
+% Redefines (sub)paragraphs to behave more like sections
+\ifx\paragraph\undefined\else
+\let\oldparagraph\paragraph
+\renewcommand{\paragraph}[1]{\oldparagraph{#1}\mbox{}}
+\fi
+\ifx\subparagraph\undefined\else
+\let\oldsubparagraph\subparagraph
+\renewcommand{\subparagraph}[1]{\oldsubparagraph{#1}\mbox{}}
+\fi
+
+%%% Use protect on footnotes to avoid problems with footnotes in titles
+\let\rmarkdownfootnote\footnote%
+\def\footnote{\protect\rmarkdownfootnote}
+
+%%% Change title format to be more compact
+\usepackage{titling}
+
+% Create subtitle command for use in maketitle
+\newcommand{\subtitle}[1]{
+  \posttitle{
+    \begin{center}\large#1\end{center}
+    }
+}
+
+\setlength{\droptitle}{-2em}
+  \title{app.R}
+  \pretitle{\vspace{\droptitle}\centering\huge}
+  \posttitle{\par}
+  \author{GritsenkoAM}
+  \preauthor{\centering\large\emph}
+  \postauthor{\par}
+  \predate{\centering\large\emph}
+  \postdate{\par}
+  \date{Fri Apr 06 11:56:40 2018}
+
+
+\begin{document}
+\maketitle
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{#}
+\CommentTok{# This is a Shiny web application. You can run the application by clicking}
+\CommentTok{# the 'Run App' button above.}
+\CommentTok{#}
+\CommentTok{# Find out more about building applications with Shiny here:}
+\CommentTok{#}
+\CommentTok{#    http://shiny.rstudio.com/}
+\CommentTok{#}
+
+
+\CommentTok{# }\AlertTok{TODO}\CommentTok{: Add :}
+\CommentTok{# DONE: 1. Control Point loading}
+\CommentTok{# DONE: 2. Add CP managing}
+\CommentTok{# DONE: 3. linear models evaluation}
+\CommentTok{# DONE: 4. Linear models results presentation}
+\CommentTok{# }\AlertTok{TODO}\CommentTok{: 5. Multiple (more than 2) maps loading }
+\CommentTok{# }\AlertTok{TODO}\CommentTok{: 6. Maps Management}
+\CommentTok{# }\AlertTok{TODO}\CommentTok{: 7. provide different Prediction types }
+\CommentTok{# }\AlertTok{TODO}\CommentTok{: 7.1. classification tools}
+\CommentTok{# }\AlertTok{TODO}\CommentTok{: 7.2. Neural networks tools}
+\CommentTok{# }\AlertTok{TODO}\CommentTok{: 7.3. Linear Modles types selection}
+\CommentTok{# }\AlertTok{TODO}\CommentTok{: 8. Add cross-validation analysis (if not included in LM)}
+
+
+
+\KeywordTok{library}\NormalTok{(shiny)}
+\KeywordTok{library}\NormalTok{(shinyjs)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## Warning: package 'shinyjs' was built under R version 3.4.4
+\end{verbatim}
+
+\begin{verbatim}
+## 
+## Attaching package: 'shinyjs'
+\end{verbatim}
+
+\begin{verbatim}
+## The following object is masked from 'package:shiny':
+## 
+##     runExample
+\end{verbatim}
+
+\begin{verbatim}
+## The following objects are masked from 'package:methods':
+## 
+##     removeClass, show
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{library}\NormalTok{(DT)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## Warning: package 'DT' was built under R version 3.4.4
+\end{verbatim}
+
+\begin{verbatim}
+## 
+## Attaching package: 'DT'
+\end{verbatim}
+
+\begin{verbatim}
+## The following objects are masked from 'package:shiny':
+## 
+##     dataTableOutput, renderDataTable
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{library}\NormalTok{(readr)}
+\KeywordTok{library}\NormalTok{(raster)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## Warning: package 'raster' was built under R version 3.4.4
+\end{verbatim}
+
+\begin{verbatim}
+## Loading required package: sp
+\end{verbatim}
+
+\begin{verbatim}
+## 
+## Attaching package: 'raster'
+\end{verbatim}
+
+\begin{verbatim}
+## The following object is masked from 'package:shinyjs':
+## 
+##     click
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{#library(spatial)}
+\KeywordTok{library}\NormalTok{(sp)}
+\KeywordTok{library}\NormalTok{(RANN)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## Warning: package 'RANN' was built under R version 3.4.4
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{library}\NormalTok{(hexbin)}
+\CommentTok{#library(markdown)}
+
+\CommentTok{#default data definition}
+\NormalTok{map0 <-}\StringTok{ }\NormalTok{sp}\OperatorTok{::}\KeywordTok{read.asciigrid}\NormalTok{(}\StringTok{"../Data/Maps/default.asc"}\NormalTok{)}
+\NormalTok{fn0 <-}\StringTok{ "default.asc"}
+\KeywordTok{names}\NormalTok{(map0}\OperatorTok{@}\NormalTok{data) <-}\StringTok{ }\NormalTok{fn0}
+\NormalTok{rstr0 <-}\StringTok{ }\KeywordTok{raster}\NormalTok{(map0)}
+\NormalTok{def_map <-}\StringTok{ }\KeywordTok{list}\NormalTok{(}\StringTok{"fn"}\NormalTok{ =}\StringTok{ }\NormalTok{fn0,}
+                \StringTok{"map"}\NormalTok{ =}\StringTok{ }\NormalTok{map0,}
+                \StringTok{"mat"}\NormalTok{ =}\StringTok{ }\KeywordTok{as.vector}\NormalTok{(rstr0),}
+                \StringTok{"rstr"}\NormalTok{ =}\StringTok{ }\NormalTok{rstr0)}
+\NormalTok{wells0 =}\StringTok{ }\OtherTok{NULL}
+\NormalTok{map_zoom =}\StringTok{ }\OtherTok{NULL}
+
+\NormalTok{flist <-}\StringTok{ }\KeywordTok{list}\NormalTok{(mean,median,sd)}
+\KeywordTok{names}\NormalTok{(flist) <-}\StringTok{ }\KeywordTok{c}\NormalTok{(}\StringTok{"Среднее"}\NormalTok{,}\StringTok{"Медиана"}\NormalTok{,}\StringTok{"Ст.Откл."}\NormalTok{)}
+
+\NormalTok{map_hei =}\StringTok{ "500px"}
+\NormalTok{map_wid =}\StringTok{ "800px"}
+\NormalTok{hist_hei =}\StringTok{ "200px"}
+\NormalTok{hist_wid =}\StringTok{ "200px"}
+\NormalTok{butt_wid =}\StringTok{ "200px"}
+
+\NormalTok{myReactives <-}\StringTok{ }\KeywordTok{reactiveValues}\NormalTok{(}\DataTypeTok{map1 =}\NormalTok{ def_map, }\DataTypeTok{map2 =}\NormalTok{ def_map,}\DataTypeTok{wells =}\NormalTok{ wells0, }\DataTypeTok{zoom =} \OtherTok{NULL}\NormalTok{, }\DataTypeTok{fit =} \OtherTok{NULL}\NormalTok{)}
+
+\CommentTok{# Define UI for application that draws a histogram}
+\NormalTok{ui <-}\StringTok{ }\KeywordTok{fluidPage}\NormalTok{(}
+  \CommentTok{# Application title}
+  \KeywordTok{titlePanel}\NormalTok{(}\StringTok{"Кроссплоты карт"}\NormalTok{),}
+  \CommentTok{# test = enc2utf8(c("привет","пока"))}
+  
+  
+  \CommentTok{#UI: Sidebar with a slider input for number of bins ####}
+  \KeywordTok{sidebarLayout}\NormalTok{(}
+    \KeywordTok{sidebarPanel}\NormalTok{(}
+      \KeywordTok{tabsetPanel}\NormalTok{(}
+        \KeywordTok{tabPanel}\NormalTok{( }\StringTok{"Гексаплот"}\NormalTok{,}
+          \KeywordTok{plotOutput}\NormalTok{(}
+            \StringTok{"xPlot_hex"}\NormalTok{,}
+            \DataTypeTok{click =} \StringTok{"plot_click"}\NormalTok{,}
+            \DataTypeTok{dblclick =} \StringTok{"plot_dblclick"}\NormalTok{,}
+            \DataTypeTok{hover =} \StringTok{"plot_hover"}\NormalTok{,}
+            \DataTypeTok{brush =} \KeywordTok{brushOpts}\NormalTok{( }\DataTypeTok{id =} \StringTok{"plot_brush"}\NormalTok{, }\DataTypeTok{clip =} \OtherTok{FALSE}\NormalTok{, }\DataTypeTok{resetOnNew =} \OtherTok{TRUE}\NormalTok{)}
+\NormalTok{          ),}
+          \KeywordTok{sliderInput}\NormalTok{(}
+            \StringTok{"cells"}\NormalTok{,}
+            \StringTok{"размер бина кроссплота:"}\NormalTok{,}
+            \DataTypeTok{min =} \DecValTok{1}\NormalTok{,}
+            \DataTypeTok{max =} \DecValTok{50}\NormalTok{,}
+            \DataTypeTok{value =} \DecValTok{30}
+\NormalTok{          )}
+\NormalTok{          ),}
+          \KeywordTok{tabPanel}\NormalTok{( }\StringTok{"Кроссплот"}\NormalTok{,}
+                  \KeywordTok{plotOutput}\NormalTok{(}
+                    \StringTok{"xPlot_simple"}\NormalTok{,}
+                    \DataTypeTok{click =} \StringTok{"plot_click"}\NormalTok{,}
+                    \DataTypeTok{dblclick =} \StringTok{"plot_dblclick"}\NormalTok{,}
+                    \DataTypeTok{hover =} \StringTok{"plot_hover"}\NormalTok{,}
+                    \DataTypeTok{brush =} \KeywordTok{brushOpts}\NormalTok{( }\DataTypeTok{id =} \StringTok{"plot_brush"}\NormalTok{, }\DataTypeTok{clip =} \OtherTok{FALSE}\NormalTok{, }\DataTypeTok{resetOnNew =} \OtherTok{TRUE}\NormalTok{)}
+\NormalTok{                  ),}
+            \KeywordTok{sliderInput}\NormalTok{(}
+              \StringTok{"transp"}\NormalTok{,}
+              \StringTok{"Прозрачность:"}\NormalTok{,}
+              \DataTypeTok{min =} \FloatTok{0.1}\NormalTok{,}
+              \DataTypeTok{max =} \DecValTok{2}\NormalTok{,}
+              \DataTypeTok{value =} \DecValTok{1}
+\NormalTok{            )}
+\NormalTok{          ),}
+        \CommentTok{#UI: Wells inputs and display ####}
+        \KeywordTok{tabPanel}\NormalTok{(}
+          \StringTok{"Скважины"}\NormalTok{,}
+          \KeywordTok{fileInput}\NormalTok{(}
+            \StringTok{"wellsfile1"}\NormalTok{,}
+            \StringTok{"Открыть скважины:"}\NormalTok{,}
+            \DataTypeTok{accept =} \KeywordTok{c}\NormalTok{(}\StringTok{"text/plain"}\NormalTok{,}
+                       \StringTok{"text/esri-asciigrid,text/plain"}\NormalTok{,}
+                       \StringTok{"*.asc"}\NormalTok{,}
+                       \DataTypeTok{buttonLabel =} \StringTok{"Открыть..."}\NormalTok{)}
+\NormalTok{          ),}
+          \KeywordTok{fileInput}\NormalTok{(}
+            \StringTok{"cpfile1"}\NormalTok{,}
+            \StringTok{"Открыть КТ:"}\NormalTok{,}
+            \DataTypeTok{accept =} \KeywordTok{c}\NormalTok{(}\StringTok{"text/plain"}\NormalTok{,}
+                       \StringTok{"text/esri-asciigrid,text/plain"}\NormalTok{,}
+                       \StringTok{"*.asc"}\NormalTok{,}
+                       \DataTypeTok{buttonLabel =} \StringTok{"Открыть..."}\NormalTok{)}
+\NormalTok{          ),}
+          \KeywordTok{dataTableOutput}\NormalTok{(}\StringTok{'table_wells'}\NormalTok{)}
+\NormalTok{        )  ,}
+        \CommentTok{#UI: models ####}
+        \KeywordTok{tabPanel}\NormalTok{(}
+          \StringTok{"Модели"}\NormalTok{,}
+          \KeywordTok{tabsetPanel}\NormalTok{(}
+            \CommentTok{#UI: model MLR ####}
+            \KeywordTok{tabPanel}\NormalTok{(}
+              \StringTok{"MLR"}\NormalTok{,}
+              \KeywordTok{plotOutput}\NormalTok{(}
+                \StringTok{"fitPlot"}\NormalTok{,}
+                \DataTypeTok{height =} \StringTok{"500px"}
+\NormalTok{              ),}
+              \KeywordTok{verbatimTextOutput}\NormalTok{(}\StringTok{"fitText"}\NormalTok{),}
+              \KeywordTok{plotOutput}\NormalTok{(}
+                \StringTok{"fitxPlot"}\NormalTok{,}
+                \DataTypeTok{height =} \StringTok{"500px"}
+\NormalTok{              ),}
+              \KeywordTok{verbatimTextOutput}\NormalTok{(}\StringTok{"fitXText"}\NormalTok{)}
+\NormalTok{            ),}
+            \CommentTok{#UI: model GLM ####}
+            \KeywordTok{tabPanel}\NormalTok{(}
+              \StringTok{"GLM"}\NormalTok{,}
+              \KeywordTok{plotOutput}\NormalTok{(}
+                \StringTok{"glmPlot"}\NormalTok{,}
+                \DataTypeTok{height =} \StringTok{"500px"}
+\NormalTok{              ),}
+              \KeywordTok{verbatimTextOutput}\NormalTok{(}\StringTok{"glmText"}\NormalTok{),}
+              \KeywordTok{plotOutput}\NormalTok{(}
+                \StringTok{"glmXPlot"}\NormalTok{,}
+                \DataTypeTok{height =} \StringTok{"500px"}
+\NormalTok{              ),}
+              \KeywordTok{verbatimTextOutput}\NormalTok{(}\StringTok{"glmXText"}\NormalTok{)}
+\NormalTok{              ),}
+            \CommentTok{#UI: model XPLT ####}
+            \KeywordTok{tabPanel}\NormalTok{(}
+              \StringTok{"K-Means"}\NormalTok{,}
+              \KeywordTok{plotOutput}\NormalTok{(}
+                \StringTok{"kmPlot"}\NormalTok{,}
+                \DataTypeTok{height =} \StringTok{"500px"}
+\NormalTok{              ),}
+              \KeywordTok{verbatimTextOutput}\NormalTok{(}\StringTok{"kmText"}\NormalTok{),}
+              \KeywordTok{plotOutput}\NormalTok{(}
+                \StringTok{"kmXPlot"}\NormalTok{,}
+                \DataTypeTok{height =} \StringTok{"500px"}
+\NormalTok{              ),}
+              \KeywordTok{verbatimTextOutput}\NormalTok{(}\StringTok{"kmXText"}\NormalTok{)            }
+\NormalTok{              )          }
+\NormalTok{          )}
+\NormalTok{        )}
+\NormalTok{      )}
+      
+      \CommentTok{# Show a plot of the generated distribution}
+\NormalTok{      ,}\DataTypeTok{width =} \DecValTok{4}\NormalTok{, }\DataTypeTok{fluid =} \OtherTok{FALSE}\NormalTok{),}
+    \CommentTok{#), width = 3 ), #}
+    \KeywordTok{mainPanel}\NormalTok{(}
+      \KeywordTok{splitLayout}\NormalTok{(}
+      \KeywordTok{inputPanel}\NormalTok{(}
+        \CommentTok{#UI: sliders ####}
+        \KeywordTok{sliderInput}\NormalTok{(}
+          \StringTok{"bins"}\NormalTok{,}
+          \StringTok{"Бины гистограммы:"}\NormalTok{,}
+          \DataTypeTok{min =} \DecValTok{1}\NormalTok{,}
+          \DataTypeTok{max =} \DecValTok{100}\NormalTok{,}
+          \DataTypeTok{value =} \DecValTok{30}
+\NormalTok{        ),}
+        \KeywordTok{sliderInput}\NormalTok{(}
+          \StringTok{"rstr_fact"}\NormalTok{,}
+          \StringTok{"Разрешение грида:"}\NormalTok{,}
+          \DataTypeTok{min =} \FloatTok{0.1}\NormalTok{,}
+          \DataTypeTok{max =} \DecValTok{1}\NormalTok{,}
+          \DataTypeTok{value =} \FloatTok{0.5}
+\NormalTok{        )}
+\NormalTok{        ,}\DataTypeTok{width =} \DecValTok{800}\NormalTok{, }\DataTypeTok{fluid =}\NormalTok{ T)}
+\NormalTok{      ),}
+      \KeywordTok{tabsetPanel}\NormalTok{(}
+        \CommentTok{# UI: Tabs with Maps and related ####}
+        \CommentTok{#tabPanel(}
+        \CommentTok{#  "Скважины",}
+        \CommentTok{#   dataTableOutput('table_wells')}
+        \CommentTok{#),}
+        \KeywordTok{tabPanel}\NormalTok{(}
+          \CommentTok{#UI: Tab1 ####}
+          \KeywordTok{uiOutput}\NormalTok{(}\StringTok{"tab1"}\NormalTok{),}
+          \KeywordTok{flowLayout}\NormalTok{(}
+          \KeywordTok{flowLayout}\NormalTok{(}
+            \KeywordTok{verticalLayout}\NormalTok{(}
+              \KeywordTok{flowLayout}\NormalTok{(}
+                \KeywordTok{fileInput}\NormalTok{(}
+                \StringTok{"file1"}\NormalTok{,}
+                \StringTok{"Открыть сетку 1:"}\NormalTok{,}
+                \DataTypeTok{accept =} \KeywordTok{c}\NormalTok{(}\StringTok{"text/asc"}\NormalTok{,}
+                           \StringTok{"text/esri-asciigrid,text/plain"}\NormalTok{,}
+                           \StringTok{".asc"}\NormalTok{,}
+                           \DataTypeTok{buttonLabel =} \StringTok{"Открыть..."}
+\NormalTok{                           , }\DataTypeTok{placeholder =} \StringTok{"Файл еще не выбран"}
+\NormalTok{                           , }\DataTypeTok{width =}\NormalTok{ butt_wid}
+\NormalTok{                           )}
+\NormalTok{              ),}
+              \KeywordTok{selectInput}\NormalTok{(}\StringTok{"funcSelect1"}\NormalTok{, }\StringTok{"Метод осреднения"}
+\NormalTok{                          ,}\DataTypeTok{choices =} \KeywordTok{names}\NormalTok{(flist), }\DataTypeTok{width =}\NormalTok{ butt_wid}
+\NormalTok{                          )}
+\NormalTok{              ),}
+              \KeywordTok{flowLayout}\NormalTok{(}
+                \KeywordTok{actionButton}\NormalTok{(}\StringTok{"unzoom1"}\NormalTok{   , }\StringTok{"Сброс масштаба  "}\NormalTok{, }\DataTypeTok{width =}\NormalTok{ butt_wid),}
+                \KeywordTok{actionButton}\NormalTok{(}\StringTok{"trans1"}\NormalTok{    , }\StringTok{"Транспонировать "}\NormalTok{, }\DataTypeTok{width =}\NormalTok{ butt_wid)}
+\NormalTok{              )}
+\NormalTok{            ),}
+            \KeywordTok{plotOutput}\NormalTok{(}\StringTok{"histPlot1"}\NormalTok{,  }
+                       \DataTypeTok{height =}\NormalTok{ hist_hei,}
+                       \DataTypeTok{width =}\NormalTok{ hist_wid}
+\NormalTok{            )}
+\NormalTok{            , }\DataTypeTok{cellWidths =} \KeywordTok{c}\NormalTok{(}\StringTok{"80%"}\NormalTok{,}\StringTok{"20%"}\NormalTok{)}
+\NormalTok{          ),}
+          \CommentTok{#UI: Map1 ####}
+          \KeywordTok{plotOutput}\NormalTok{(}
+            \StringTok{"mapPlot1"}\NormalTok{,}
+            \DataTypeTok{click =} \StringTok{"plot_click"}\NormalTok{,}
+            \DataTypeTok{dblclick =} \StringTok{"plot_dblclick"}\NormalTok{,}
+            \DataTypeTok{hover =} \StringTok{"plot_hover"}\NormalTok{,}
+            \DataTypeTok{brush =} \StringTok{"plot_brush"}\NormalTok{,}
+            \DataTypeTok{height =}\NormalTok{ map_hei,}
+            \DataTypeTok{width =}\NormalTok{ map_wid}
+\NormalTok{          )}
+\NormalTok{          )}
+\NormalTok{        ),}
+        \KeywordTok{tabPanel}\NormalTok{(}
+          \CommentTok{#UI: Tab2 ####}
+          \KeywordTok{uiOutput}\NormalTok{(}\StringTok{"tab2"}\NormalTok{),}
+          \KeywordTok{flowLayout}\NormalTok{(}
+            \KeywordTok{flowLayout}\NormalTok{(}
+            \KeywordTok{verticalLayout}\NormalTok{(}
+              \KeywordTok{flowLayout}\NormalTok{(}
+                \KeywordTok{fileInput}\NormalTok{(}
+                  \StringTok{"file2"}\NormalTok{,}
+                  \StringTok{"Открыть сетку 2:"}\NormalTok{,}
+                  \DataTypeTok{accept =} \KeywordTok{c}\NormalTok{(}\StringTok{"text/asc"}\NormalTok{,}
+                             \StringTok{"text/esri-asciigrid,text/plain"}\NormalTok{,}
+                             \StringTok{".asc"}\NormalTok{,}
+                             \DataTypeTok{buttonLabel =} \StringTok{"Открыть..."}
+\NormalTok{                             , }\DataTypeTok{placeholder =} \StringTok{"Файл еще не выбран"}
+\NormalTok{                             , }\DataTypeTok{width =}\NormalTok{ butt_wid}
+\NormalTok{                  )}
+\NormalTok{                ),}
+                \KeywordTok{selectInput}\NormalTok{(}\StringTok{"funcSelect2"}\NormalTok{, }\StringTok{"Метод осреднения"}
+\NormalTok{                            ,}\DataTypeTok{choices =} \KeywordTok{names}\NormalTok{(flist), }\DataTypeTok{width =}\NormalTok{ butt_wid}
+\NormalTok{                )}
+\NormalTok{              ),}
+              \KeywordTok{flowLayout}\NormalTok{(}
+                \KeywordTok{actionButton}\NormalTok{(}\StringTok{"unzoom2"}\NormalTok{   , }\StringTok{"Сброс масштаба  "}\NormalTok{, }\DataTypeTok{width =}\NormalTok{ butt_wid),}
+                \KeywordTok{actionButton}\NormalTok{(}\StringTok{"trans2"}\NormalTok{    , }\StringTok{"Транспонировать "}\NormalTok{, }\DataTypeTok{width =}\NormalTok{ butt_wid)}
+\NormalTok{              )}
+\NormalTok{            ),}
+            \KeywordTok{plotOutput}\NormalTok{(}\StringTok{"histPlot2"}\NormalTok{,  }
+                       \DataTypeTok{height =}\NormalTok{ hist_hei,}
+                       \DataTypeTok{width =}\NormalTok{ hist_wid}
+\NormalTok{            )}
+\NormalTok{            , }\DataTypeTok{cellWidths =} \KeywordTok{c}\NormalTok{(}\StringTok{"80%"}\NormalTok{,}\StringTok{"20%"}\NormalTok{)}
+\NormalTok{          ),}
+          \CommentTok{#UI: Map2 ####}
+          \KeywordTok{plotOutput}\NormalTok{(}
+            \StringTok{"mapPlot2"}\NormalTok{,}
+            \DataTypeTok{click =} \StringTok{"plot_click"}\NormalTok{,}
+            \DataTypeTok{dblclick =} \StringTok{"plot_dblclick"}\NormalTok{,}
+            \DataTypeTok{hover =} \StringTok{"plot_hover"}\NormalTok{,}
+            \DataTypeTok{brush =} \StringTok{"plot_brush"}\NormalTok{,}
+            \DataTypeTok{height =}\NormalTok{ map_hei,}
+            \DataTypeTok{width =}\NormalTok{ map_wid}
+\NormalTok{          )}
+\NormalTok{        )}
+\NormalTok{        )}
+\NormalTok{      ),}
+      \CommentTok{#UI: Status panel ####}
+      \KeywordTok{verbatimTextOutput}\NormalTok{(}\StringTok{"info"}\NormalTok{)}
+\NormalTok{    )}
+    
+\NormalTok{  )}
+\NormalTok{)}
+
+\NormalTok{## transpose the maps' matrix }
+\NormalTok{transposeMap <-}\StringTok{ }\ControlFlowTok{function}\NormalTok{(}\DataTypeTok{map_obj =} \OtherTok{NULL}\NormalTok{) \{}
+  \ControlFlowTok{if}\NormalTok{(}\KeywordTok{is.null}\NormalTok{(map_obj)) }\KeywordTok{return}\NormalTok{(}\OtherTok{NULL}\NormalTok{)}
+  \CommentTok{#map_m = matrix(map_obj$map@data[[1]], ncol = map_obj$map@grid@cells.dim[1], nrow = map_obj$map@grid@cells.dim[2], byrow = TRUE)}
+\NormalTok{  c=map_obj}\OperatorTok{$}\NormalTok{rstr}\OperatorTok{@}\NormalTok{ncols }
+\NormalTok{  r=map_obj}\OperatorTok{$}\NormalTok{rstr}\OperatorTok{@}\NormalTok{nrows}
+\NormalTok{  map_obj}\OperatorTok{$}\NormalTok{rstr}\OperatorTok{@}\NormalTok{data}\OperatorTok{@}\NormalTok{values =}\StringTok{ }\KeywordTok{matrix}\NormalTok{(map_obj}\OperatorTok{$}\NormalTok{rstr}\OperatorTok{@}\NormalTok{data}\OperatorTok{@}\NormalTok{values, }\DataTypeTok{ncol =}\NormalTok{ c, }\DataTypeTok{nrow =}\NormalTok{ r, }\DataTypeTok{byrow =} \OtherTok{TRUE}\NormalTok{)}
+\CommentTok{#  map_obj$map@data = data.frame(as.vector(map_m))}
+\NormalTok{  map_obj}\OperatorTok{$}\NormalTok{rstr}\OperatorTok{@}\NormalTok{ncols=r}
+\NormalTok{  map_obj}\OperatorTok{$}\NormalTok{rstr}\OperatorTok{@}\NormalTok{nrows=c}
+  
+  \CommentTok{#map_obj$rstr = raster(map_obj$map)}
+\NormalTok{  map_obj}\OperatorTok{$}\NormalTok{mat =}\StringTok{ }\KeywordTok{as.vector}\NormalTok{(map_obj}\OperatorTok{$}\NormalTok{rstr)}
+  \KeywordTok{return}\NormalTok{(map_obj)}
+\NormalTok{\}}
+
+\NormalTok{## upscale/dense the map to defined fraction with defined aggregation method}
+\NormalTok{upscaleMap <-}\StringTok{ }\ControlFlowTok{function}\NormalTok{(}\DataTypeTok{map_obj =} \OtherTok{NULL}\NormalTok{, }\DataTypeTok{fact =} \FloatTok{1.0}\NormalTok{, }\DataTypeTok{func =}\NormalTok{ mean) \{}
+  \ControlFlowTok{if}\NormalTok{(}\KeywordTok{is.null}\NormalTok{(map_obj)) }\KeywordTok{return}\NormalTok{(}\OtherTok{NULL}\NormalTok{)}
+
+\NormalTok{  rstr =}\StringTok{ }\KeywordTok{raster}\NormalTok{(map_obj}\OperatorTok{$}\NormalTok{map)}
+  \ControlFlowTok{if}\NormalTok{ (fact }\OperatorTok{>}\StringTok{ }\FloatTok{1.0}\NormalTok{) }
+\NormalTok{    rstr =}\StringTok{ }\KeywordTok{disaggregate}\NormalTok{(rstr,}\DataTypeTok{fact =}\NormalTok{ fact, }\DataTypeTok{method =} \StringTok{'bilinear'}\NormalTok{)}
+  \ControlFlowTok{else} \ControlFlowTok{if}\NormalTok{ (fact }\OperatorTok{<}\StringTok{ }\FloatTok{1.0}\NormalTok{) }
+\NormalTok{    rstr =}\StringTok{ }\KeywordTok{aggregate}\NormalTok{(rstr,}\DataTypeTok{fact =} \KeywordTok{ceiling}\NormalTok{(}\FloatTok{1.0}\OperatorTok{/}\NormalTok{fact), }\DataTypeTok{expand =} \OtherTok{TRUE}\NormalTok{, }\DataTypeTok{fun =}\NormalTok{ func)}
+\NormalTok{  map_obj}\OperatorTok{$}\NormalTok{rstr =}\StringTok{ }\NormalTok{rstr}
+\NormalTok{  map_obj}\OperatorTok{$}\NormalTok{mat =}\StringTok{ }\KeywordTok{as.vector}\NormalTok{(rstr)}
+  
+  \KeywordTok{return}\NormalTok{(map_obj)}
+\NormalTok{\}}
+
+\NormalTok{## load map file in ESRI ascii grid format, with optional transposing of the matrix ##}
+\NormalTok{loadMapFile <-}\StringTok{ }\ControlFlowTok{function}\NormalTok{ (}\DataTypeTok{file_obj =} \OtherTok{NULL}\NormalTok{, }\DataTypeTok{transpose =} \OtherTok{FALSE}\NormalTok{) \{}
+  \ControlFlowTok{if}\NormalTok{ (}\KeywordTok{is.null}\NormalTok{(file_obj)) \{}
+\NormalTok{    map =}\StringTok{ }\KeywordTok{try}\NormalTok{( }\DataTypeTok{expr =}\NormalTok{ sp}\OperatorTok{::}\KeywordTok{read.asciigrid}\NormalTok{(}\StringTok{"../Data/Maps/default.asc"}\NormalTok{) , }\OtherTok{TRUE}\NormalTok{)}
+    \ControlFlowTok{if}\NormalTok{(}\KeywordTok{class}\NormalTok{(map)}\OperatorTok{==}\StringTok{"try-error"}\NormalTok{)\{}
+      \KeywordTok{return}\NormalTok{(}\OtherTok{NULL}\NormalTok{)}
+\NormalTok{    \}}
+\NormalTok{    fn =}\StringTok{ "default.asc"}
+\NormalTok{  \} }\ControlFlowTok{else}\NormalTok{ \{}
+\NormalTok{    map =}\StringTok{ }\KeywordTok{try}\NormalTok{( }\DataTypeTok{expr =}\NormalTok{ sp}\OperatorTok{::}\KeywordTok{read.asciigrid}\NormalTok{(file_obj}\OperatorTok{$}\NormalTok{datapath), }\OtherTok{TRUE}\NormalTok{)}
+    \ControlFlowTok{if}\NormalTok{(}\KeywordTok{class}\NormalTok{(map)}\OperatorTok{==}\StringTok{"try-error"}\NormalTok{)\{}
+      \KeywordTok{return}\NormalTok{(}\OtherTok{NULL}\NormalTok{)}
+\NormalTok{    \}}
+\NormalTok{    fn =}\StringTok{ }\NormalTok{file_obj}\OperatorTok{$}\NormalTok{name}
+\NormalTok{  \}}
+  \KeywordTok{names}\NormalTok{(map}\OperatorTok{@}\NormalTok{data) =}\StringTok{ }\NormalTok{fn}
+\NormalTok{  rstr =}\StringTok{ }\KeywordTok{raster}\NormalTok{(map)}
+\NormalTok{  map_m =}\StringTok{ }\KeywordTok{as.vector}\NormalTok{(rstr)}
+  \KeywordTok{names}\NormalTok{(map_m) =}\StringTok{ }\NormalTok{fn}
+\NormalTok{  map_obj =}\StringTok{ }\KeywordTok{list}\NormalTok{(}
+    \StringTok{"fn"}\NormalTok{ =}\StringTok{ }\NormalTok{fn,}
+    \StringTok{"map"}\NormalTok{ =}\StringTok{ }\NormalTok{map,}
+    \StringTok{"mat"}\NormalTok{ =}\StringTok{ }\NormalTok{map_m,}
+    \StringTok{"rstr"}\NormalTok{ =}\StringTok{ }\NormalTok{rstr}
+\NormalTok{  )}
+  \CommentTok{#transpose the data.frame}
+  \ControlFlowTok{if}\NormalTok{(transpose) \{}
+\NormalTok{    map_obj =}\StringTok{ }\KeywordTok{transposeMap}\NormalTok{(map_obj)}
+\NormalTok{  \}}
+  \KeywordTok{return}\NormalTok{(map_obj)}
+\NormalTok{\}}
+
+\NormalTok{## load wells coordinates for display and store the CP data ##}
+\NormalTok{loadWells <-}\StringTok{ }\ControlFlowTok{function}\NormalTok{(}\DataTypeTok{file_obj =} \OtherTok{NULL}\NormalTok{) \{}
+\NormalTok{  wells =}\StringTok{ }\KeywordTok{try}\NormalTok{ ( }\DataTypeTok{expr =} \KeywordTok{read_delim}\NormalTok{(}
+\NormalTok{    file_obj}\OperatorTok{$}\NormalTok{datapath,}\StringTok{"}\CharTok{\textbackslash{}t}\StringTok{ "}\NormalTok{,}
+    \DataTypeTok{col_types =} \KeywordTok{cols}\NormalTok{(}\DataTypeTok{COORDINATE_SYS_PRJ =} \KeywordTok{col_skip}\NormalTok{(), }
+                     \DataTypeTok{Customized_SYMBOL =} \KeywordTok{col_skip}\NormalTok{(), }\DataTypeTok{DATUM_ELEVATION =} \KeywordTok{col_skip}\NormalTok{(), }
+                     \DataTypeTok{DB_Access =} \KeywordTok{col_skip}\NormalTok{(), }\DataTypeTok{ELEV_MEAS_REF =} \KeywordTok{col_double}\NormalTok{(), }
+                     \DataTypeTok{EPOS_CRS =} \KeywordTok{col_skip}\NormalTok{(), }\DataTypeTok{LATITUDE =} \KeywordTok{col_skip}\NormalTok{(), }
+                     \DataTypeTok{LONGITUDE =} \KeywordTok{col_skip}\NormalTok{(), }\DataTypeTok{WELL =} \KeywordTok{col_character}\NormalTok{(), }
+                     \DataTypeTok{X12 =} \KeywordTok{col_skip}\NormalTok{(), }\DataTypeTok{X_LOCATION =} \KeywordTok{col_double}\NormalTok{(), }
+                     \DataTypeTok{Y_LOCATION =} \KeywordTok{col_double}\NormalTok{()),}
+    \DataTypeTok{na =} \StringTok{"empty"}\NormalTok{, }\DataTypeTok{trim_ws =} \OtherTok{TRUE}
+\NormalTok{  ), }\OtherTok{TRUE}\NormalTok{)}
+\NormalTok{  ers <-}\StringTok{ }\KeywordTok{try}\NormalTok{ (}\DataTypeTok{expr =} \KeywordTok{problems}\NormalTok{(wells),}\OtherTok{TRUE}\NormalTok{)}
+  \CommentTok{#browser()}
+  \ControlFlowTok{if}\NormalTok{( }\KeywordTok{class}\NormalTok{(wells)}\OperatorTok{==}\StringTok{"try-error"} \OperatorTok{||}\StringTok{ }
+\StringTok{      }\KeywordTok{dim}\NormalTok{(ers)[}\DecValTok{1}\NormalTok{]}\OperatorTok{>}\DecValTok{0} \OperatorTok{||}\StringTok{ }
+\StringTok{      }\OperatorTok{!}\NormalTok{(}\KeywordTok{c}\NormalTok{(}\StringTok{"WELL"}\NormalTok{,}\StringTok{"X_LOCATION"}\NormalTok{,}\StringTok{"Y_LOCATION"}\NormalTok{) }\OperatorTok{%in%}\StringTok{ }\KeywordTok{names}\NormalTok{(wells) ) }
+\NormalTok{      ) }
+    \KeywordTok{return}\NormalTok{(}\OtherTok{NULL}\NormalTok{)}
+  
+\NormalTok{  wells_ =}\StringTok{ }\KeywordTok{list}\NormalTok{( }\DataTypeTok{WELL =}\NormalTok{ wells}\OperatorTok{$}\NormalTok{WELL)}
+\NormalTok{  wells_}\OperatorTok{$}\NormalTok{X_LOCATION =}\StringTok{ }\NormalTok{wells}\OperatorTok{$}\NormalTok{X_LOCATION}
+\NormalTok{  wells_}\OperatorTok{$}\NormalTok{Y_LOCATION =}\StringTok{ }\NormalTok{wells}\OperatorTok{$}\NormalTok{Y_LOCATION}
+\NormalTok{  wells_ =}\StringTok{ }\KeywordTok{as.data.frame}\NormalTok{(wells_)}
+  \KeywordTok{coordinates}\NormalTok{(wells_) =}\StringTok{ }\ErrorTok{~}\NormalTok{X_LOCATION}\OperatorTok{+}\NormalTok{Y_LOCATION}
+  \KeywordTok{return}\NormalTok{(wells_)}
+\NormalTok{\}}
+
+\NormalTok{extractMap2Well <-}\StringTok{ }\ControlFlowTok{function}\NormalTok{ (}\DataTypeTok{wells =} \OtherTok{NULL}\NormalTok{, }\DataTypeTok{rstr =} \OtherTok{NULL}\NormalTok{, }\DataTypeTok{name =} \StringTok{"Map"}\NormalTok{) \{}
+  \ControlFlowTok{if}\NormalTok{(}\KeywordTok{is.null}\NormalTok{(wells) }\OperatorTok{||}\StringTok{ }\KeywordTok{is.null}\NormalTok{(rstr)) }\KeywordTok{return}\NormalTok{(}\OtherTok{NULL}\NormalTok{)}
+  
+\NormalTok{  r_atwells =}\StringTok{ }\KeywordTok{extract}\NormalTok{(rstr,}\KeywordTok{data.frame}\NormalTok{(wells}\OperatorTok{$}\NormalTok{X_LOCATION,wells}\OperatorTok{$}\NormalTok{Y_LOCATION))}
+\NormalTok{  wls =}\StringTok{ }\KeywordTok{cbind}\NormalTok{(}\DataTypeTok{X1 =}\NormalTok{ wells}\OperatorTok{$}\NormalTok{X_LOCATION,}\DataTypeTok{X2 =}\NormalTok{wells}\OperatorTok{$}\NormalTok{Y_LOCATION, }\DataTypeTok{X3 =} \KeywordTok{as.vector}\NormalTok{(r_atwells))}
+  \CommentTok{#browser()}
+\NormalTok{  wls =}\StringTok{ }\KeywordTok{addWellCP}\NormalTok{(wells,}\KeywordTok{as.data.frame}\NormalTok{(wls),}\OtherTok{TRUE}\NormalTok{, name)}
+  \KeywordTok{return}\NormalTok{(wls)}
+\NormalTok{\}}
+
+\NormalTok{addWellCP <-}\StringTok{ }\ControlFlowTok{function}\NormalTok{ (}\DataTypeTok{wells =} \OtherTok{NULL}\NormalTok{, }\DataTypeTok{cpdata =} \OtherTok{NULL}\NormalTok{, }\DataTypeTok{replace =} \OtherTok{TRUE}\NormalTok{, }\DataTypeTok{cpname =} \StringTok{"Value"}\NormalTok{) \{}
+  \ControlFlowTok{if}\NormalTok{(}\KeywordTok{is.null}\NormalTok{(wells) }\OperatorTok{||}\StringTok{ }\KeywordTok{is.null}\NormalTok{(cpdata)) }\KeywordTok{return}\NormalTok{(}\OtherTok{NULL}\NormalTok{)}
+  
+\NormalTok{  wls =}\StringTok{ }\KeywordTok{as.data.frame}\NormalTok{(wells)}
+  \CommentTok{# this aaplies to Data.frames}
+  \CommentTok{# }
+  \ControlFlowTok{if}\NormalTok{(}\OperatorTok{!}\NormalTok{replace) cpname=cpFile}\OperatorTok{$}\NormalTok{name}
+  
+  
+\NormalTok{  closest <-}\StringTok{ }\KeywordTok{nn2}\NormalTok{( }\KeywordTok{cbind}\NormalTok{(wls}\OperatorTok{$}\NormalTok{X_LOCATION,wls}\OperatorTok{$}\NormalTok{Y_LOCATION), }\KeywordTok{cbind}\NormalTok{(cpdata}\OperatorTok{$}\NormalTok{X1,cpdata}\OperatorTok{$}\NormalTok{X2), }
+                    \DataTypeTok{k=}\DecValTok{1}\NormalTok{,}\DataTypeTok{searchtype =} \StringTok{"radius"}\NormalTok{, }\DataTypeTok{radius =} \DecValTok{10}\NormalTok{)}
+
+  \ControlFlowTok{if}\NormalTok{(}\KeywordTok{length}\NormalTok{(closest[}\OperatorTok{!}\KeywordTok{is.na}\NormalTok{(closest}\OperatorTok{$}\NormalTok{nn.idx)])}\OperatorTok{<}\DecValTok{1}\NormalTok{) }\KeywordTok{return}\NormalTok{(}\OtherTok{NULL}\NormalTok{)}
+  \CommentTok{#browser()}
+
+\NormalTok{  wls[[cpname]] =}\StringTok{ }\KeywordTok{c}\NormalTok{(}\DecValTok{1}\OperatorTok{:}\KeywordTok{length}\NormalTok{(wells[,}\DecValTok{1}\NormalTok{]))}
+\NormalTok{  wls[[cpname]] =}\StringTok{ }\OtherTok{NA}
+\NormalTok{  wls[closest}\OperatorTok{$}\NormalTok{nn.idx,cpname] =}\StringTok{ }\NormalTok{cpdata}\OperatorTok{$}\NormalTok{X3}
+  \KeywordTok{coordinates}\NormalTok{(wls) =}\StringTok{ }\ErrorTok{~}\NormalTok{X_LOCATION}\OperatorTok{+}\NormalTok{Y_LOCATION}
+  \KeywordTok{return}\NormalTok{(wls)}
+  
+\NormalTok{\}}
+
+
+\CommentTok{# load CP data into the current wells coordinates or create wells from coordiantes in the file}
+\NormalTok{loadCP <-}\StringTok{ }\ControlFlowTok{function}\NormalTok{ (}\DataTypeTok{wells =} \OtherTok{NULL}\NormalTok{, cpFile , }\DataTypeTok{tolerance =} \DecValTok{10}\NormalTok{, }\DataTypeTok{replace =} \OtherTok{TRUE}\NormalTok{, }\DataTypeTok{cpname =} \StringTok{"Value"}\NormalTok{) \{}
+\NormalTok{  cpdata =}\StringTok{  }\KeywordTok{try}\NormalTok{ ( }\DataTypeTok{expr =} \KeywordTok{read_table2}\NormalTok{(cpFile}\OperatorTok{$}\NormalTok{datapath,}\DataTypeTok{col_names =}\NormalTok{ F), }\OtherTok{TRUE}\NormalTok{)}
+\NormalTok{  ers <-}\StringTok{ }\KeywordTok{try}\NormalTok{ (}\DataTypeTok{expr =} \KeywordTok{problems}\NormalTok{(cpdata),}\OtherTok{TRUE}\NormalTok{)}
+  \ControlFlowTok{if}\NormalTok{( }\KeywordTok{class}\NormalTok{(wells)}\OperatorTok{==}\StringTok{"try-error"} \OperatorTok{||}\StringTok{ }
+\StringTok{      }\KeywordTok{dim}\NormalTok{(ers)[}\DecValTok{1}\NormalTok{]}\OperatorTok{>}\DecValTok{0}\NormalTok{   ) }
+    \KeywordTok{return}\NormalTok{(}\OtherTok{NULL}\NormalTok{)}
+  \ControlFlowTok{if}\NormalTok{( }\KeywordTok{is.null}\NormalTok{(wells)) \{}
+    \KeywordTok{return}\NormalTok{(}\OtherTok{NULL}\NormalTok{)}
+    \CommentTok{#wls = cpdata}
+\NormalTok{    wls =}\StringTok{  }\KeywordTok{list}\NormalTok{( }\DataTypeTok{WELL =} \KeywordTok{c}\NormalTok{(}\DecValTok{1}\OperatorTok{:}\KeywordTok{length}\NormalTok{(cpdata}\OperatorTok{$}\NormalTok{X1)) )}
+\NormalTok{    wls}\OperatorTok{$}\NormalTok{X_LOCATION =}\StringTok{ }\NormalTok{cpdata}\OperatorTok{$}\NormalTok{X1}
+\NormalTok{    wls}\OperatorTok{$}\NormalTok{Y_LOCATION =}\StringTok{ }\NormalTok{cpdata}\OperatorTok{$}\NormalTok{X2}
+\NormalTok{    wls[[cpname]] =}\StringTok{ }\NormalTok{cpdata}\OperatorTok{$}\NormalTok{X3}
+    \CommentTok{#names(cpdata)[1] = "X_LOCATION"}
+    \CommentTok{#names(cpdata)[2] = "Y_LOCATION"}
+    \CommentTok{#names(cpdata)[3] = cpname}
+\NormalTok{    wls =}\StringTok{ }\KeywordTok{as.data.frame}\NormalTok{(wls)}
+    \KeywordTok{coordinates}\NormalTok{(wls) =}\StringTok{ }\ErrorTok{~}\NormalTok{X_LOCATION}\OperatorTok{+}\NormalTok{Y_LOCATION}
+    \CommentTok{#browser()}
+    \KeywordTok{return}\NormalTok{(wls)}
+\NormalTok{  \}}
+
+  \KeywordTok{return}\NormalTok{ (}\KeywordTok{addWellCP}\NormalTok{(wells,cpdata,}\OtherTok{TRUE}\NormalTok{,cpname))}
+\NormalTok{\}}
+
+\CommentTok{# Draw single map}
+\NormalTok{drawMap <-}\StringTok{ }\ControlFlowTok{function}\NormalTok{ (}\DataTypeTok{map =}\NormalTok{ def_map}\OperatorTok{$}\NormalTok{map, }\DataTypeTok{fact =} \FloatTok{1.0}\NormalTok{, }\DataTypeTok{zoom =} \OtherTok{NULL}\NormalTok{) \{}
+\NormalTok{  meanx =}\StringTok{ }\NormalTok{(map}\OperatorTok{@}\NormalTok{bbox[}\DecValTok{1}\NormalTok{, }\DecValTok{1}\NormalTok{] }\OperatorTok{+}\StringTok{ }\NormalTok{map}\OperatorTok{@}\NormalTok{bbox[}\DecValTok{1}\NormalTok{, }\DecValTok{2}\NormalTok{]) }\OperatorTok{/}\StringTok{ }\DecValTok{2}
+\NormalTok{  meany =}\StringTok{ }\NormalTok{(map}\OperatorTok{@}\NormalTok{bbox[}\DecValTok{2}\NormalTok{, }\DecValTok{1}\NormalTok{] }\OperatorTok{+}\StringTok{ }\NormalTok{map}\OperatorTok{@}\NormalTok{bbox[}\DecValTok{2}\NormalTok{, }\DecValTok{2}\NormalTok{]) }\OperatorTok{/}\StringTok{ }\DecValTok{2}
+  
+\NormalTok{  dx =}\StringTok{ }\NormalTok{map}\OperatorTok{@}\NormalTok{bbox[}\DecValTok{1}\NormalTok{, }\DecValTok{2}\NormalTok{] }\OperatorTok{-}\StringTok{ }\NormalTok{map}\OperatorTok{@}\NormalTok{bbox[}\DecValTok{1}\NormalTok{, }\DecValTok{1}\NormalTok{]}
+\NormalTok{  dy =}\StringTok{ }\NormalTok{map}\OperatorTok{@}\NormalTok{bbox[}\DecValTok{2}\NormalTok{, }\DecValTok{2}\NormalTok{] }\OperatorTok{-}\StringTok{ }\NormalTok{map}\OperatorTok{@}\NormalTok{bbox[}\DecValTok{2}\NormalTok{, }\DecValTok{1}\NormalTok{]}
+  
+\NormalTok{  offx =}\StringTok{ }\NormalTok{(meanx }\OperatorTok{-}\StringTok{ }\NormalTok{map}\OperatorTok{@}\NormalTok{bbox[}\DecValTok{1}\NormalTok{, }\DecValTok{1}\NormalTok{])}
+\NormalTok{  offy =}\StringTok{ }\NormalTok{(meanx }\OperatorTok{-}\StringTok{ }\NormalTok{map}\OperatorTok{@}\NormalTok{bbox[}\DecValTok{2}\NormalTok{, }\DecValTok{1}\NormalTok{])}
+  
+\NormalTok{  scale_unit =}\StringTok{ }\KeywordTok{max}\NormalTok{(}\KeywordTok{abs}\NormalTok{(dx), }\KeywordTok{abs}\NormalTok{(dy)) }\OperatorTok{/}\StringTok{ }\DecValTok{5}
+\NormalTok{  scale_num =}
+\StringTok{    }\NormalTok{(scale_unit }\OperatorTok{-}\StringTok{ }\NormalTok{scale_unit }\OperatorTok{%%}\StringTok{ }\NormalTok{(}\DecValTok{10} \OperatorTok{^}\StringTok{ }\KeywordTok{floor}\NormalTok{(}\KeywordTok{log10}\NormalTok{(scale_unit))))}
+  
+\NormalTok{  loc_arrow =}\StringTok{ }\KeywordTok{c}\NormalTok{(meanx }\OperatorTok{-}\StringTok{ }\KeywordTok{abs}\NormalTok{(dx }\OperatorTok{-}\StringTok{ }\NormalTok{dx }\OperatorTok{/}\StringTok{ }\DecValTok{3}\NormalTok{), meany }\OperatorTok{-}\StringTok{ }\KeywordTok{abs}\NormalTok{(dy }\OperatorTok{-}\StringTok{ }\NormalTok{dx }\OperatorTok{/}\StringTok{ }\DecValTok{2}\NormalTok{))}
+\NormalTok{  loc_scale_txt_min =}\StringTok{ }\KeywordTok{c}\NormalTok{(meanx }\OperatorTok{-}\StringTok{ }\KeywordTok{abs}\NormalTok{(dx }\OperatorTok{-}\StringTok{ }\NormalTok{dx }\OperatorTok{/}\StringTok{ }\DecValTok{3}\NormalTok{), meany }\OperatorTok{-}\StringTok{ }\KeywordTok{abs}\NormalTok{(dy }\OperatorTok{-}\StringTok{ }\NormalTok{dx }\OperatorTok{/}
+\StringTok{                                                                }\FloatTok{2.1}\NormalTok{))}
+\NormalTok{  loc_scale_txt_max =}
+\StringTok{    }\KeywordTok{c}\NormalTok{(meanx }\OperatorTok{-}\StringTok{ }\KeywordTok{abs}\NormalTok{(dx }\OperatorTok{-}\StringTok{ }\NormalTok{dx }\OperatorTok{/}\StringTok{ }\DecValTok{3}\NormalTok{) }\OperatorTok{+}\StringTok{ }\NormalTok{scale_num, meany }\OperatorTok{-}\StringTok{ }\KeywordTok{abs}\NormalTok{(dy }\OperatorTok{-}\StringTok{ }\NormalTok{dx }\OperatorTok{/}\StringTok{ }\FloatTok{2.1}\NormalTok{))}
+\NormalTok{  loc_scale =}\StringTok{ }\KeywordTok{c}\NormalTok{(meanx }\OperatorTok{-}\StringTok{ }\KeywordTok{abs}\NormalTok{(dx }\OperatorTok{-}\StringTok{ }\NormalTok{dx }\OperatorTok{/}\StringTok{ }\DecValTok{3}\NormalTok{), meany }\OperatorTok{-}\StringTok{ }\KeywordTok{abs}\NormalTok{(dy }\OperatorTok{-}\StringTok{ }\NormalTok{dx }\OperatorTok{/}\StringTok{ }\FloatTok{2.3}\NormalTok{))}
+  
+\NormalTok{  scale =}\StringTok{ }\KeywordTok{list}\NormalTok{(}
+    \StringTok{"SpatialPolygonsRescale"}\NormalTok{,}
+    \KeywordTok{layout.scale.bar}\NormalTok{(),}
+    \DataTypeTok{offset =}\NormalTok{ loc_scale,}
+    \DataTypeTok{scale =}\NormalTok{ scale_unit,}
+    \DataTypeTok{fill =} \KeywordTok{c}\NormalTok{(}\StringTok{"transparent"}\NormalTok{, }\StringTok{"black"}\NormalTok{)}
+\NormalTok{  )}
+\NormalTok{  text1 =}\StringTok{ }\KeywordTok{list}\NormalTok{(}\StringTok{"sp.text"}\NormalTok{, loc_scale_txt_min, }\DecValTok{0}\NormalTok{)}
+\NormalTok{  text2 =}\StringTok{ }\KeywordTok{list}\NormalTok{(}\StringTok{"sp.text"}\NormalTok{, loc_scale_txt_max, }\KeywordTok{paste}\NormalTok{(scale_num, }\StringTok{" m"}\NormalTok{))}
+\NormalTok{  arrow =}\StringTok{ }\KeywordTok{list}\NormalTok{(}
+    \StringTok{"SpatialPolygonsRescale"}\NormalTok{,}
+    \KeywordTok{layout.north.arrow}\NormalTok{(),}
+    \DataTypeTok{offset =}\NormalTok{ loc_arrow,}
+    \DataTypeTok{scale =}\NormalTok{ scale_unit }\OperatorTok{/}\StringTok{ }\DecValTok{2}
+\NormalTok{  )}
+  \CommentTok{#  spplot(map}
+  \CommentTok{#    map,}
+  \CommentTok{#    sp.layout = list(arrow, scale, text1, text2, arrow),}
+  \CommentTok{#    scales = list(draw = T),}
+  \CommentTok{#    xlim = bbexpand(bbox(map)[1,], 0.3),}
+  \CommentTok{#    ylim = bbexpand(bbox(map)[2,], 0.1),}
+  \CommentTok{#    colorkey = list(space = "right", height = 0.4)}
+  \CommentTok{#  )}
+  \CommentTok{#par(new = TRUE)}
+  \CommentTok{#if (fact > 1)}
+  \CommentTok{#  rstr = disaggregate(raster(map),fact = fact, method = 'bilinear')}
+  \CommentTok{#else if (fact < 1)}
+  \CommentTok{#  rstr = aggregate(raster(map),fact = 1/fact, fun = mean)}
+  \CommentTok{#else rstr = raster(map)}
+  
+  \ControlFlowTok{if}\NormalTok{(}\OperatorTok{!}\KeywordTok{is.null}\NormalTok{(zoom)) \{}
+    \KeywordTok{plot}\NormalTok{(map, }\DataTypeTok{xlim =}\NormalTok{ zoom[}\DecValTok{1}\NormalTok{,], }\DataTypeTok{ylim =}\NormalTok{ zoom[}\DecValTok{2}\NormalTok{,])}
+\NormalTok{  \} }
+  \ControlFlowTok{else}\NormalTok{ \{}
+\NormalTok{    zoom <-}\StringTok{ }\OtherTok{NULL}
+    \KeywordTok{par}\NormalTok{(}\DataTypeTok{new =} \OtherTok{TRUE}\NormalTok{)}
+    \KeywordTok{plot}\NormalTok{(map)}
+\NormalTok{  \}}
+\NormalTok{\}}
+
+\NormalTok{drawRstr <-}\StringTok{ }\ControlFlowTok{function}\NormalTok{ (}\DataTypeTok{map =}\NormalTok{ def_map}\OperatorTok{$}\NormalTok{rstr, }\DataTypeTok{zoom =} \OtherTok{NULL}\NormalTok{) \{}
+
+  \ControlFlowTok{if}\NormalTok{(}\OperatorTok{!}\KeywordTok{is.null}\NormalTok{(zoom)) \{}
+    \KeywordTok{plot}\NormalTok{(map, }\DataTypeTok{xlim =}\NormalTok{ zoom[}\DecValTok{1}\NormalTok{,], }\DataTypeTok{ylim =}\NormalTok{ zoom[}\DecValTok{2}\NormalTok{,])}
+\NormalTok{  \} }
+  \ControlFlowTok{else}\NormalTok{ \{}
+\NormalTok{    zoom <-}\StringTok{ }\OtherTok{NULL}
+    \KeywordTok{par}\NormalTok{(}\DataTypeTok{new =} \OtherTok{TRUE}\NormalTok{)}
+    \KeywordTok{plot}\NormalTok{(map)}
+\NormalTok{  \}}
+\NormalTok{\}}
+
+\NormalTok{drawWells <-}\StringTok{ }\ControlFlowTok{function}\NormalTok{(}\DataTypeTok{wells =} \OtherTok{NULL}\NormalTok{, }\DataTypeTok{rstr =} \OtherTok{NULL}\NormalTok{, }\DataTypeTok{sr =} \OtherTok{NULL}\NormalTok{) \{}
+  \ControlFlowTok{if}\NormalTok{(}\OperatorTok{!}\KeywordTok{is.null}\NormalTok{(wells)) \{}
+    \CommentTok{#par(new = TRUE)}
+    \KeywordTok{plot}\NormalTok{(wells, }\DataTypeTok{add =} \OtherTok{TRUE}\NormalTok{, }\DataTypeTok{pch =} \DecValTok{21}\NormalTok{)}
+    \KeywordTok{text}\NormalTok{(wells, }\DataTypeTok{labels =}\NormalTok{ wells}\OperatorTok{$}\NormalTok{WELL, }\DataTypeTok{cex =}\NormalTok{ .}\DecValTok{7}\NormalTok{, }\DataTypeTok{pos =} \DecValTok{1}\NormalTok{)}
+
+    \CommentTok{#browser()}
+\NormalTok{    drawParTxt <-}\StringTok{ }\ControlFlowTok{function}\NormalTok{(}\DataTypeTok{wls =} \OtherTok{NULL}\NormalTok{, }\DataTypeTok{id =} \DecValTok{1}\NormalTok{, }\DataTypeTok{pos =} \DecValTok{1}\NormalTok{, }\DataTypeTok{sr =} \OtherTok{NULL}\NormalTok{) \{}
+      \ControlFlowTok{if}\NormalTok{(}\KeywordTok{length}\NormalTok{(wls}\OperatorTok{@}\NormalTok{data[}\DecValTok{1}\NormalTok{,]) }\OperatorTok{<}\StringTok{ }\NormalTok{id) }\KeywordTok{return}\NormalTok{()}
+
+\NormalTok{      labs =}\StringTok{ }\KeywordTok{prettyNum}\NormalTok{(wls}\OperatorTok{@}\NormalTok{data[,id][}\OperatorTok{!}\KeywordTok{is.na}\NormalTok{(wls}\OperatorTok{@}\NormalTok{data[,id])], }
+                       \DataTypeTok{digits =} \DecValTok{2}\NormalTok{, }\DataTypeTok{drop0trailing =} \OtherTok{TRUE}\NormalTok{)}
+
+\NormalTok{      clrs =}\StringTok{ }\KeywordTok{rep}\NormalTok{(}\StringTok{"black"}\NormalTok{, }\DataTypeTok{times =} \KeywordTok{length}\NormalTok{(wls}\OperatorTok{@}\NormalTok{data}\OperatorTok{$}\NormalTok{WELL))}
+      \ControlFlowTok{if}\NormalTok{(}\OperatorTok{!}\KeywordTok{is.null}\NormalTok{(sr)) \{}
+\NormalTok{        clrs[sr] =}\StringTok{ "red"}
+\NormalTok{      \}}
+      
+      \ControlFlowTok{if}\NormalTok{(}\KeywordTok{length}\NormalTok{(labs)}\OperatorTok{>}\DecValTok{0}\NormalTok{) }\KeywordTok{text}\NormalTok{(wls[}\OperatorTok{!}\KeywordTok{is.na}\NormalTok{(wls}\OperatorTok{@}\NormalTok{data[,id]),], }\DataTypeTok{labels =}\NormalTok{ labs, }\DataTypeTok{cex =}\NormalTok{ .}\DecValTok{7}\NormalTok{, }\DataTypeTok{pos =}\NormalTok{ pos, }\DataTypeTok{col =}\NormalTok{ clrs[}\OperatorTok{!}\KeywordTok{is.na}\NormalTok{(wls}\OperatorTok{@}\NormalTok{data[,id])])}
+\NormalTok{    \}}
+    
+
+    \KeywordTok{drawParTxt}\NormalTok{(wells,}\DecValTok{2}\NormalTok{,}\DecValTok{2}\NormalTok{, sr)}
+    \KeywordTok{drawParTxt}\NormalTok{(wells,}\DecValTok{3}\NormalTok{,}\DecValTok{4}\NormalTok{, sr)}
+    \KeywordTok{drawParTxt}\NormalTok{(wells,}\DecValTok{4}\NormalTok{,}\DecValTok{3}\NormalTok{, sr)}
+    
+    \CommentTok{#browser()}
+\NormalTok{  \}}
+  
+\NormalTok{\}}
+
+
+\NormalTok{drawHist <-}\StringTok{ }\ControlFlowTok{function}\NormalTok{ (map_m, nbins) \{}
+\NormalTok{  x <-}\StringTok{ }\NormalTok{map_m[}\OperatorTok{!}\KeywordTok{is.na}\NormalTok{(map_m)]}
+\NormalTok{  bins <-}\StringTok{ }\KeywordTok{seq}\NormalTok{(}\KeywordTok{min}\NormalTok{(x), }\KeywordTok{max}\NormalTok{(x), }\DataTypeTok{length.out =}\NormalTok{ nbins }\OperatorTok{+}\StringTok{ }\DecValTok{1}\NormalTok{)}
+  \CommentTok{# draw the histogram with the specified number of bins}
+  \KeywordTok{hist}\NormalTok{(}
+\NormalTok{    x,}
+    \DataTypeTok{breaks =}\NormalTok{ bins,}
+    \DataTypeTok{col =} \StringTok{'darkgray'}\NormalTok{,}
+    \DataTypeTok{border =} \StringTok{'darkgray'}\NormalTok{,}
+    \DataTypeTok{xlab =} \KeywordTok{paste}\NormalTok{(}\KeywordTok{length}\NormalTok{(x),}\StringTok{"samples"}\NormalTok{),}
+    \DataTypeTok{main =} \KeywordTok{paste}\NormalTok{(}\StringTok{"Гистограмма "}\NormalTok{,}\KeywordTok{names}\NormalTok{(map_m))}
+\NormalTok{  )}
+\NormalTok{\}}
+
+\NormalTok{drawHex <-}\StringTok{ }\ControlFlowTok{function}\NormalTok{ (}\DataTypeTok{xy =} \OtherTok{NULL}\NormalTok{, }\DataTypeTok{cells =} \DecValTok{30}\NormalTok{) \{}
+  \ControlFlowTok{if}\NormalTok{(}\KeywordTok{is.null}\NormalTok{(xy)) }
+    \KeywordTok{return}\NormalTok{()}
+\NormalTok{  xccf <-}\StringTok{ }\KeywordTok{ccf}\NormalTok{(xy[[}\DecValTok{2}\NormalTok{]], xy[[}\DecValTok{1}\NormalTok{]], }\DataTypeTok{lag.max =} \DecValTok{0}\NormalTok{)}
+  \KeywordTok{par}\NormalTok{(}\DataTypeTok{cex =} \FloatTok{0.2}\NormalTok{,}
+      \DataTypeTok{cex.lab =} \FloatTok{0.2}\NormalTok{,}
+      \DataTypeTok{cex.axis =} \FloatTok{0.2}\NormalTok{,}
+      \DataTypeTok{cex.main =} \FloatTok{0.2}\NormalTok{,}
+      \DataTypeTok{cex.sub =} \FloatTok{0.2}\NormalTok{,}
+      \DataTypeTok{mai =} \KeywordTok{c}\NormalTok{(}\DecValTok{0}\NormalTok{,}\DecValTok{0}\NormalTok{,}\DecValTok{0}\NormalTok{,}\DecValTok{0}\NormalTok{),}
+      \DataTypeTok{new =} \OtherTok{TRUE}\NormalTok{)}
+  \KeywordTok{hexbinplot}\NormalTok{(}\DataTypeTok{x =}\NormalTok{ xy[[}\DecValTok{2}\NormalTok{]]}\OperatorTok{~}\NormalTok{xy[[}\DecValTok{1}\NormalTok{]],}\DataTypeTok{data =}\NormalTok{ xy,}
+             \DataTypeTok{xlab =} \KeywordTok{names}\NormalTok{(xy)[}\DecValTok{1}\NormalTok{],}
+             \DataTypeTok{ylab =} \KeywordTok{names}\NormalTok{(xy)[}\DecValTok{2}\NormalTok{],}
+             \CommentTok{#aspect = "iso",}
+             \DataTypeTok{main =} \KeywordTok{sprintf}\NormalTok{(}\StringTok{"Кроссплот CC=%5.2f %s=%5.2f"}\NormalTok{, xccf}\OperatorTok{$}\NormalTok{acf, }\KeywordTok{parse}\NormalTok{(}\DataTypeTok{text =} \StringTok{'R^2'}\NormalTok{), }\KeywordTok{as.numeric}\NormalTok{(xccf}\OperatorTok{$}\NormalTok{acf) }\OperatorTok{^}\StringTok{ }\DecValTok{2}\NormalTok{),}
+             \DataTypeTok{xbins =}\NormalTok{ cells}
+             \CommentTok{#colramp = rainbow}
+             
+\NormalTok{  )}
+  \CommentTok{#text(c(1,1),labels = basename(myReactives$map1$fn))}
+\NormalTok{\}}
+
+\NormalTok{buildMLR <-}\StringTok{ }\ControlFlowTok{function}\NormalTok{(}\DataTypeTok{wells =} \OtherTok{NULL}\NormalTok{, }\DataTypeTok{rows =} \OtherTok{NULL}\NormalTok{)\{}
+  \ControlFlowTok{if}\NormalTok{(}\KeywordTok{is.null}\NormalTok{(wells) }\OperatorTok{||}\StringTok{ }\KeywordTok{length}\NormalTok{(wells}\OperatorTok{@}\NormalTok{data[}\DecValTok{1}\NormalTok{,])}\OperatorTok{<}\DecValTok{4}\NormalTok{) }\KeywordTok{return}\NormalTok{(}\OtherTok{NULL}\NormalTok{)}
+  
+\NormalTok{  data =}\StringTok{ }\NormalTok{wells}\OperatorTok{@}\NormalTok{data}
+\NormalTok{  n1 =}\StringTok{ }\KeywordTok{length}\NormalTok{(data}\OperatorTok{$}\NormalTok{Values[}\OperatorTok{!}\KeywordTok{is.na}\NormalTok{(data}\OperatorTok{$}\NormalTok{Values)])}
+\NormalTok{  n2 =}\StringTok{ }\KeywordTok{length}\NormalTok{(data}\OperatorTok{$}\NormalTok{Map1[}\OperatorTok{!}\KeywordTok{is.na}\NormalTok{(data}\OperatorTok{$}\NormalTok{Map1)])}
+\NormalTok{  n3 =}\StringTok{ }\KeywordTok{length}\NormalTok{(data}\OperatorTok{$}\NormalTok{Map2[}\OperatorTok{!}\KeywordTok{is.na}\NormalTok{(data}\OperatorTok{$}\NormalTok{Map2)])}
+  \ControlFlowTok{if}\NormalTok{(n1}\OperatorTok{<}\DecValTok{1} \OperatorTok{||}\StringTok{ }\NormalTok{n2}\OperatorTok{<}\DecValTok{1} \OperatorTok{||}\StringTok{ }\NormalTok{n3}\OperatorTok{<}\DecValTok{1}\NormalTok{) }\KeywordTok{return}\NormalTok{(}\OtherTok{NULL}\NormalTok{)}
+  \KeywordTok{row.names}\NormalTok{(data) =}\StringTok{ }\NormalTok{data}\OperatorTok{$}\NormalTok{WELL}
+  \ControlFlowTok{if}\NormalTok{(}\KeywordTok{is.null}\NormalTok{(rows)) fit =}\StringTok{ }\KeywordTok{lm}\NormalTok{(Values }\OperatorTok{~}\StringTok{ }\NormalTok{Map1 }\OperatorTok{+}\StringTok{ }\NormalTok{Map2, data)}
+  \ControlFlowTok{else}\NormalTok{ \{}
+\NormalTok{    sel =}\StringTok{ }\KeywordTok{rep}\NormalTok{( }\OtherTok{TRUE}\NormalTok{, }\DataTypeTok{times =} \KeywordTok{length}\NormalTok{(data}\OperatorTok{$}\NormalTok{WELL))}
+\NormalTok{    sel[rows] =}\StringTok{ }\OtherTok{FALSE}
+\NormalTok{    fit =}\StringTok{ }\KeywordTok{lm}\NormalTok{(Values }\OperatorTok{~}\StringTok{ }\NormalTok{Map1 }\OperatorTok{+}\StringTok{ }\NormalTok{Map2, data[sel,])}
+    \CommentTok{#names(fit$residuals) = data$WELL[sel]}
+\NormalTok{  \}}
+  \KeywordTok{return}\NormalTok{(fit)}
+\NormalTok{\}}
+
+\NormalTok{buildGLM <-}\StringTok{ }\ControlFlowTok{function}\NormalTok{(}\DataTypeTok{wells =} \OtherTok{NULL}\NormalTok{, }\DataTypeTok{rows =} \OtherTok{NULL}\NormalTok{, }\DataTypeTok{type =}\NormalTok{ glm)\{}
+  \ControlFlowTok{if}\NormalTok{(}\KeywordTok{is.null}\NormalTok{(wells) }\OperatorTok{||}\StringTok{ }\KeywordTok{length}\NormalTok{(wells}\OperatorTok{@}\NormalTok{data[}\DecValTok{1}\NormalTok{,])}\OperatorTok{<}\DecValTok{4}\NormalTok{) }\KeywordTok{return}\NormalTok{(}\OtherTok{NULL}\NormalTok{)}
+  
+\NormalTok{  data =}\StringTok{ }\NormalTok{wells}\OperatorTok{@}\NormalTok{data}
+\NormalTok{  n1 =}\StringTok{ }\KeywordTok{length}\NormalTok{(data}\OperatorTok{$}\NormalTok{Values[}\OperatorTok{!}\KeywordTok{is.na}\NormalTok{(data}\OperatorTok{$}\NormalTok{Values)])}
+\NormalTok{  n2 =}\StringTok{ }\KeywordTok{length}\NormalTok{(data}\OperatorTok{$}\NormalTok{Map1[}\OperatorTok{!}\KeywordTok{is.na}\NormalTok{(data}\OperatorTok{$}\NormalTok{Map1)])}
+\NormalTok{  n3 =}\StringTok{ }\KeywordTok{length}\NormalTok{(data}\OperatorTok{$}\NormalTok{Map2[}\OperatorTok{!}\KeywordTok{is.na}\NormalTok{(data}\OperatorTok{$}\NormalTok{Map2)])}
+  \ControlFlowTok{if}\NormalTok{(n1}\OperatorTok{<}\DecValTok{1} \OperatorTok{||}\StringTok{ }\NormalTok{n2}\OperatorTok{<}\DecValTok{1} \OperatorTok{||}\StringTok{ }\NormalTok{n3}\OperatorTok{<}\DecValTok{1}\NormalTok{) }\KeywordTok{return}\NormalTok{(}\OtherTok{NULL}\NormalTok{)}
+  \KeywordTok{row.names}\NormalTok{(data) =}\StringTok{ }\NormalTok{data}\OperatorTok{$}\NormalTok{WELL}
+  \ControlFlowTok{if}\NormalTok{(}\KeywordTok{is.null}\NormalTok{(rows)) fit =}\StringTok{ }\KeywordTok{glm}\NormalTok{(Values }\OperatorTok{~}\StringTok{ }\NormalTok{Map1 }\OperatorTok{+}\StringTok{ }\NormalTok{Map2, data, }\DataTypeTok{family =}\NormalTok{ poisson)}
+  \ControlFlowTok{else}\NormalTok{ \{}
+\NormalTok{    sel =}\StringTok{ }\KeywordTok{rep}\NormalTok{( }\OtherTok{TRUE}\NormalTok{, }\DataTypeTok{times =} \KeywordTok{length}\NormalTok{(data}\OperatorTok{$}\NormalTok{WELL))}
+\NormalTok{    sel[rows] =}\StringTok{ }\OtherTok{FALSE}
+\NormalTok{    fit =}\StringTok{ }\KeywordTok{glm}\NormalTok{(Values }\OperatorTok{~}\StringTok{ }\NormalTok{Map1 }\OperatorTok{+}\StringTok{ }\NormalTok{Map2, data[sel,], }\DataTypeTok{family =}\NormalTok{ poisson)}
+    \CommentTok{#names(fit$residuals) = data$WELL[sel]}
+\NormalTok{  \}}
+  \KeywordTok{return}\NormalTok{(fit)}
+\NormalTok{\}}
+
+
+\NormalTok{drawModelQC <-}\StringTok{ }\ControlFlowTok{function}\NormalTok{(}\DataTypeTok{fit =} \OtherTok{NULL}\NormalTok{)\{}
+  \ControlFlowTok{if}\NormalTok{(}\KeywordTok{is.null}\NormalTok{(fit)) }\KeywordTok{return}\NormalTok{()}
+
+  \KeywordTok{par}\NormalTok{(}\DataTypeTok{mfrow =} \KeywordTok{c}\NormalTok{(}\DecValTok{2}\NormalTok{,}\DecValTok{2}\NormalTok{))}
+  \KeywordTok{plot}\NormalTok{(fit)}
+  \KeywordTok{return}\NormalTok{(fit)}
+\NormalTok{\}}
+
+\NormalTok{drawModelXplot <-}\StringTok{ }\ControlFlowTok{function}\NormalTok{(}\DataTypeTok{data =} \OtherTok{NULL}\NormalTok{, }\DataTypeTok{lmfit =} \OtherTok{NULL}\NormalTok{, }\DataTypeTok{srows =} \OtherTok{NULL}\NormalTok{) \{}
+\NormalTok{  sel =}\StringTok{ }\KeywordTok{c}\NormalTok{( }\DecValTok{1}\OperatorTok{:}\KeywordTok{length}\NormalTok{(data}\OperatorTok{$}\NormalTok{WELL))}
+\NormalTok{  sel[srows] =}\StringTok{ }\OtherTok{NA}
+\NormalTok{  sel =}\StringTok{ }\NormalTok{sel[}\OperatorTok{!}\KeywordTok{is.na}\NormalTok{(data}\OperatorTok{$}\NormalTok{Values)]}
+\NormalTok{  sel =}\StringTok{ }\NormalTok{sel[}\OperatorTok{!}\KeywordTok{is.na}\NormalTok{(sel)]}
+\NormalTok{  predicted =}\StringTok{ }\KeywordTok{predict.lm}\NormalTok{(lmfit)}
+\NormalTok{  measured =}\StringTok{ }\NormalTok{data}\OperatorTok{$}\NormalTok{Values[sel]}
+\NormalTok{  abl =}\StringTok{ }\KeywordTok{lm}\NormalTok{(predicted}\OperatorTok{~}\NormalTok{measured)}
+  \CommentTok{#sel[input$table_wells_rows_selected] = FALSE}
+  \CommentTok{#sel <- sel[!is.na(myReactives$wells@data$Values)]}
+  \CommentTok{#browser()}
+\NormalTok{  xccf <-}\StringTok{ }\KeywordTok{ccf}\NormalTok{(measured, predicted, }\DataTypeTok{lag.max =} \DecValTok{0}\NormalTok{, }\DataTypeTok{plot =}\NormalTok{ F)}
+  \KeywordTok{plot}\NormalTok{(measured, predicted, }
+       \DataTypeTok{main =} \KeywordTok{sprintf}\NormalTok{(}\StringTok{"Кроссплот CC=%5.2f Rsq=%5.2f"}\NormalTok{, xccf}\OperatorTok{$}\NormalTok{acf, }\KeywordTok{as.numeric}\NormalTok{(xccf}\OperatorTok{$}\NormalTok{acf) }\OperatorTok{^}\StringTok{ }\DecValTok{2}\NormalTok{))}
+  \KeywordTok{abline}\NormalTok{(abl)}
+  \KeywordTok{text}\NormalTok{(}\KeywordTok{mean}\NormalTok{(measured),}\KeywordTok{max}\NormalTok{(predicted),}
+       \KeywordTok{paste}\NormalTok{(abl}\OperatorTok{$}\NormalTok{call}\OperatorTok{$}\NormalTok{formula[}\DecValTok{2}\NormalTok{],}\StringTok{" = "}\NormalTok{, abl}\OperatorTok{$}\NormalTok{call}\OperatorTok{$}\NormalTok{formula[}\DecValTok{3}\NormalTok{],}\StringTok{" * "}\NormalTok{,}\KeywordTok{prettyNum}\NormalTok{(abl}\OperatorTok{$}\NormalTok{coefficients[}\DecValTok{2}\NormalTok{]),}\StringTok{"+"}\NormalTok{,}\KeywordTok{prettyNum}\NormalTok{(abl}\OperatorTok{$}\NormalTok{coefficients[}\DecValTok{1}\NormalTok{])))}
+  \CommentTok{#plot(anova(myReactives$fit))}
+  
+\NormalTok{\}}
+
+\NormalTok{getModelXplotText <-}\StringTok{ }\ControlFlowTok{function}\NormalTok{(}\DataTypeTok{data =} \OtherTok{NULL}\NormalTok{, }\DataTypeTok{lmfit =} \OtherTok{NULL}\NormalTok{, }\DataTypeTok{srows =} \OtherTok{NULL}\NormalTok{) \{}
+\NormalTok{  sel =}\StringTok{ }\KeywordTok{c}\NormalTok{( }\DecValTok{1}\OperatorTok{:}\KeywordTok{length}\NormalTok{(data}\OperatorTok{$}\NormalTok{WELL))}
+\NormalTok{  sel[srows] =}\StringTok{ }\OtherTok{NA}
+\NormalTok{  sel =}\StringTok{ }\NormalTok{sel[}\OperatorTok{!}\KeywordTok{is.na}\NormalTok{(data}\OperatorTok{$}\NormalTok{Values)]}
+\NormalTok{  sel =}\StringTok{ }\NormalTok{sel[}\OperatorTok{!}\KeywordTok{is.na}\NormalTok{(sel)]}
+\NormalTok{  predicted =}\StringTok{ }\KeywordTok{predict.lm}\NormalTok{(lmfit)}
+\NormalTok{  measured =}\StringTok{ }\NormalTok{data}\OperatorTok{$}\NormalTok{Values[sel]}
+\NormalTok{  abl =}\StringTok{ }\KeywordTok{lm}\NormalTok{(predicted}\OperatorTok{~}\NormalTok{measured)}
+  \KeywordTok{return}\NormalTok{(}\KeywordTok{paste}\NormalTok{(abl}\OperatorTok{$}\NormalTok{call}\OperatorTok{$}\NormalTok{formula[}\DecValTok{2}\NormalTok{],}\StringTok{" = "}\NormalTok{, abl}\OperatorTok{$}\NormalTok{call}\OperatorTok{$}\NormalTok{formula[}\DecValTok{3}\NormalTok{],}\StringTok{" * "}\NormalTok{,}\KeywordTok{prettyNum}\NormalTok{(abl}\OperatorTok{$}\NormalTok{coefficients[}\DecValTok{2}\NormalTok{]),}\StringTok{"+"}\NormalTok{,}\KeywordTok{prettyNum}\NormalTok{(abl}\OperatorTok{$}\NormalTok{coefficients[}\DecValTok{1}\NormalTok{])))}
+  \CommentTok{#plot(anova(myReactives$fit))}
+\NormalTok{\}}
+
+
+\NormalTok{drawXYplot <-}\StringTok{ }\ControlFlowTok{function}\NormalTok{ (}\DataTypeTok{xy =} \OtherTok{NULL}\NormalTok{, }\DataTypeTok{transp =} \DecValTok{1}\NormalTok{) \{}
+  \ControlFlowTok{if}\NormalTok{(}\KeywordTok{is.null}\NormalTok{(xy)) }\KeywordTok{return}\NormalTok{()}
+\NormalTok{  xccf <-}\StringTok{ }\KeywordTok{ccf}\NormalTok{(xy[[}\DecValTok{1}\NormalTok{]], xy[[}\DecValTok{2}\NormalTok{]], }\DataTypeTok{lag.max =} \DecValTok{0}\NormalTok{, }\DataTypeTok{plot =}\NormalTok{ F)}
+  
+  \CommentTok{#xmean <- mean(xy$x)}
+\NormalTok{  xstd <-}\StringTok{ }\KeywordTok{sd}\NormalTok{(xy[[}\DecValTok{1}\NormalTok{]])}
+\NormalTok{  xdv <-}\StringTok{ }\KeywordTok{max}\NormalTok{(xy[[}\DecValTok{1}\NormalTok{]])}\OperatorTok{-}\KeywordTok{min}\NormalTok{(xy[[}\DecValTok{1}\NormalTok{]])}
+  
+  \CommentTok{#ymean <- mean(xy$y)}
+\NormalTok{  ystd <-}\StringTok{ }\KeywordTok{sd}\NormalTok{(xy[[}\DecValTok{2}\NormalTok{]])}
+\NormalTok{  ydv <-}\StringTok{ }\KeywordTok{max}\NormalTok{(xy[[}\DecValTok{2}\NormalTok{]])}\OperatorTok{-}\KeywordTok{min}\NormalTok{(xy[[}\DecValTok{2}\NormalTok{]])}
+  
+\NormalTok{  dms <-}\StringTok{ }\KeywordTok{sqrt}\NormalTok{((}\DecValTok{2}\OperatorTok{*}\NormalTok{xstd)}\OperatorTok{^}\DecValTok{2}\OperatorTok{+}\NormalTok{(}\DecValTok{2}\OperatorTok{*}\NormalTok{ystd)}\OperatorTok{^}\DecValTok{2}\NormalTok{)}
+\NormalTok{  dmd <-}\StringTok{ }\KeywordTok{sqrt}\NormalTok{(xdv}\OperatorTok{^}\DecValTok{2}\OperatorTok{+}\NormalTok{ydv}\OperatorTok{^}\DecValTok{2}\NormalTok{)}
+\NormalTok{  dm <-}\StringTok{ }\KeywordTok{abs}\NormalTok{(}\KeywordTok{as.numeric}\NormalTok{(xccf}\OperatorTok{$}\NormalTok{acf))}\OperatorTok{*}\NormalTok{(dms}\OperatorTok{/}\NormalTok{dmd)}\OperatorTok{*}\FloatTok{0.5}
+  \CommentTok{#mcol - expected max number of points in a cell}
+  \CommentTok{#mcol <- length(xy$x)^(dm)}
+\NormalTok{  mcol <-}\StringTok{ }\KeywordTok{ceiling}\NormalTok{((}\KeywordTok{length}\NormalTok{(xy[[}\DecValTok{1}\NormalTok{]])}\OperatorTok{*}\FloatTok{0.95}\NormalTok{)}\OperatorTok{^}\KeywordTok{sqrt}\NormalTok{(dm))}\OperatorTok{*}\DecValTok{10}\OperatorTok{^}\NormalTok{(transp)}
+  \KeywordTok{plot}\NormalTok{(}
+\NormalTok{    xy[[}\DecValTok{1}\NormalTok{]],}
+\NormalTok{    xy[[}\DecValTok{2}\NormalTok{]],}
+    \DataTypeTok{xlab =} \KeywordTok{names}\NormalTok{(xy)[}\DecValTok{1}\NormalTok{],}
+    \DataTypeTok{ylab =} \KeywordTok{names}\NormalTok{(xy)[}\DecValTok{2}\NormalTok{],}
+    \CommentTok{#xlab = mcol,}
+    \CommentTok{#ylab = dm,}
+    \DataTypeTok{main =} \KeywordTok{sprintf}\NormalTok{(}\StringTok{"Кроссплот CC=%5.2f %s=%5.2f"}\NormalTok{, xccf}\OperatorTok{$}\NormalTok{acf, }\KeywordTok{parse}\NormalTok{(}\DataTypeTok{text =} \StringTok{'R^2'}\NormalTok{), }\KeywordTok{as.numeric}\NormalTok{(xccf}\OperatorTok{$}\NormalTok{acf) }\OperatorTok{^}\StringTok{ }\DecValTok{2}\NormalTok{),}
+    \DataTypeTok{col =} \KeywordTok{rgb}\NormalTok{(}\DecValTok{0}\NormalTok{, }\DecValTok{0}\NormalTok{, mcol, }\DecValTok{1}\NormalTok{ , }\DataTypeTok{maxColorValue =}\NormalTok{ mcol),}
+    \DataTypeTok{pch =} \DecValTok{16}
+\NormalTok{  )}
+  
+\NormalTok{\}}
+
+\NormalTok{drawTable <-}\StringTok{ }\ControlFlowTok{function}\NormalTok{ (}\DataTypeTok{wells_ =} \OtherTok{NULL}\NormalTok{) \{}
+  \ControlFlowTok{if}\NormalTok{(}\KeywordTok{is.null}\NormalTok{(wells_)) }\KeywordTok{return}\NormalTok{()}
+\NormalTok{  wells =}\StringTok{ }\KeywordTok{as.data.frame}\NormalTok{(wells_)}
+  \CommentTok{#browser()}
+  \KeywordTok{datatable}\NormalTok{(}
+    \KeywordTok{cbind}\NormalTok{(}\StringTok{' '}\NormalTok{ =}\StringTok{ '&oplus;'}\NormalTok{, wells ), }\DataTypeTok{escape =} \DecValTok{0}\NormalTok{,}
+    \DataTypeTok{caption =} \StringTok{"Скважины: "}\NormalTok{,}
+    \DataTypeTok{filter =} \StringTok{"none"}\NormalTok{,}
+    \CommentTok{#height = 5,}
+    \CommentTok{#editable = TRUE,}
+    \DataTypeTok{class =} \StringTok{"compact"}\NormalTok{,}
+    \DataTypeTok{rownames =} \OtherTok{FALSE}\NormalTok{,}
+    \DataTypeTok{options =} \KeywordTok{list}\NormalTok{(}
+      \DataTypeTok{pagingType =} \StringTok{"simple"}\NormalTok{,}
+      \DataTypeTok{paging =} \OtherTok{FALSE}\NormalTok{,}
+      \DataTypeTok{ColumnRender =}\NormalTok{ prettyNum,}
+      \DataTypeTok{scrollY =} \StringTok{"400px"}\NormalTok{,}
+      \DataTypeTok{scrollCollapse =} \OtherTok{TRUE}\NormalTok{,}
+      \DataTypeTok{pageLength =} \DecValTok{10}\NormalTok{,}
+      \DataTypeTok{columnDefs =} \KeywordTok{list}\NormalTok{(}
+        \KeywordTok{list}\NormalTok{(}\DataTypeTok{visible =} \OtherTok{FALSE}\NormalTok{, }\DataTypeTok{targets =} \KeywordTok{c}\NormalTok{(}\DecValTok{2}\OperatorTok{:}\DecValTok{3}\NormalTok{)),}
+        \KeywordTok{list}\NormalTok{(}\DataTypeTok{orderable =} \OtherTok{FALSE}\NormalTok{, }\DataTypeTok{className =} \StringTok{'details-control'}\NormalTok{, }\DataTypeTok{targets =} \DecValTok{0}\NormalTok{)}
+\NormalTok{      )}
+\NormalTok{    ),}
+    \DataTypeTok{callback =} \KeywordTok{JS}\NormalTok{(}\StringTok{"}
+\StringTok{                  table.column(1).nodes().to$().css(\{cursor: 'pointer'\});}
+\StringTok{                  var format = function(d) \{}
+\StringTok{                  return '<div style=}\CharTok{\textbackslash{}"}\StringTok{background-color:#eee; padding: .5em;}\CharTok{\textbackslash{}"}\StringTok{> Loc: (' +}
+\StringTok{                  Math.round(d[2]) + ':' + Math.round(d[3]) + ')  Elevation: ' + d[4] + '</div>';}
+\StringTok{                  \};}
+\StringTok{                  table.on('click', 'td.details-control', function() \{}
+\StringTok{                  var td = $(this), row = table.row(td.closest('tr'));}
+\StringTok{                  if (row.child.isShown()) \{}
+\StringTok{                  row.child.hide();}
+\StringTok{                  td.html('&oplus;');}
+\StringTok{                  \} else \{}
+\StringTok{                  row.child(format(row.data())).show();}
+\StringTok{                  td.html('&CircleMinus;');}
+\StringTok{                  \}}
+\StringTok{                  \});"}
+
+\NormalTok{    )}
+\NormalTok{    )}
+
+\NormalTok{\}}
+  
+\CommentTok{#match and return vectors for CC and xplot calc}
+\NormalTok{getXYvectors <-}\StringTok{ }\ControlFlowTok{function}\NormalTok{(map1, map2) \{}
+  \ControlFlowTok{if}\NormalTok{(}\KeywordTok{is.null}\NormalTok{(map1) }\OperatorTok{||}\StringTok{ }\KeywordTok{is.null}\NormalTok{(map2)) }\KeywordTok{return}\NormalTok{(}\OtherTok{NULL}\NormalTok{)}
+\NormalTok{  mask <-}\StringTok{ }\NormalTok{map1}\OperatorTok{$}\NormalTok{mat }\OperatorTok{+}\StringTok{ }\NormalTok{map2}\OperatorTok{$}\NormalTok{mat}
+\NormalTok{  mask[}\OperatorTok{!}\KeywordTok{is.na}\NormalTok{(mask)] <-}\StringTok{ }\OtherTok{TRUE}
+\NormalTok{  mask[}\KeywordTok{is.na}\NormalTok{(mask)] <-}\StringTok{ }\OtherTok{FALSE}
+  
+\NormalTok{  x1 =}\StringTok{ }\NormalTok{map1}\OperatorTok{$}\NormalTok{mat[}\KeywordTok{as.logical}\NormalTok{(mask)]}
+\NormalTok{  x2 =}\StringTok{ }\NormalTok{map2}\OperatorTok{$}\NormalTok{mat[}\KeywordTok{as.logical}\NormalTok{(mask)]}
+\NormalTok{  xy =}\StringTok{ }\KeywordTok{list}\NormalTok{(x1,x2)}
+  \KeywordTok{names}\NormalTok{(xy) <-}\StringTok{ }\KeywordTok{c}\NormalTok{(map1}\OperatorTok{$}\NormalTok{fn,map2}\OperatorTok{$}\NormalTok{fn)}
+  \KeywordTok{return}\NormalTok{ (xy)}
+\NormalTok{\}}
+
+\CommentTok{# Define server logic required to draw a histogram}
+\KeywordTok{options}\NormalTok{(}\DataTypeTok{shiny.maxRequestSize =} \DecValTok{500} \OperatorTok{*}\StringTok{ }\DecValTok{1024} \OperatorTok{^}\StringTok{ }\DecValTok{2}\NormalTok{)}
+\KeywordTok{options}\NormalTok{(}\DataTypeTok{shiny.reactlog =} \OtherTok{TRUE}\NormalTok{)}
+\KeywordTok{options}\NormalTok{(}\DataTypeTok{shiny.host =} \StringTok{"0.0.0.0"}\NormalTok{)}
+\KeywordTok{options}\NormalTok{(}\DataTypeTok{shiny.port =} \DecValTok{8080}\NormalTok{)}
+\NormalTok{server <-}\StringTok{ }\ControlFlowTok{function}\NormalTok{(input, output, session) \{}
+  \CommentTok{#CB: set Zoom rect ####}
+  \KeywordTok{observeEvent}\NormalTok{(input}\OperatorTok{$}\NormalTok{plot_brush , \{}
+\NormalTok{    myReactives}\OperatorTok{$}\NormalTok{zoom <-}\StringTok{ }\KeywordTok{rbind}\NormalTok{(}\KeywordTok{c}\NormalTok{(input}\OperatorTok{$}\NormalTok{plot_brush}\OperatorTok{$}\NormalTok{xmin,input}\OperatorTok{$}\NormalTok{plot_brush}\OperatorTok{$}\NormalTok{xmax),}
+                              \KeywordTok{c}\NormalTok{(input}\OperatorTok{$}\NormalTok{plot_brush}\OperatorTok{$}\NormalTok{ymin,input}\OperatorTok{$}\NormalTok{plot_brush}\OperatorTok{$}\NormalTok{ymax))}
+\NormalTok{  \})}
+  
+  \CommentTok{#CB: load maps ####}
+  \KeywordTok{observeEvent}\NormalTok{(input}\OperatorTok{$}\NormalTok{file1 , \{}
+\NormalTok{    map_obj =}\StringTok{ }\KeywordTok{loadMapFile}\NormalTok{(input}\OperatorTok{$}\NormalTok{file1)}
+\NormalTok{    map_obj =}\StringTok{ }\KeywordTok{upscaleMap}\NormalTok{(map_obj,input}\OperatorTok{$}\NormalTok{rstr_fact,}\DataTypeTok{func =}\NormalTok{ mean)}
+    \ControlFlowTok{if}\NormalTok{ (}\KeywordTok{is.null}\NormalTok{(map_obj)) }
+      \KeywordTok{showNotification}\NormalTok{(}\DataTypeTok{ui =} \StringTok{"Error loading Map file. Assume the Format should be ESRI ASCIIgrid."}\NormalTok{,}
+                       \DataTypeTok{type =} \StringTok{"error"}\NormalTok{)}
+    \ControlFlowTok{else}\NormalTok{ myReactives}\OperatorTok{$}\NormalTok{wells <-}\StringTok{ }\KeywordTok{extractMap2Well}\NormalTok{(myReactives}\OperatorTok{$}\NormalTok{wells,map_obj}\OperatorTok{$}\NormalTok{rstr, }\StringTok{"Map1"}\NormalTok{)}
+\NormalTok{    myReactives}\OperatorTok{$}\NormalTok{map1 <-}\StringTok{ }\NormalTok{map_obj}
+    \CommentTok{#myReactives$fit <- buildMLR(myReactives$wells, input$table_wells_rows_selected)}
+\NormalTok{  \})}
+  \KeywordTok{observeEvent}\NormalTok{(input}\OperatorTok{$}\NormalTok{file2, \{}
+\NormalTok{    map_obj =}\StringTok{ }\KeywordTok{loadMapFile}\NormalTok{(input}\OperatorTok{$}\NormalTok{file2)}
+\NormalTok{    map_obj =}\StringTok{ }\KeywordTok{upscaleMap}\NormalTok{(map_obj,input}\OperatorTok{$}\NormalTok{rstr_fact,}\DataTypeTok{func =}\NormalTok{ mean)}
+    \ControlFlowTok{if}\NormalTok{ (}\KeywordTok{is.null}\NormalTok{(map_obj)) }
+      \KeywordTok{showNotification}\NormalTok{(}\DataTypeTok{ui =} \StringTok{"Error loading Map file. Assume the Format should be ESRI ASCIIgrid."}\NormalTok{,}
+                       \DataTypeTok{type =} \StringTok{"error"}\NormalTok{)}
+    \ControlFlowTok{else}\NormalTok{ myReactives}\OperatorTok{$}\NormalTok{wells <-}\StringTok{ }\KeywordTok{extractMap2Well}\NormalTok{(myReactives}\OperatorTok{$}\NormalTok{wells,map_obj}\OperatorTok{$}\NormalTok{rstr, }\StringTok{"Map2"}\NormalTok{)}
+\NormalTok{    myReactives}\OperatorTok{$}\NormalTok{map2 <-}\StringTok{ }\NormalTok{map_obj}
+    \CommentTok{#myReactives$fit <- buildMLR(myReactives$wells, input$table_wells_rows_selected)}
+\NormalTok{  \})}
+  
+  \CommentTok{#CB: update upscalingmethid ####}
+  \KeywordTok{observeEvent}\NormalTok{(input}\OperatorTok{$}\NormalTok{funcSelect1, \{}
+\NormalTok{    map_obj =}\StringTok{ }\KeywordTok{upscaleMap}\NormalTok{(myReactives}\OperatorTok{$}\NormalTok{map1,input}\OperatorTok{$}\NormalTok{rstr_fact,}\DataTypeTok{func =}\NormalTok{ flist[[input}\OperatorTok{$}\NormalTok{funcSelect1]])}
+    \KeywordTok{observe}\NormalTok{(myReactives}\OperatorTok{$}\NormalTok{map1 <-}\StringTok{ }\NormalTok{map_obj)}
+    \CommentTok{#myReactives$fit <- buildMLR(myReactives$wells, input$table_wells_rows_selected)}
+\NormalTok{  \})}
+  \KeywordTok{observeEvent}\NormalTok{(input}\OperatorTok{$}\NormalTok{funcSelect2, \{}
+\NormalTok{    map_obj =}\StringTok{ }\KeywordTok{upscaleMap}\NormalTok{(myReactives}\OperatorTok{$}\NormalTok{map2,input}\OperatorTok{$}\NormalTok{rstr_fact,}\DataTypeTok{func =}\NormalTok{ flist[[input}\OperatorTok{$}\NormalTok{funcSelect2]])}
+    \KeywordTok{observe}\NormalTok{(myReactives}\OperatorTok{$}\NormalTok{map2 <-}\StringTok{ }\NormalTok{map_obj)}
+    \CommentTok{#myReactives$fit <- buildMLR(myReactives$wells, input$table_wells_rows_selected)}
+\NormalTok{  \})}
+  
+  \CommentTok{#CB: load Wells ####}
+  \KeywordTok{observeEvent}\NormalTok{(input}\OperatorTok{$}\NormalTok{wellsfile1, \{}
+\NormalTok{    wls <-}\StringTok{ }\KeywordTok{loadWells}\NormalTok{(input}\OperatorTok{$}\NormalTok{wellsfile1)}
+    \ControlFlowTok{if}\NormalTok{ (}\KeywordTok{is.null}\NormalTok{(wls)) }
+      \KeywordTok{showNotification}\NormalTok{(}\DataTypeTok{ui =} \StringTok{"Error loading Well file.}
+\StringTok{Assume the Column-based Format:}
+\StringTok{WELL  X_LOCATION  Y_LOCATION"}\NormalTok{,}
+                       \DataTypeTok{type =} \StringTok{"error"}\NormalTok{)}
+    \ControlFlowTok{else}\NormalTok{ \{}
+      \KeywordTok{showNotification}\NormalTok{(}\DataTypeTok{ui =} \KeywordTok{paste}\NormalTok{(}\KeywordTok{length}\NormalTok{(wls[,}\DecValTok{1}\NormalTok{]),}\StringTok{" wells loaded"}\NormalTok{),}
+                       \DataTypeTok{type =} \StringTok{"default"}\NormalTok{)}
+\NormalTok{      myReactives}\OperatorTok{$}\NormalTok{wells <-}\StringTok{ }\NormalTok{wls}
+\NormalTok{      myReactives}\OperatorTok{$}\NormalTok{wells <-}\StringTok{ }\KeywordTok{extractMap2Well}\NormalTok{(myReactives}\OperatorTok{$}\NormalTok{wells,myReactives}\OperatorTok{$}\NormalTok{map1}\OperatorTok{$}\NormalTok{rstr, }\StringTok{"Map1"}\NormalTok{)}
+\NormalTok{      myReactives}\OperatorTok{$}\NormalTok{wells <-}\StringTok{ }\KeywordTok{extractMap2Well}\NormalTok{(myReactives}\OperatorTok{$}\NormalTok{wells,myReactives}\OperatorTok{$}\NormalTok{map2}\OperatorTok{$}\NormalTok{rstr, }\StringTok{"Map2"}\NormalTok{)}
+\NormalTok{    \}}
+    \CommentTok{#myReactives$fit <- buildMLR(myReactives$wells, input$table_wells_rows_selected)}
+\NormalTok{  \})}
+  
+  \CommentTok{#CB: load CP ####}
+  \KeywordTok{observeEvent}\NormalTok{(input}\OperatorTok{$}\NormalTok{cpfile1, \{}
+\NormalTok{    wls <-}\StringTok{ }\KeywordTok{loadCP}\NormalTok{(myReactives}\OperatorTok{$}\NormalTok{wells,input}\OperatorTok{$}\NormalTok{cpfile1,}\DataTypeTok{cpname =} \StringTok{"Values"}\NormalTok{)}
+    \ControlFlowTok{if}\NormalTok{ (}\KeywordTok{is.null}\NormalTok{(wls)) }
+      \KeywordTok{showNotification}\NormalTok{(}\DataTypeTok{ui =} \StringTok{"Error loading CP file. Load Wells first.}
+\StringTok{Assume the Column-based Format:}
+\StringTok{X_LOCATION  Y_LOCATION  VALUE"}\NormalTok{,}
+                       \DataTypeTok{type =} \StringTok{"error"}\NormalTok{)}
+    \ControlFlowTok{else}\NormalTok{ \{}
+      \KeywordTok{showNotification}\NormalTok{(}\DataTypeTok{ui =} \KeywordTok{paste}\NormalTok{(}\KeywordTok{length}\NormalTok{(wls}\OperatorTok{@}\NormalTok{data}\OperatorTok{$}\NormalTok{Values[}\OperatorTok{!}\KeywordTok{is.na}\NormalTok{(wls}\OperatorTok{@}\NormalTok{data}\OperatorTok{$}\NormalTok{Values)]),}\StringTok{" of "}\NormalTok{,}\KeywordTok{length}\NormalTok{(wls[,}\DecValTok{1}\NormalTok{]),}\StringTok{" wells updated"}\NormalTok{),}
+                       \DataTypeTok{type =} \StringTok{"default"}\NormalTok{)}
+\NormalTok{      myReactives}\OperatorTok{$}\NormalTok{wells <-}\StringTok{ }\NormalTok{wls}
+\NormalTok{    \}}
+    \CommentTok{#myReactives$fit <- buildMLR(myReactives$wells, input$table_wells_rows_selected)}
+\NormalTok{  \})}
+  
+  \CommentTok{#CB: Transposing ####}
+  \KeywordTok{observeEvent}\NormalTok{(input}\OperatorTok{$}\NormalTok{trans1 , \{}
+\NormalTok{    map_obj =}\StringTok{ }\KeywordTok{transposeMap}\NormalTok{(myReactives}\OperatorTok{$}\NormalTok{map1)}
+\NormalTok{    myReactives}\OperatorTok{$}\NormalTok{wells <-}\StringTok{ }\KeywordTok{extractMap2Well}\NormalTok{(myReactives}\OperatorTok{$}\NormalTok{wells,map_obj}\OperatorTok{$}\NormalTok{rstr, }\StringTok{"Map1"}\NormalTok{)}
+    \CommentTok{#myReactives$fit <- buildMLR(myReactives$wells, input$table_wells_rows_selected)}
+    \KeywordTok{observe}\NormalTok{(myReactives}\OperatorTok{$}\NormalTok{map1 <-}\StringTok{ }\NormalTok{map_obj)}
+\NormalTok{  \})}
+  \KeywordTok{observeEvent}\NormalTok{(input}\OperatorTok{$}\NormalTok{trans2 , \{}
+\NormalTok{    map_obj =}\StringTok{ }\KeywordTok{transposeMap}\NormalTok{(myReactives}\OperatorTok{$}\NormalTok{map2)}
+\NormalTok{    myReactives}\OperatorTok{$}\NormalTok{wells <-}\StringTok{ }\KeywordTok{extractMap2Well}\NormalTok{(myReactives}\OperatorTok{$}\NormalTok{wells,map_obj}\OperatorTok{$}\NormalTok{rstr, }\StringTok{"Map2"}\NormalTok{)}
+    \CommentTok{#myReactives$fit <- buildMLR(myReactives$wells, input$table_wells_rows_selected)}
+    \KeywordTok{observe}\NormalTok{(myReactives}\OperatorTok{$}\NormalTok{map2 <-}\StringTok{ }\NormalTok{map_obj)}
+\NormalTok{  \})}
+  
+  \CommentTok{#CB: upscaling  ####}
+  \KeywordTok{observeEvent}\NormalTok{(input}\OperatorTok{$}\NormalTok{rstr_fact , \{}
+\NormalTok{    map_obj1 =}\StringTok{ }\KeywordTok{upscaleMap}\NormalTok{(myReactives}\OperatorTok{$}\NormalTok{map1,input}\OperatorTok{$}\NormalTok{rstr_fact,}\DataTypeTok{func =}\NormalTok{ median)}
+\NormalTok{    map_obj2 =}\StringTok{ }\KeywordTok{upscaleMap}\NormalTok{(myReactives}\OperatorTok{$}\NormalTok{map2,input}\OperatorTok{$}\NormalTok{rstr_fact,}\DataTypeTok{func =}\NormalTok{ median)}
+\NormalTok{    myReactives}\OperatorTok{$}\NormalTok{wells <-}\StringTok{ }\KeywordTok{extractMap2Well}\NormalTok{(myReactives}\OperatorTok{$}\NormalTok{wells,map_obj1}\OperatorTok{$}\NormalTok{rstr, }\StringTok{"Map1"}\NormalTok{)}
+\NormalTok{    myReactives}\OperatorTok{$}\NormalTok{wells <-}\StringTok{ }\KeywordTok{extractMap2Well}\NormalTok{(myReactives}\OperatorTok{$}\NormalTok{wells,map_obj2}\OperatorTok{$}\NormalTok{rstr, }\StringTok{"Map2"}\NormalTok{)}
+    \CommentTok{#myReactives$fit <- buildMLR(myReactives$wells, input$table_wells_rows_selected)}
+    \KeywordTok{observe}\NormalTok{(myReactives}\OperatorTok{$}\NormalTok{map1 <-}\StringTok{ }\NormalTok{map_obj1)}
+    \KeywordTok{observe}\NormalTok{(myReactives}\OperatorTok{$}\NormalTok{map2 <-}\StringTok{ }\NormalTok{map_obj2)}
+\NormalTok{  \})}
+  
+  \CommentTok{#CB: plot maps ####}
+\NormalTok{  output}\OperatorTok{$}\NormalTok{mapPlot1 <-}\StringTok{ }\KeywordTok{renderPlot}\NormalTok{(\{}
+    \CommentTok{#drawMap(myReactives$map1$map,input$rstr_fact,myReactives$zoom)}
+    \KeywordTok{drawRstr}\NormalTok{(myReactives}\OperatorTok{$}\NormalTok{map1}\OperatorTok{$}\NormalTok{rstr,myReactives}\OperatorTok{$}\NormalTok{zoom)}
+    \KeywordTok{drawWells}\NormalTok{(myReactives}\OperatorTok{$}\NormalTok{wells,myReactives}\OperatorTok{$}\NormalTok{map1}\OperatorTok{$}\NormalTok{rstr, }\DataTypeTok{sr =}\NormalTok{ input}\OperatorTok{$}\NormalTok{table_wells_rows_selected)}
+\NormalTok{  \})}
+\NormalTok{  output}\OperatorTok{$}\NormalTok{mapPlot2 <-}\StringTok{ }\KeywordTok{renderPlot}\NormalTok{(\{}
+    \CommentTok{#drawMap(myReactives$map2$map,input$rstr_fact,myReactives$zoom)}
+    \KeywordTok{drawRstr}\NormalTok{(myReactives}\OperatorTok{$}\NormalTok{map2}\OperatorTok{$}\NormalTok{rstr,myReactives}\OperatorTok{$}\NormalTok{zoom)}
+    \KeywordTok{drawWells}\NormalTok{(myReactives}\OperatorTok{$}\NormalTok{wells,myReactives}\OperatorTok{$}\NormalTok{map2}\OperatorTok{$}\NormalTok{rstr, }\DataTypeTok{sr =}\NormalTok{ input}\OperatorTok{$}\NormalTok{table_wells_rows_selected)}
+\NormalTok{  \})}
+
+  \CommentTok{#CB: Zoom reset ####}
+  \KeywordTok{observeEvent}\NormalTok{(input}\OperatorTok{$}\NormalTok{unzoom1 , \{}
+    \CommentTok{#browser()}
+\NormalTok{    myReactives}\OperatorTok{$}\NormalTok{zoom <-}\StringTok{ }\OtherTok{NULL}
+\NormalTok{    session}\OperatorTok{$}\KeywordTok{resetBrush}\NormalTok{(}\StringTok{"plot_brush"}\NormalTok{)}
+\NormalTok{  \})}
+  \KeywordTok{observeEvent}\NormalTok{(input}\OperatorTok{$}\NormalTok{unzoom2 , \{}
+\NormalTok{    myReactives}\OperatorTok{$}\NormalTok{zoom <-}\StringTok{ }\OtherTok{NULL}
+\NormalTok{    session}\OperatorTok{$}\KeywordTok{resetBrush}\NormalTok{(}\StringTok{"plot_brush"}\NormalTok{)}
+\NormalTok{  \})}
+  
+  \CommentTok{#CB: plot histograms ####}
+\NormalTok{  output}\OperatorTok{$}\NormalTok{histPlot1 <-}\StringTok{ }\KeywordTok{renderPlot}\NormalTok{(\{}
+    \KeywordTok{drawHist}\NormalTok{(myReactives}\OperatorTok{$}\NormalTok{map1}\OperatorTok{$}\NormalTok{mat, input}\OperatorTok{$}\NormalTok{bins)}
+\NormalTok{  \})}
+\NormalTok{  output}\OperatorTok{$}\NormalTok{histPlot2 <-}\StringTok{ }\KeywordTok{renderPlot}\NormalTok{(\{}
+    \KeywordTok{drawHist}\NormalTok{(myReactives}\OperatorTok{$}\NormalTok{map2}\OperatorTok{$}\NormalTok{mat, input}\OperatorTok{$}\NormalTok{bins)}
+\NormalTok{  \})}
+  
+  \CommentTok{#CB: plot hexbin xplot ####}
+\NormalTok{  output}\OperatorTok{$}\NormalTok{xPlot_hex <-}\StringTok{ }\KeywordTok{renderPlot}\NormalTok{(\{}
+    \KeywordTok{drawHex}\NormalTok{(}\KeywordTok{getXYvectors}\NormalTok{(myReactives}\OperatorTok{$}\NormalTok{map1, myReactives}\OperatorTok{$}\NormalTok{map2), input}\OperatorTok{$}\NormalTok{cells)}
+\NormalTok{  \})}
+  
+  \CommentTok{#CB: plot MLR model ####}
+\NormalTok{  output}\OperatorTok{$}\NormalTok{fitPlot <-}\StringTok{ }\KeywordTok{renderPlot}\NormalTok{(\{}
+\NormalTok{    myReactives}\OperatorTok{$}\NormalTok{fit <-}\StringTok{ }\KeywordTok{drawModelQC}\NormalTok{(}\KeywordTok{buildMLR}\NormalTok{(myReactives}\OperatorTok{$}\NormalTok{wells, input}\OperatorTok{$}\NormalTok{table_wells_rows_selected))}
+\NormalTok{  \})}
+\NormalTok{  output}\OperatorTok{$}\NormalTok{fitText <-}\StringTok{ }\KeywordTok{renderText}\NormalTok{(\{ }\CommentTok{#renderPrint}
+    \CommentTok{#browser()}
+\NormalTok{    fit =}\StringTok{ }\KeywordTok{buildMLR}\NormalTok{(myReactives}\OperatorTok{$}\NormalTok{wells, input}\OperatorTok{$}\NormalTok{table_wells_rows_selected)}
+\NormalTok{    frm =}\StringTok{ }\KeywordTok{paste}\NormalTok{(fit}\OperatorTok{$}\NormalTok{call}\OperatorTok{$}\NormalTok{formula[}\DecValTok{2}\NormalTok{],}\StringTok{"="}\NormalTok{,}\KeywordTok{prettyNum}\NormalTok{(fit}\OperatorTok{$}\NormalTok{coefficients[}\DecValTok{1}\NormalTok{]))}
+    \ControlFlowTok{for}\NormalTok{( par }\ControlFlowTok{in} \KeywordTok{c}\NormalTok{(}\DecValTok{2}\OperatorTok{:}\KeywordTok{length}\NormalTok{(fit}\OperatorTok{$}\NormalTok{coefficients))) \{}
+\NormalTok{      frm =}\StringTok{ }\KeywordTok{paste}\NormalTok{(frm,}
+                  \StringTok{"+"}\NormalTok{ , }\KeywordTok{prettyNum}\NormalTok{(fit}\OperatorTok{$}\NormalTok{coefficients[par]), }
+                  \StringTok{"*"}\NormalTok{,}\KeywordTok{names}\NormalTok{(fit}\OperatorTok{$}\NormalTok{coefficients)[par])}
+\NormalTok{    \}}
+\NormalTok{    myReactives}\OperatorTok{$}\NormalTok{fit <-}\StringTok{ }\NormalTok{fit}
+    \KeywordTok{paste}\NormalTok{(frm)}
+\NormalTok{  \})}
+  
+  \CommentTok{#CB: plot MLR Xplot ####}
+\NormalTok{  output}\OperatorTok{$}\NormalTok{fitxPlot <-}\StringTok{ }\KeywordTok{renderPlot}\NormalTok{(\{}
+\NormalTok{    fit <-}\StringTok{ }\KeywordTok{buildMLR}\NormalTok{(myReactives}\OperatorTok{$}\NormalTok{wells, input}\OperatorTok{$}\NormalTok{table_wells_rows_selected)}
+    \KeywordTok{drawModelXplot}\NormalTok{ (myReactives}\OperatorTok{$}\NormalTok{wells}\OperatorTok{@}\NormalTok{data, fit, input}\OperatorTok{$}\NormalTok{table_wells_rows_selected)}
+\NormalTok{    myReactives}\OperatorTok{$}\NormalTok{fit <-}\StringTok{ }\NormalTok{fit}
+\NormalTok{  \})}
+  
+\NormalTok{  output}\OperatorTok{$}\NormalTok{fitXText <-}\StringTok{ }\KeywordTok{renderText}\NormalTok{(\{ }\CommentTok{#renderPrint}
+\NormalTok{    fit <-}\StringTok{ }\KeywordTok{buildMLR}\NormalTok{(myReactives}\OperatorTok{$}\NormalTok{wells, input}\OperatorTok{$}\NormalTok{table_wells_rows_selected)}
+\NormalTok{    txt <-}\StringTok{ }\KeywordTok{getModelXplotText}\NormalTok{ (myReactives}\OperatorTok{$}\NormalTok{wells}\OperatorTok{@}\NormalTok{data, fit, input}\OperatorTok{$}\NormalTok{table_wells_rows_selected)}
+\NormalTok{    myReactives}\OperatorTok{$}\NormalTok{fit <-}\StringTok{ }\NormalTok{fit}
+    \KeywordTok{paste}\NormalTok{(txt)}
+\NormalTok{  \})}
+
+  \CommentTok{#CB: plot GLM model ####}
+\NormalTok{  output}\OperatorTok{$}\NormalTok{glmPlot <-}\StringTok{ }\KeywordTok{renderPlot}\NormalTok{(\{}
+\NormalTok{    fit <-}\StringTok{ }\KeywordTok{buildGLM}\NormalTok{(myReactives}\OperatorTok{$}\NormalTok{wells, input}\OperatorTok{$}\NormalTok{table_wells_rows_selected)}
+    \KeywordTok{par}\NormalTok{(}\DataTypeTok{mfrow =} \KeywordTok{c}\NormalTok{(}\DecValTok{2}\NormalTok{,}\DecValTok{2}\NormalTok{))}
+    \KeywordTok{plot}\NormalTok{(fit)}
+\NormalTok{    myReactives}\OperatorTok{$}\NormalTok{fit <-}\StringTok{ }\NormalTok{fit}
+\NormalTok{  \})}
+\NormalTok{  output}\OperatorTok{$}\NormalTok{glmText <-}\StringTok{ }\KeywordTok{renderText}\NormalTok{(\{ }\CommentTok{#renderPrint}
+\NormalTok{    fit <-}\StringTok{ }\KeywordTok{buildGLM}\NormalTok{(myReactives}\OperatorTok{$}\NormalTok{wells, input}\OperatorTok{$}\NormalTok{table_wells_rows_selected)}
+    \CommentTok{#fit = buildMLR(myReactives$wells, input$table_wells_rows_selected)}
+\NormalTok{    frm =}\StringTok{ }\KeywordTok{paste}\NormalTok{(fit}\OperatorTok{$}\NormalTok{call}\OperatorTok{$}\NormalTok{formula[}\DecValTok{2}\NormalTok{],}\StringTok{"="}\NormalTok{,}\KeywordTok{prettyNum}\NormalTok{(fit}\OperatorTok{$}\NormalTok{coefficients[}\DecValTok{1}\NormalTok{]))}
+    \ControlFlowTok{for}\NormalTok{( par }\ControlFlowTok{in} \KeywordTok{c}\NormalTok{(}\DecValTok{2}\OperatorTok{:}\KeywordTok{length}\NormalTok{(fit}\OperatorTok{$}\NormalTok{coefficients))) \{}
+\NormalTok{      frm =}\StringTok{ }\KeywordTok{paste}\NormalTok{(frm,}
+                  \StringTok{"+"}\NormalTok{ , }\KeywordTok{prettyNum}\NormalTok{(fit}\OperatorTok{$}\NormalTok{coefficients[par]), }
+                  \StringTok{"*"}\NormalTok{,}\KeywordTok{names}\NormalTok{(fit}\OperatorTok{$}\NormalTok{coefficients)[par])}
+\NormalTok{    \}}
+\NormalTok{    myReactives}\OperatorTok{$}\NormalTok{fit <-}\StringTok{ }\NormalTok{fit}
+    \KeywordTok{paste}\NormalTok{(frm)}
+\NormalTok{  \})}
+  
+  \CommentTok{#CB: plot GLM Xplot ####}
+\NormalTok{  output}\OperatorTok{$}\NormalTok{glmXPlot <-}\StringTok{ }\KeywordTok{renderPlot}\NormalTok{(\{}
+\NormalTok{    fit <-}\StringTok{ }\KeywordTok{buildGLM}\NormalTok{(myReactives}\OperatorTok{$}\NormalTok{wells, input}\OperatorTok{$}\NormalTok{table_wells_rows_selected)}
+    \KeywordTok{drawModelXplot}\NormalTok{ (myReactives}\OperatorTok{$}\NormalTok{wells}\OperatorTok{@}\NormalTok{data, fit, input}\OperatorTok{$}\NormalTok{table_wells_rows_selected)}
+\NormalTok{    myReactives}\OperatorTok{$}\NormalTok{fit <-}\StringTok{ }\NormalTok{fit}
+\NormalTok{  \})}
+  
+\NormalTok{  output}\OperatorTok{$}\NormalTok{glmXText <-}\StringTok{ }\KeywordTok{renderText}\NormalTok{(\{ }\CommentTok{#renderPrint}
+\NormalTok{    fit <-}\StringTok{ }\KeywordTok{buildGLM}\NormalTok{(myReactives}\OperatorTok{$}\NormalTok{wells, input}\OperatorTok{$}\NormalTok{table_wells_rows_selected)}
+\NormalTok{    txt <-}\StringTok{ }\KeywordTok{getModelXplotText}\NormalTok{ (myReactives}\OperatorTok{$}\NormalTok{wells}\OperatorTok{@}\NormalTok{data, fit, input}\OperatorTok{$}\NormalTok{table_wells_rows_selected)}
+\NormalTok{    myReactives}\OperatorTok{$}\NormalTok{fit <-}\StringTok{ }\NormalTok{fit}
+    \KeywordTok{paste}\NormalTok{(txt)}
+\NormalTok{  \})}
+  \CommentTok{#CB: plot simple xplot ####}
+\NormalTok{  output}\OperatorTok{$}\NormalTok{xPlot_simple <-}\StringTok{ }\KeywordTok{renderPlot}\NormalTok{(\{}
+    \KeywordTok{drawXYplot}\NormalTok{(}\KeywordTok{getXYvectors}\NormalTok{(myReactives}\OperatorTok{$}\NormalTok{map1, myReactives}\OperatorTok{$}\NormalTok{map2),input}\OperatorTok{$}\NormalTok{transp)}
+\NormalTok{  \})}
+  
+  \CommentTok{#CB: draw Table ####}
+\NormalTok{  output}\OperatorTok{$}\NormalTok{table_wells <-}\StringTok{ }\KeywordTok{renderDataTable}\NormalTok{(\{}
+    \KeywordTok{drawTable}\NormalTok{(myReactives}\OperatorTok{$}\NormalTok{wells)}
+\NormalTok{\})}
+
+  \CommentTok{#CB: set Tabs names ####}
+\NormalTok{  output}\OperatorTok{$}\NormalTok{tab1 =}\StringTok{ }\KeywordTok{renderText}\NormalTok{((\{}
+    \KeywordTok{basename}\NormalTok{(myReactives}\OperatorTok{$}\NormalTok{map1}\OperatorTok{$}\NormalTok{fn)}
+\NormalTok{  \}))}
+\NormalTok{  output}\OperatorTok{$}\NormalTok{tab2 =}\StringTok{ }\KeywordTok{renderText}\NormalTok{((\{}
+    \KeywordTok{basename}\NormalTok{(myReactives}\OperatorTok{$}\NormalTok{map2}\OperatorTok{$}\NormalTok{fn)}
+\NormalTok{  \}))}
+
+  \CommentTok{#CB: print out the cursor positions   ####}
+\NormalTok{  output}\OperatorTok{$}\NormalTok{info <-}\StringTok{ }\KeywordTok{renderText}\NormalTok{(\{}
+\NormalTok{    xy_str <-}\StringTok{ }\ControlFlowTok{function}\NormalTok{(e) \{}
+      \ControlFlowTok{if}\NormalTok{ (}\KeywordTok{is.null}\NormalTok{(e))}
+        \KeywordTok{return}\NormalTok{(}\StringTok{"NULL}\CharTok{\textbackslash{}n}\StringTok{"}\NormalTok{)}
+      \KeywordTok{paste0}\NormalTok{(}\StringTok{"x="}\NormalTok{, }\KeywordTok{round}\NormalTok{(e}\OperatorTok{$}\NormalTok{x, }\DecValTok{1}\NormalTok{), }\StringTok{" y="}\NormalTok{, }\KeywordTok{round}\NormalTok{(e}\OperatorTok{$}\NormalTok{y, }\DecValTok{1}\NormalTok{), }\StringTok{"}\CharTok{\textbackslash{}n}\StringTok{"}\NormalTok{)}
+\NormalTok{    \}}
+\NormalTok{    xy_range_str <-}\StringTok{ }\ControlFlowTok{function}\NormalTok{(e) \{}
+      \ControlFlowTok{if}\NormalTok{ (}\KeywordTok{is.null}\NormalTok{(e))}
+        \KeywordTok{return}\NormalTok{(}\StringTok{"NULL}\CharTok{\textbackslash{}n}\StringTok{"}\NormalTok{)}
+      \KeywordTok{paste0}\NormalTok{(}
+        \StringTok{"xmin="}\NormalTok{,}
+        \KeywordTok{round}\NormalTok{(e}\OperatorTok{$}\NormalTok{xmin, }\DecValTok{1}\NormalTok{),}
+        \StringTok{" xmax="}\NormalTok{,}
+        \KeywordTok{round}\NormalTok{(e}\OperatorTok{$}\NormalTok{xmax, }\DecValTok{1}\NormalTok{),}
+        \StringTok{" ymin="}\NormalTok{,}
+        \KeywordTok{round}\NormalTok{(e}\OperatorTok{$}\NormalTok{ymin, }\DecValTok{1}\NormalTok{),}
+        \StringTok{" ymax="}\NormalTok{,}
+        \KeywordTok{round}\NormalTok{(e}\OperatorTok{$}\NormalTok{ymax, }\DecValTok{1}\NormalTok{)}
+\NormalTok{      )}
+      
+\NormalTok{    \}}
+    
+    \KeywordTok{paste0}\NormalTok{(}
+      \StringTok{"click: "}\NormalTok{,}
+      \KeywordTok{xy_str}\NormalTok{(input}\OperatorTok{$}\NormalTok{plot_click),}
+      \StringTok{"dblclick: "}\NormalTok{,}
+      \KeywordTok{xy_str}\NormalTok{(input}\OperatorTok{$}\NormalTok{plot_dblclick),}
+      \StringTok{"hover: "}\NormalTok{,}
+      \KeywordTok{xy_str}\NormalTok{(input}\OperatorTok{$}\NormalTok{plot_hover),}
+      \StringTok{"brush: "}\NormalTok{,}
+      \KeywordTok{xy_range_str}\NormalTok{(input}\OperatorTok{$}\NormalTok{plot_brush)}
+\NormalTok{    )}
+\NormalTok{  \})}
+  
+  \KeywordTok{gc}\NormalTok{()}
+\NormalTok{\}}
+
+\CommentTok{# Run the application}
+\KeywordTok{shinyApp}\NormalTok{(}\DataTypeTok{ui =}\NormalTok{ ui, }\DataTypeTok{server =}\NormalTok{ server)}
+\end{Highlighting}
+\end{Shaded}
+
+Shiny applications not supported in static R Markdown documents
+
+
+\end{document}

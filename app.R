@@ -14,15 +14,17 @@
 # DONE: 3. linear models evaluation
 # DONE: 4. Linear models results presentation
 # DONE: 5. Multiple (more than 2) maps loading 
-# INPR: 6. Maps Management
+# DONE: 6. Maps Management
 # TODO: 7. provide different Prediction types 
 # TODO: 7.1. classification tools
 # TODO: 7.2. Neural networks tools
 # TODO: 7.3. Linear Modles types selection
 # TODO: 7.4. Gaussian Mixture model clastering
 # TODO: 8. Add cross-validation analysis (if not included in LM)
-# TODO: 9. Provide batch maps loading (by path and extension)
+# DONE: 9. Provide batch maps loading (by path and extension)
 # DONE: FIX Well labeling order issue
+# DONE: FIX Maps selection assert for LM
+# TODO: 10. Add results export/output
 
 
 
@@ -112,18 +114,14 @@ ui <- fluidPage(
           "Скважины",
           fileInput(
             "wellsfile1",
-            "Открыть скважины:",
-            accept = c("text/plain",
-                       "text/esri-asciigrid,text/plain",
-                       "*.asc"),
+            "Загрузить координаты скважин:",
+            accept = '.txt',
                        buttonLabel = "Открыть..."
           ),
           fileInput(
             "cpfile1",
-            "Открыть КТ:",
-            accept = c("text/plain",
-                       "text/esri-asciigrid,text/plain",
-                       "*.asc"),
+            "Загрузить контрольные значения:",
+            accept = '.txt',
                        buttonLabel = "Открыть..."
           ),
           dataTableOutput('table_wells')
@@ -149,9 +147,9 @@ ui <- fluidPage(
           fileInput(
             "Mapsfile",
             "Открыть/Заменить карту:",
-            accept = c("text/plain",
-                       "text/esri-asciigrid,text/plain",
-                       "*.asc"),
+            accept = '.asc',#c("text/plain",
+                       #"text/esri-asciigrid,text/plain",
+                       #"*.asc"),
                        buttonLabel = "Открыть...",
                        multiple = TRUE
           ),
@@ -387,6 +385,28 @@ loadMapFile <- function (file_obj = NULL, transpose = FALSE) {
   return(map_obj)
 }
 
+## delete maps
+deleteMaps <- function (maps = NULL, wells = NULL, sr = NULL) {
+  if(is.null(sr) || length(sr)<1) return(maps)
+  
+  i=length(sr)
+  while (i) {
+    maps[[sr[i]]] = NULL
+    i=i-1
+  }
+  #browser()
+  #wls <- addWellCP(wells = wls,cpdata = c(rep(NA,times = length(wls[,1]))))
+  if(length(maps) <1 ) return(list(maps = NULL,wells = wells))
+  
+  wls = data.frame(wells@data$WELL,wells@coords,wells@data$Values)
+  colnames(wls) = c("WELL","X_LOCATION","Y_LOCATION","Values")
+  coordinates(wls) = ~X_LOCATION+Y_LOCATION
+  for( i in 1:length(maps))  {
+    wls <- extractMap2Well(wls,maps[[i]]$rstr, paste0("Map",i))
+  }
+  return(list(maps = maps,wells = wls))
+}
+  
 ## load wells coordinates for display and store the CP data ##
 loadWells <- function(file_obj = NULL) {
   wells = try ( expr = read_delim(
@@ -560,7 +580,7 @@ drawRstr <- function (map = def_map$rstr, zoom = NULL) {
   }
 }
 
-drawWells <- function(wells = NULL, rstr = NULL, sr = NULL) {
+drawWells <- function(wells = NULL, rstr = NULL, sr = NULL, srmap = NULL) {
   if(!is.null(wells)) {
     #par(new = TRUE)
     plot(wells, add = TRUE, pch = 21)
@@ -580,10 +600,12 @@ drawWells <- function(wells = NULL, rstr = NULL, sr = NULL) {
       
       if(length(labs)>0) text(wls[!is.na(wls@data[,id]),], labels = labs, cex = .7, pos = pos, col = clrs[!is.na(wls@data[,id])])
     }
-    
+    m1idx = ifelse(length(srmap)>=1,srmap[1]+2,3)
+    m2idx = ifelse(length(srmap)>=2,srmap[2]+2,4)
+    #browser()
     drawParTxt(wells,2,3, sr) # Value
-    drawParTxt(wells,3,2, sr) # Map1
-    drawParTxt(wells,4,4, sr) # Map2
+    drawParTxt(wells,m1idx,2, sr) # Map1
+    drawParTxt(wells,m2idx,4, sr) # Map2
     
     
   }
@@ -628,40 +650,26 @@ drawHex <- function (xy = NULL, cells = 30) {
   #text(c(1,1),labels = basename(myReactives$map1$fn))
 }
 
-buildMLR <- function(wells = NULL, rows = NULL){
+buildMLRmul <- function(wells = NULL, rows = NULL, sel_maps = NULL){
   if(is.null(wells) || length(wells@data[1,])<4) return(NULL)
   
-  data = wells@data
-  n1 = length(data$Values[!is.na(data$Values)])
-  n2 = length(data$Map1[!is.na(data$Map1)])
-  n3 = length(data$Map2[!is.na(data$Map2)])
-  if(n1<1 || n2<1 || n3<1) return(NULL)
-  row.names(data) = data$WELL
-  if(is.null(rows)) fit = lm(Values ~ Map1 + Map2, data)
+  if(is.null(sel_maps) || length(sel_maps)<1)
+    data = wells@data
   else {
-    sel = rep( TRUE, times = length(data$WELL))
-    sel[rows] = FALSE
-    fit = lm(Values ~ Map1 + Map2, data[sel,])
-    #names(fit$residuals) = data$WELL[sel]
+    data = data.frame(wells@data[,2],wells@data[,2+sel_maps])
+    colnames(data) = c("Values",names(wells@data[2+sel_maps]))
   }
-  return(fit)
-}
-
-buildMLRmul <- function(wells = NULL, rows = NULL){
-  if(is.null(wells) || length(wells@data[1,])<4) return(NULL)
-  
-  data = wells@data
-  
-  for (par in  2:length(data) ) {
-    if (length(data$Map1[!is.na(data[[par]])]) <1) return(NULL)
+  #browser()
+  for (par in  1:length(data) ) {
+    if (length(data[!is.na(data[[par]]),par]) <1) return(NULL)
   }
   
-  row.names(data) = data$WELL
+  row.names(data) = wells$WELL
   parnames = colnames(data)[2:length(data)]
-  frml = as.formula(paste("Values~", paste(parnames[-1],collapse = "+")))
+  frml = as.formula(paste("Values~", paste(parnames,collapse = "+")))
   if(is.null(rows)) fit = lm(formula = frml, data)
   else {
-    sel = rep( TRUE, times = length(data$WELL))
+    sel = rep( TRUE, times = length(wells$WELL))
     sel[rows] = FALSE
     fit = lm(formula = frml, data[sel,])
     #names(fit$residuals) = data$WELL[sel]
@@ -669,19 +677,26 @@ buildMLRmul <- function(wells = NULL, rows = NULL){
   return(fit)
 }
 
-buildGLM <- function(wells = NULL, rows = NULL, lmfunc = glm, family = gaussian){
+buildGLM <- function(wells = NULL, rows = NULL, sel_maps = NULL, lmfunc = glm, family = gaussian){
   if(is.null(wells) || length(wells@data[1,])<4) return(NULL)
   
-  data = wells@data
-  for (par in  2:length(data) ) {
-    if (length(data$Map1[!is.na(data[[par]])]) <1) return(NULL)
+  if(is.null(sel_maps) || length(sel_maps)<1)
+    data = wells@data
+  else {
+    data = data.frame(wells@data[,2],wells@data[,2+sel_maps])
+    colnames(data) = c("Values",names(wells@data[2+sel_maps]))
   }
-  row.names(data) = data$WELL
+  #browser()
+  for (par in  1:length(data) ) {
+    if (length(data[!is.na(data[[par]]),par]) <1) return(NULL)
+  }
+  
+  row.names(data) = wells$WELL
   parnames = colnames(data)[2:length(data)]
-  frml = as.formula(paste("Values~", paste(parnames[-1],collapse = "+")))
+  frml = as.formula(paste("Values~", paste(parnames,collapse = "+")))
   if(is.null(rows)) fit = lmfunc(formula = frml, data, family = family)
   else {
-    sel = rep( TRUE, times = length(data$WELL))
+    sel = rep( TRUE, times = length(wells$WELL))
     sel[rows] = FALSE
     fit = lmfunc(formula = frml, data[sel,], family = family)
     #names(fit$residuals) = data$WELL[sel]
@@ -729,7 +744,6 @@ drawKMeans <- function(maps = NULL, nclass = 3, sr = NULL) {
   if(is.null(maps)) return(NULL)
 
   data = getLiveMapsData(maps,sr)
-  #browser()
   kmns = kmeans(center_scale(data[,2:length(data[1,])]),nclass)
   clr=kmns$cluster
   plot(as.data.frame(data[,2:length(data[1,])]),col = rainbow(nclass)[clr], pch = 16)
@@ -739,20 +753,16 @@ drawKMeans <- function(maps = NULL, nclass = 3, sr = NULL) {
 getLiveMapsData <- function (maps = NULL, sr = NULL) {
   if(is.null(maps)) return(NULL)
   #browser()
-  if(!is.null(sr) && length(sr)>1) {
-    data = c(1:length(maps[[sr[1]]]$rstr@data@values))
-    for(i in 1:length(sr)) {
-      data = cbind(data,maps[[sr[i]]]$rstr@data@values)
-      colnames(data)[i+1] = maps[[sr[i]]]$fn
-    }
-  }else{
-    data = c(1:length(maps[[1]]$rstr@data@values))
-    for(i in 1:length(maps)) {
-      data = cbind(data,maps[[i]]$rstr@data@values)
-      colnames(data)[i+1] = maps[[i]]$fn
-    }
+  if(is.null(sr) || length(sr)<2) {
+    sr=c(1:length(maps)) 
   } 
- #browser()
+  #browser()
+  data = c(1:length(as.vector(maps[[sr[1]]]$rstr@data@values)))
+  for(i in 1:length(sr)) {
+    data = data.frame(data,as.vector(maps[[sr[i]]]$rstr@data@values))
+    colnames(data)[i+1] = maps[[sr[i]]]$fn
+  }
+  #browser()
   for (i in 1:length(data[1,])){
     data = data[!is.na(data[,i]),]
   }
@@ -908,7 +918,7 @@ drawMapsTable <- function (maps_ = NULL) {
 
   datatable(
     maps, escape = 0,
-    caption = "Карты: ",
+    caption = "Доступные карты: ",
     filter = "none",
     #height = 5,
     #editable = TRUE,
@@ -1057,12 +1067,32 @@ X_LOCATION  Y_LOCATION  VALUE",
     #myReactives$maps[[input$table_maps_rows_selected]] = NULL
     #browser()
     
-    sr = sort(input$table_maps_rows_selected)
-    i=length(sr)
-    while (i) {
-      myReactives$maps[[sr[i]]] = NULL
-      i=i-1
-    }
+    res = deleteMaps(myReactives$maps,myReactives$wells,sr = input$table_maps_rows_selected)
+    myReactives$wells <- res$wells
+    myReactives$maps <- res$maps
+    # sr = sort(input$table_maps_rows_selected)
+    # i=length(sr)
+    # while (i) {
+    #   myReactives$maps[[sr[i]]] = NULL
+    #   i=i-1
+    # }
+    # #update Wells attributes
+    # # if(is.null(myReactives$maps) || length(myReactives$maps) == 0 ) {
+    # #   map_obj <- upscaleMap(def_map,input$rstr_fact,func = median)
+    # #   myReactives$maps <- append(myReactives$maps,list(map_obj))
+    # #   myReactives$maps <- append(myReactives$maps,list(map_obj))
+    # # }
+    # browser()
+    # #wls <- addWellCP(wells = wls,cpdata = c(rep(NA,times = length(wls[,1]))))
+    # wls = cbind(myReactives$wells@data$WELL,as.matrix(myReactives$wells@coords),myReactives$wells@data$Values)
+    # colnames(wls) <- c("WELL","X_LOCATION","Y_LOCATION","Value")
+    # wls <- as.data.frame(wls)
+    # coordinates(wls) = ~X_LOCATION+Y_LOCATION
+    # for( i in 1:length(myReactives$maps))  {
+    #   wls <- extractMap2Well(wls,myReactives$maps[[i]]$rstr, paste0("Map",i))
+    # }
+    # myReactives$wells <- wls
+    
   })
   
   
@@ -1114,7 +1144,7 @@ X_LOCATION  Y_LOCATION  VALUE",
     }
     map_idx = selectMap(maps = myReactives$maps,sr = input$table_maps_rows_selected, idx = 1)
     drawRstr(myReactives$maps[[map_idx]]$rstr,myReactives$zoom)
-    drawWells(myReactives$wells, myReactives$maps[[map_idx]]$rstr, sr = input$table_wells_rows_selected)
+    drawWells(myReactives$wells, myReactives$maps[[map_idx]]$rstr, sr = input$table_wells_rows_selected,srmap = input$table_maps_rows_selected)
   })
   output$mapPlot2 <- renderPlot({
     #drawMap(myReactives$map2$map,input$rstr_fact,myReactives$zoom)
@@ -1122,7 +1152,7 @@ X_LOCATION  Y_LOCATION  VALUE",
     if(length(myReactives$maps)>1) {
       map_idx = selectMap(maps = myReactives$maps,sr = input$table_maps_rows_selected, idx = 2)
       drawRstr(myReactives$maps[[map_idx]]$rstr,myReactives$zoom)
-      drawWells(myReactives$wells, myReactives$maps[[map_idx]]$rstr, sr = input$table_wells_rows_selected)
+      drawWells(myReactives$wells, myReactives$maps[[map_idx]]$rstr, sr = input$table_wells_rows_selected,srmap = input$table_maps_rows_selected)
     }
   })
 
@@ -1160,58 +1190,58 @@ X_LOCATION  Y_LOCATION  VALUE",
   
   #CB: plot MLR model ####
   output$fitPlot <- renderPlot({
-    myReactives$fit <- drawModelQC(buildMLR(myReactives$wells, input$table_wells_rows_selected))
+    myReactives$fit <- drawModelQC(buildMLRmul(myReactives$wells, input$table_wells_rows_selected, input$table_maps_rows_selected))
   })
   output$fitText <- renderText({ #renderPrint
     
-    fit = buildMLRmul(myReactives$wells, input$table_wells_rows_selected)
-    frm = getModelText(fit)
-    myReactives$fit <- fit
+    #fit = buildMLRmul(myReactives$wells, input$table_wells_rows_selected)
+    frm = getModelText(myReactives$fit)
+    #myReactives$fit <- fit
     paste(frm)
   })
   
   #CB: plot MLR Xplot ####
   output$fitxPlot <- renderPlot({
-    fit <- buildMLRmul(myReactives$wells, input$table_wells_rows_selected)
+    fit <- buildMLRmul(myReactives$wells, input$table_wells_rows_selected, input$table_maps_rows_selected)
     drawModelXplot (myReactives$wells@data, fit, input$table_wells_rows_selected)
     #myReactives$fit <- fit
     observe(myReactives$fit <- fit)
   })
   
   output$fitXText <- renderText({ #renderPrint
-    fit <- buildMLRmul(myReactives$wells, input$table_wells_rows_selected)
-    txt <- getModelXplotText (myReactives$wells@data, fit, input$table_wells_rows_selected)
+    #fit <- buildMLRmul(myReactives$wells, input$table_wells_rows_selected, input$table_maps_rows_selected)
+    txt <- getModelXplotText (myReactives$wells@data, myReactives$fit, input$table_wells_rows_selected)
     #myReactives$fit <- fit
-    observe(myReactives$fit <- fit)
+    #observe(myReactives$fit <- fit)
     paste(txt)
   })
 
   #CB: plot GLM model ####
   output$glmPlot <- renderPlot({
-    fit <- buildGLM(myReactives$wells, input$table_wells_rows_selected)
+    fit <- buildGLM(myReactives$wells, input$table_wells_rows_selected, input$table_maps_rows_selected)
     par(mfrow = c(2,2))
     plot(fit)
     observe(myReactives$fit <- fit)
   })
   output$glmText <- renderText({ #renderPrint
-    fit <- buildGLM(myReactives$wells, input$table_wells_rows_selected)
+    #fit <- buildGLM(myReactives$wells, input$table_wells_rows_selected, input$table_maps_rows_selected)
     #fit = buildMLR(myReactives$wells, input$table_wells_rows_selected)
-    frm = getModelText(fit)
-    observe(myReactives$fit <- fit)
+    frm = getModelText(myReactives$fit)
+    #observe(myReactives$fit <- fit)
     paste(frm)
   })
   
   #CB: plot GLM Xplot ####
   output$glmXPlot <- renderPlot({
-    fit <- buildGLM(myReactives$wells, input$table_wells_rows_selected)
-    drawModelXplot (myReactives$wells@data, fit, input$table_wells_rows_selected)
-    observe(myReactives$fit <- fit)
+    #fit <- buildGLM(myReactives$wells, input$table_wells_rows_selected)
+    drawModelXplot (myReactives$wells@data, myReactives$fit, input$table_wells_rows_selected)
+    #observe(myReactives$fit <- fit)
   })
   
   output$glmXText <- renderText({ #renderPrint
-    fit <- buildGLM(myReactives$wells, input$table_wells_rows_selected)
-    txt <- getModelXplotText (myReactives$wells@data, fit, input$table_wells_rows_selected)
-    observe(myReactives$fit <- fit)
+    #fit <- buildGLM(myReactives$wells, input$table_wells_rows_selected)
+    txt <- getModelXplotText (myReactives$wells@data, myReactives$fit, input$table_wells_rows_selected)
+    #observe(myReactives$fit <- fit)
     paste(txt)
   })
   

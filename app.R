@@ -36,6 +36,7 @@ library(raster)
 #library(spatial)
 library(sp)
 library(RANN)
+library(ClusterR)
 library(hexbin)
 #library(markdown)
 

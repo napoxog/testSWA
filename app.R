@@ -17,7 +17,7 @@
 # DONE: 6. Maps Management
 # TODO: 7. provide different Prediction types 
 # TODO: 7.1. classification tools
-# TODO: 7.2. Neural networks tools
+# INPR: 7.2. Neural networks tools
 # TODO: 7.3. Linear Modles types selection
 # TODO: 7.4. Gaussian Mixture model clastering
 # TODO: 8. Add cross-validation analysis (if not included in LM)
@@ -28,6 +28,7 @@
 # TODO: 11. How to remove redunant calls to getLiveMaps()
 # DONE: 12. Add modal messages during long-term calculations/loading
 # TODO: 13. Move Maps-only classification tabs from Models to Maps Tab
+# TODO: 14. Apply Upscaling only to selected maps, if any, to reduce processing time. (manage upscaling parameter?)
 
 
 
@@ -41,6 +42,7 @@ library(raster)
 #library(spatial)
 library(sp)
 library(RANN)
+library(gamlss)
 library(ClusterR)
 library(hexbin)
 #library(markdown)
@@ -163,19 +165,19 @@ ui <- fluidPage(
         tabPanel(
           "Модели",
           tabsetPanel(
-            #UI: model MLR ####
+            #UI: model NNET ####
             tabPanel(
-              "MLR",
+              "NNET",
               plotOutput(
-                "fitPlot",
+                "nnetPlot",
                 height = "500px"
               ),
-              verbatimTextOutput("fitText"),
+              verbatimTextOutput("nnetText"),
               plotOutput(
-                "fitxPlot",
+                "nnetxPlot",
                 height = "500px"
               ),
-              verbatimTextOutput("fitXText")
+              verbatimTextOutput("nnetXText")
             ),
             #UI: model GLM ####
             tabPanel(
@@ -655,7 +657,7 @@ drawHex <- function (xy = NULL, cells = 30) {
   #text(c(1,1),labels = basename(myReactives$map1$fn))
 }
 
-buildMLRmul <- function(wells = NULL, rows = NULL, sel_maps = NULL){
+buildNNET <- function(wells = NULL, rows = NULL, sel_maps = NULL){
   if(is.null(wells) || length(wells@data[1,])<4) return(NULL)
   
   if(is.null(sel_maps) || length(sel_maps)<1)
@@ -670,16 +672,20 @@ buildMLRmul <- function(wells = NULL, rows = NULL, sel_maps = NULL){
   }
   
   row.names(data) = wells$WELL
+  browser()
   parnames = colnames(data)[2:length(data)]
   frml = as.formula(paste("Values~", paste(parnames,collapse = "+")))
-  if(is.null(rows)) fit = lm(formula = frml, data)
+  for (i in 1:length(data[1,])){
+    data = data[!is.na(data[,i]),]
+  }
+  if(is.null(rows)) nnet = nn(formula = frml, data = data, size = 10)
   else {
     sel = rep( TRUE, times = length(wells$WELL))
     sel[rows] = FALSE
-    fit = lm(formula = frml, data[sel,])
+    nn = lm(formula = frml, data[sel,])
     #names(fit$residuals) = data$WELL[sel]
   }
-  return(fit)
+  return(nnet)
 }
 
 buildGLM <- function(wells = NULL, rows = NULL, sel_maps = NULL, lmfunc = glm, family = gaussian){
@@ -1183,25 +1189,26 @@ X_LOCATION  Y_LOCATION  VALUE",
     drawHex(getXYvectors(myReactives$maps[[map_idx1]], myReactives$maps[[map_idx2]]), input$cells)
   })
   
-  #CB: plot MLR model ####
-  output$fitPlot <- renderPlot({
-    showModal(modalDialog( "Multi-Linear regression model creation...",title = "Please wait..."))
-    myReactives$fit <- drawModelQC(buildMLRmul(myReactives$wells, input$table_wells_rows_selected, input$table_maps_rows_selected))
+  #CB: plot NNET model ####
+  output$nnetPlot <- renderPlot({
+    showModal(modalDialog( "Neural network model creation...",title = "Please wait..."))
+    myReactives$nnet <- buildNNET(myReactives$wells, input$table_wells_rows_selected, input$table_maps_rows_selected)
+    plot(myReactives$nnet)
     removeModal()
   })
-  output$fitText <- renderText({ #renderPrint
-    frm = getModelText(myReactives$fit)
-    paste(frm)
+  output$nnetText <- renderText({ #renderPrint
+    #frm = getModelText(myReactives$nnet)
+    #paste(frm)
   })
   
-  #CB: plot MLR Xplot ####
-  output$fitxPlot <- renderPlot({
-    drawModelXplot (myReactives$wells@data, myReactives$fit, input$table_wells_rows_selected)
+  #CB: plot NNET Xplot ####
+  output$nnetxPlot <- renderPlot({
+    #drawModelXplot (myReactives$wells@data, myReactives$nnet, input$table_wells_rows_selected)
   })
   
-  output$fitXText <- renderText({ #renderPrint
-    txt <- getModelXplotText (myReactives$wells@data, myReactives$fit, input$table_wells_rows_selected)
-    paste(txt)
+  output$nnetXText <- renderText({ #renderPrint
+    #txt <- getModelXplotText (myReactives$wells@data, myReactives$nnet, input$table_wells_rows_selected)
+    #paste(txt)
   })
 
   #CB: plot GLM model ####

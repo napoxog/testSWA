@@ -28,3 +28,4 @@ vignettes/*.pdf
 packrat/lib*/
 .Rproj.user
 *.gz
+packrat/src/

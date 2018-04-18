@@ -22,7 +22,7 @@
 # TODO: 7.4. Gaussian Mixture model clastering
 # TODO: 8. Add cross-validation analysis (if not included in LM)
 # TODO: 9. Provide batch maps loading (by path and extension)
-# TODO: FIX Well labeling order issue
+# DONE: FIX Well labeling order issue
 
 
 
@@ -115,16 +115,16 @@ ui <- fluidPage(
             "Открыть скважины:",
             accept = c("text/plain",
                        "text/esri-asciigrid,text/plain",
-                       "*.asc",
-                       buttonLabel = "Открыть...")
+                       "*.asc"),
+                       buttonLabel = "Открыть..."
           ),
           fileInput(
             "cpfile1",
             "Открыть КТ:",
             accept = c("text/plain",
                        "text/esri-asciigrid,text/plain",
-                       "*.asc",
-                       buttonLabel = "Открыть...")
+                       "*.asc"),
+                       buttonLabel = "Открыть..."
           ),
           dataTableOutput('table_wells')
         )  ,
@@ -151,10 +151,12 @@ ui <- fluidPage(
             "Открыть/Заменить карту:",
             accept = c("text/plain",
                        "text/esri-asciigrid,text/plain",
-                       "*.asc",
-                       buttonLabel = "Открыть...")
+                       "*.asc"),
+                       buttonLabel = "Открыть...",
+                       multiple = TRUE
           ),
-          dataTableOutput('table_maps')
+          dataTableOutput('table_maps'),
+          actionButton("delmap"   , "Удалить выбранные", width = butt_wid)
         )  ,
         #UI: models ####
         tabPanel(
@@ -579,9 +581,9 @@ drawWells <- function(wells = NULL, rstr = NULL, sr = NULL) {
       if(length(labs)>0) text(wls[!is.na(wls@data[,id]),], labels = labs, cex = .7, pos = pos, col = clrs[!is.na(wls@data[,id])])
     }
     
-    drawParTxt(wells,2,2, sr) # Map1
-    drawParTxt(wells,3,4, sr) # Map2
-    drawParTxt(wells,4,3, sr) # Value
+    drawParTxt(wells,2,3, sr) # Value
+    drawParTxt(wells,3,2, sr) # Map1
+    drawParTxt(wells,4,4, sr) # Map2
     
     
   }
@@ -723,10 +725,10 @@ drawModelXplot <- function(data = NULL, lmfit = NULL, srows = NULL) {
 
 }
 
-drawKMeans <- function(maps = NULL, nclass = 3) {
+drawKMeans <- function(maps = NULL, nclass = 3, sr = NULL) {
   if(is.null(maps)) return(NULL)
 
-  data = getLiveMapsData(maps)
+  data = getLiveMapsData(maps,sr)
   #browser()
   kmns = kmeans(center_scale(data[,2:length(data[1,])]),nclass)
   clr=kmns$cluster
@@ -734,17 +736,22 @@ drawKMeans <- function(maps = NULL, nclass = 3) {
   return(kmns)
 }
 
-getLiveMapsData <- function (maps = NULL) {
+getLiveMapsData <- function (maps = NULL, sr = NULL) {
   if(is.null(maps)) return(NULL)
-  
-  #data = c(1:length(maps[[1]]$map@data[,1]))
-  data = c(1:length(maps[[1]]$rstr@data@values))
-  #for(i in 1:length(myReactives$maps)) data = cbind(data,maps[[i]]$map@data)
-  for(i in 1:length(myReactives$maps)) {
-    data = cbind(data,maps[[i]]$rstr@data@values)
-    colnames(data)[i+1] = maps[[i]]$fn
-  }
-  
+  #browser()
+  if(!is.null(sr) && length(sr)>1) {
+    data = c(1:length(maps[[sr[1]]]$rstr@data@values))
+    for(i in 1:length(sr)) {
+      data = cbind(data,maps[[sr[i]]]$rstr@data@values)
+      colnames(data)[i+1] = maps[[sr[i]]]$fn
+    }
+  }else{
+    data = c(1:length(maps[[1]]$rstr@data@values))
+    for(i in 1:length(maps)) {
+      data = cbind(data,maps[[i]]$rstr@data@values)
+      colnames(data)[i+1] = maps[[i]]$fn
+    }
+  } 
  #browser()
   for (i in 1:length(data[1,])){
     data = data[!is.na(data[,i]),]
@@ -754,22 +761,23 @@ getLiveMapsData <- function (maps = NULL) {
 }
 
 
-drawModMapPlot <- function (maps = NULL, clusters = NULL) {
+drawModMapPlot <- function (maps = NULL, clusters = NULL, sr = NULL) {
   if(is.null(maps) || is.null(data)|| is.null(clusters)) return(NULL)
   
   # get live cells
-  data = getLiveMapsData(maps)
+  data = getLiveMapsData(maps,sr)
   lividx = data[,1]
-  datplot = myReactives$maps[[1]]$rstr
+  if(!is.null(sr) && length(sr)>1) datplot = myReactives$maps[[sr[1]]]$rstr
+  else datplot = myReactives$maps[[1]]$rstr
   datplot@data@values = NA
   datplot@data@values[lividx] <- clusters
   plot(datplot,col = rainbow(max(clusters)))
 }
 
-drawGMM <- function(maps = NULL, nclass = 3) {
+drawGMM <- function(maps = NULL, nclass = 3, sr = NULL) {
   if(is.null(maps)) return(NULL)
   
-  data = getLiveMapsData(maps)
+  data = getLiveMapsData(maps,sr)
   
   dat = center_scale(data[,2:length(data[1,])])
   gmm <- GMM(dat,gaussian_comps = nclass,"maha_dist", "random_subset",km_iter = 10,em_iter = 10)
@@ -1023,23 +1031,40 @@ X_LOCATION  Y_LOCATION  VALUE",
 
   #CB: load maps list files ####
   observeEvent(input$Mapsfile , {
-    map_obj = loadMapFile(input$Mapsfile)
-    map_obj = upscaleMap(map_obj,input$rstr_fact,func = mean)
-    
-    if (is.null(map_obj)) 
-       showNotification(ui = "Error loading Map file. Assume the Format should be ESRI ASCIIgrid.",
-                          type = "error")
-    else {
-      if (length(input$table_maps_rows_selected)>0 && length(myReactives$maps)>1) {
-        map_idx = selectMap(maps = myReactives$maps,sr = input$table_maps_rows_selected, idx = 1)
-        myReactives$maps[[map_idx]] <- map_obj
-        myReactives$wells <- extractMap2Well(myReactives$wells,map_obj$rstr, paste0 ("Map",map_idx))
-      } else {
-        myReactives$wells <- extractMap2Well(myReactives$wells,map_obj$rstr, paste0 ("Map",length(myReactives$maps)+1))
-        myReactives$maps <- append(myReactives$maps,list(map_obj))
+    #browser()
+    for(i in 1:length(input$Mapsfile[,1])) {
+      map_obj = loadMapFile(input$Mapsfile[i,])
+      map_obj = upscaleMap(map_obj,input$rstr_fact,func = mean)
+      
+      if (is.null(map_obj)) 
+         showNotification(ui = "Error loading Map file. Assume the Format should be ESRI ASCIIgrid.",
+                            type = "error")
+      else {
+        if (length(input$table_maps_rows_selected)>0 && length(myReactives$maps)>1) {
+          map_idx = selectMap(maps = myReactives$maps,sr = input$table_maps_rows_selected, idx = 1)
+          myReactives$maps[[map_idx]] <- map_obj
+          myReactives$wells <- extractMap2Well(myReactives$wells,map_obj$rstr, paste0 ("Map",map_idx))
+        } else {
+          myReactives$wells <- extractMap2Well(myReactives$wells,map_obj$rstr, paste0 ("Map",length(myReactives$maps)+1))
+          myReactives$maps <- append(myReactives$maps,list(map_obj))
+        }
       }
     }
   })
+  
+  #CB: Delete maps ####
+  observeEvent(input$delmap , {
+    #myReactives$maps[[input$table_maps_rows_selected]] = NULL
+    #browser()
+    
+    sr = sort(input$table_maps_rows_selected)
+    i=length(sr)
+    while (i) {
+      myReactives$maps[[sr[i]]] = NULL
+      i=i-1
+    }
+  })
+  
   
   #CB: Transposing ####
   observeEvent(input$trans1 , {
@@ -1193,12 +1218,12 @@ X_LOCATION  Y_LOCATION  VALUE",
   #CB: plot KM model ####
   output$kmPlot <- renderPlot({
     #drawKMeans(myReactives$wells@data,input$kmClasses)
-    myReactives$km <- drawKMeans(myReactives$maps,input$kmClasses)
+    myReactives$km <- drawKMeans(myReactives$maps,input$kmClasses,sr = input$table_maps_rows_selected)
   })
 
   output$kmXPlot <- renderPlot({
     
-    drawModMapPlot(myReactives$maps,myReactives$km$cluster)
+    drawModMapPlot(myReactives$maps,myReactives$km$cluster,sr = input$table_maps_rows_selected)
 
   })
   
@@ -1207,18 +1232,18 @@ X_LOCATION  Y_LOCATION  VALUE",
     #drawGMM(myReactives$wells@data,input$gmmClasses)
     #data = myReactives$maps[[1]]$map@data
     #for(map in myReactives$maps) data = cbind(data,map$map@data)
-    myReactives$gmm <- drawGMM(myReactives$maps,input$gmmClasses)
+    myReactives$gmm <- drawGMM(myReactives$maps,input$gmmClasses,sr = input$table_maps_rows_selected)
   })
 
   output$gmmXPlot <- renderPlot({
     #drawGMM(myReactives$wells@data,input$gmmClasses)
-    data = getLiveMapsData(myReactives$maps)
+    data = getLiveMapsData(myReactives$maps,sr = input$table_maps_rows_selected)
 
     closest <- nn2(myReactives$gmm$centroids, center_scale(data[,2:length(data[1,])]))
     
     clr=input$gmmClasses + 1 - closest$nn.idx[,1]
     
-    drawModMapPlot(myReactives$maps,clr)
+    drawModMapPlot(myReactives$maps,clr,sr = input$table_maps_rows_selected)
 
     # if(!is.null(myReactives$gmm)) {
     #   lividx = c(1:length(data[,1]))

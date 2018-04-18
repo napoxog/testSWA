@@ -25,6 +25,9 @@
 # DONE: FIX Well labeling order issue
 # DONE: FIX Maps selection assert for LM
 # TODO: 10. Add results export/output
+# TODO: 11. How to remove redunant calls to getLiveMaps()
+# DONE: 12. Add modal messages during long-term calculations/loading
+# TODO: 13. Move Maps-only classification tabs from Models to Maps Tab
 
 
 
@@ -397,6 +400,8 @@ deleteMaps <- function (maps = NULL, wells = NULL, sr = NULL) {
   #browser()
   #wls <- addWellCP(wells = wls,cpdata = c(rep(NA,times = length(wls[,1]))))
   if(length(maps) <1 ) return(list(maps = NULL,wells = wells))
+  
+  if(is.null(wells) || length(Wells)<1) return(list(maps = maps,wells = wells))
   
   wls = data.frame(wells@data$WELL,wells@coords,wells@data$Values)
   colnames(wls) = c("WELL","X_LOCATION","Y_LOCATION","Values")
@@ -791,7 +796,7 @@ drawGMM <- function(maps = NULL, nclass = 3, sr = NULL) {
   
   dat = center_scale(data[,2:length(data[1,])])
   gmm <- GMM(dat,gaussian_comps = nclass,"maha_dist", "random_subset",km_iter = 10,em_iter = 10)
-  
+
   closest <- nn2(gmm$centroids, dat)
   
   clr=nclass + 1 - closest$nn.idx[,1]
@@ -1042,6 +1047,7 @@ X_LOCATION  Y_LOCATION  VALUE",
   #CB: load maps list files ####
   observeEvent(input$Mapsfile , {
     #browser()
+    showModal(modalDialog( "Loading Maps...",title = "Please wait..."))
     for(i in 1:length(input$Mapsfile[,1])) {
       map_obj = loadMapFile(input$Mapsfile[i,])
       map_obj = upscaleMap(map_obj,input$rstr_fact,func = mean)
@@ -1060,6 +1066,7 @@ X_LOCATION  Y_LOCATION  VALUE",
         }
       }
     }
+    removeModal()
   })
   
   #CB: Delete maps ####
@@ -1116,27 +1123,17 @@ X_LOCATION  Y_LOCATION  VALUE",
   
   #CB: upscaling  ####
   observeEvent(input$rstr_fact , {
+    showModal(modalDialog( "Processing maps...",title = "Please wait..."))
     for (i in 1:length(myReactives$maps)) {
       map_obj = upscaleMap(myReactives$maps[[i]],input$rstr_fact,func = median)
       myReactives$wells <- extractMap2Well(myReactives$wells,map_obj$rstr, paste0 ("Map",i))
       myReactives$maps[[i]] <- map_obj
     }
-    # if(length(myReactives$maps)>1) {
-    #   map_idx1 = selectMap(maps = myReactives$maps,sr = input$table_maps_rows_selected, idx = 1)
-    # map_obj1 = upscaleMap(myReactives$maps[[map_idx1]],input$rstr_fact,func = median)
-    # map_idx2 = selectMap(maps = myReactives$maps,sr = input$table_maps_rows_selected, idx = 2)
-    # map_obj2 = upscaleMap(myReactives$maps[[map_idx2]],input$rstr_fact,func = median)
-    # myReactives$wells <- extractMap2Well(myReactives$wells,map_obj1$rstr, paste0 ("Map",map_idx1))
-    # myReactives$wells <- extractMap2Well(myReactives$wells,map_obj2$rstr, paste0 ("Map",map_idx2))
-    # myReactives$maps[[map_idx1]] <- map_obj1
-    # myReactives$maps[[map_idx2]] <- map_obj2
-    #}
+    removeModal()
   })
   
   #CB: plot maps ####
   output$mapPlot1 <- renderPlot({
-    #drawMap(myReactives$map1$map,input$rstr_fact,myReactives$zoom)
-    #drawRstr(myReactives$map1$rstr,myReactives$zoom)
     if(is.null(myReactives$maps) || length(myReactives$maps) == 0 ) {
       map_obj <- upscaleMap(def_map,input$rstr_fact,func = median)
       myReactives$maps <- append(myReactives$maps,list(map_obj))
@@ -1147,8 +1144,6 @@ X_LOCATION  Y_LOCATION  VALUE",
     drawWells(myReactives$wells, myReactives$maps[[map_idx]]$rstr, sr = input$table_wells_rows_selected,srmap = input$table_maps_rows_selected)
   })
   output$mapPlot2 <- renderPlot({
-    #drawMap(myReactives$map2$map,input$rstr_fact,myReactives$zoom)
-    #drawRstr(myReactives$map2$rstr,myReactives$zoom)
     if(length(myReactives$maps)>1) {
       map_idx = selectMap(maps = myReactives$maps,sr = input$table_maps_rows_selected, idx = 2)
       drawRstr(myReactives$maps[[map_idx]]$rstr,myReactives$zoom)
@@ -1190,83 +1185,71 @@ X_LOCATION  Y_LOCATION  VALUE",
   
   #CB: plot MLR model ####
   output$fitPlot <- renderPlot({
+    showModal(modalDialog( "Multi-Linear regression model creation...",title = "Please wait..."))
     myReactives$fit <- drawModelQC(buildMLRmul(myReactives$wells, input$table_wells_rows_selected, input$table_maps_rows_selected))
+    removeModal()
   })
   output$fitText <- renderText({ #renderPrint
-    
-    #fit = buildMLRmul(myReactives$wells, input$table_wells_rows_selected)
     frm = getModelText(myReactives$fit)
-    #myReactives$fit <- fit
     paste(frm)
   })
   
   #CB: plot MLR Xplot ####
   output$fitxPlot <- renderPlot({
-    fit <- buildMLRmul(myReactives$wells, input$table_wells_rows_selected, input$table_maps_rows_selected)
-    drawModelXplot (myReactives$wells@data, fit, input$table_wells_rows_selected)
-    #myReactives$fit <- fit
-    observe(myReactives$fit <- fit)
+    drawModelXplot (myReactives$wells@data, myReactives$fit, input$table_wells_rows_selected)
   })
   
   output$fitXText <- renderText({ #renderPrint
-    #fit <- buildMLRmul(myReactives$wells, input$table_wells_rows_selected, input$table_maps_rows_selected)
     txt <- getModelXplotText (myReactives$wells@data, myReactives$fit, input$table_wells_rows_selected)
-    #myReactives$fit <- fit
-    #observe(myReactives$fit <- fit)
     paste(txt)
   })
 
   #CB: plot GLM model ####
   output$glmPlot <- renderPlot({
+    showModal(modalDialog( "Multi-Linear regression model creation...",title = "Please wait..."))
     fit <- buildGLM(myReactives$wells, input$table_wells_rows_selected, input$table_maps_rows_selected)
     par(mfrow = c(2,2))
     plot(fit)
+    removeModal()
     observe(myReactives$fit <- fit)
   })
   output$glmText <- renderText({ #renderPrint
-    #fit <- buildGLM(myReactives$wells, input$table_wells_rows_selected, input$table_maps_rows_selected)
-    #fit = buildMLR(myReactives$wells, input$table_wells_rows_selected)
     frm = getModelText(myReactives$fit)
-    #observe(myReactives$fit <- fit)
     paste(frm)
   })
   
   #CB: plot GLM Xplot ####
   output$glmXPlot <- renderPlot({
-    #fit <- buildGLM(myReactives$wells, input$table_wells_rows_selected)
     drawModelXplot (myReactives$wells@data, myReactives$fit, input$table_wells_rows_selected)
-    #observe(myReactives$fit <- fit)
   })
   
   output$glmXText <- renderText({ #renderPrint
-    #fit <- buildGLM(myReactives$wells, input$table_wells_rows_selected)
     txt <- getModelXplotText (myReactives$wells@data, myReactives$fit, input$table_wells_rows_selected)
-    #observe(myReactives$fit <- fit)
     paste(txt)
   })
   
   #CB: plot KM model ####
   output$kmPlot <- renderPlot({
-    #drawKMeans(myReactives$wells@data,input$kmClasses)
+    showModal(modalDialog( "K-means classification is in progress...",title = "Please wait..."))
     myReactives$km <- drawKMeans(myReactives$maps,input$kmClasses,sr = input$table_maps_rows_selected)
+    removeModal()
   })
 
   output$kmXPlot <- renderPlot({
     
     drawModMapPlot(myReactives$maps,myReactives$km$cluster,sr = input$table_maps_rows_selected)
-
+    par(new = TRUE)
+    drawWells(wells = myReactives$wells)
   })
   
   #CB: plot GMM model ####
   output$gmmPlot <- renderPlot({
-    #drawGMM(myReactives$wells@data,input$gmmClasses)
-    #data = myReactives$maps[[1]]$map@data
-    #for(map in myReactives$maps) data = cbind(data,map$map@data)
+    showModal(modalDialog( "GMM classification is in progress...",title = "Please wait..."))
     myReactives$gmm <- drawGMM(myReactives$maps,input$gmmClasses,sr = input$table_maps_rows_selected)
+    removeModal()
   })
 
   output$gmmXPlot <- renderPlot({
-    #drawGMM(myReactives$wells@data,input$gmmClasses)
     data = getLiveMapsData(myReactives$maps,sr = input$table_maps_rows_selected)
 
     closest <- nn2(myReactives$gmm$centroids, center_scale(data[,2:length(data[1,])]))
@@ -1274,19 +1257,8 @@ X_LOCATION  Y_LOCATION  VALUE",
     clr=input$gmmClasses + 1 - closest$nn.idx[,1]
     
     drawModMapPlot(myReactives$maps,clr,sr = input$table_maps_rows_selected)
-
-    # if(!is.null(myReactives$gmm)) {
-    #   lividx = c(1:length(data[,1]))
-    #   for (i in 2:length(data)){
-    #     lividx = lividx[!is.na(data[i])]
-    #   }
-    #   datplot = myReactives$maps[[1]]$map
-    #   datplot@data[] = NA
-    #   datplot@data[lividx] = myReactives$gmm
-    #   browser()
-    #   plot(datplot)
-    # }
-      
+    par(new = TRUE)
+    drawWells(wells = myReactives$wells)
   })
   
   #CB: plot simple xplot ####

@@ -32,19 +32,22 @@
 
 
 
-library(shiny)
-library(shinyjs)
-library(DT)
+require(shiny)
+require(shinyjs)
+require(DT)
 
-library(readr)
-library(raster)
+require(readr)
+require(raster)
+
+## Acsource from https://gist.github.com/fawda123/7471137/raw/cd6e6a0b0bdb4e065c597e52165e5ac887f5fe95/nnet_plot_update.r'
+source("nnet_plot_update.r")
 
 #library(spatial)
-library(sp)
-library(RANN)
-library(RSNNS)
-library(ClusterR)
-library(hexbin)
+require(sp)
+require(RANN)
+require(RSNNS)
+require(ClusterR)
+require(hexbin)
 #library(markdown)
 
 #default data definition
@@ -169,11 +172,25 @@ ui <- fluidPage(
             tabPanel(
               "NNET",
               sliderInput(
+                "nnet_complex",
+                "Сложность сети, %:",
+                min = 10,
+                max = 90,
+                value = 10
+              ),
+              sliderInput(
                 "test_ratio",
-                "размер тестовой выборки:",
+                "Размер тестовой выборки, %:",
                 min = 10,
                 max = 90,
                 value = 30
+              ),
+              sliderInput(
+                "max_iter",
+                "Число итераций:",
+                min = 10,
+                max = 500,
+                value = 50
               ),
               plotOutput(
                 "nnetPlot",
@@ -665,7 +682,7 @@ drawHex <- function (xy = NULL, cells = 30) {
 }
 
 
-buildNNET <- function(wells = NULL, rows = NULL, sel_maps = NULL, test_ratio = 0.25){
+buildNNET <- function(wells = NULL, rows = NULL, sel_maps = NULL, test_ratio = 0.25, max_iter = 100, nnet_complex = 0.1){
   if(is.null(wells) || length(wells@data[1,])<4) return(NULL)
   
   if(is.null(sel_maps) || length(sel_maps)<1)
@@ -682,18 +699,25 @@ buildNNET <- function(wells = NULL, rows = NULL, sel_maps = NULL, test_ratio = 0
   for (i in 1:length(data[1,])){
     data = data[!is.na(data[,i]),]
   }
+  size = max(1,ceiling(sqrt(length(data[,1]))*nnet_complex*5*2))
+  layers = max(1,ceiling(log(base = 5, size)))
+  
+  
   #browser()
   dset = splitForTrainingAndTest(x = data[,3:length(data[1,])],y = as.matrix(data$Values), ratio = test_ratio)
-  dset = normTrainingAndTestSet(dset)
+  nninp = dset$targetsTrain
+  dset = normTrainingAndTestSet(dset,dontNormTargets = FALSE)
   nnet = mlp(dset$inputsTrain, dset$targetsTrain, 
-             size=5, learnFuncParams=c(0.1),maxit=500,
-             inputsTest=dset$inputsTest, targetsTest=dset$targetsTest)
+             size = ceiling(seq.int(size/2,3, length.out = layers)), 
+             learnFuncParams = c(0.5),maxit = max_iter,
+             inputsTest = dset$inputsTest, targetsTest = dset$targetsTest)
   # nnet = mlp(y = as.matrix(data$Values), 
   #            x = as.matrix(data[,3:length(data[1,])]), 
   #            size = c(sqrt(length(data$Values))),
   #            learnFuncParams=c(0.1))
   nnout = predict( nnet, inp = dset$inputsTrain)  
-  return(list(net = nnet,dset = dset))
+  nnout = denormalizeData(nnout,getNormParameters(dset$targetsTrain))
+  return(list(net = nnet,dset = dset, out = nnout, inp = nninp))
 }
 
 buildGLM <- function(wells = NULL, rows = NULL, sel_maps = NULL, lmfunc = glm, family = gaussian){
@@ -834,7 +858,9 @@ getModelText <- function(fit = NULL) {
   
 
 getModelXplotText <- function(data = NULL, lmfit = NULL, srows = NULL) {
-  if(is.null(data) || is.null(lmfit)) return("No model built")
+  if(is.null(data)) {
+    return(paste(lmfit$call$formula[2]," = ", lmfit$call$formula[3]," * ",prettyNum(lmfit$coefficients[2]),"+",prettyNum(lmfit$coefficients[1])))  } 
+  if(is.null(lmfit)) return("No model built")
   sel = c( 1:length(data$WELL))
   sel[srows] = NA
   sel = sel[!is.na(data$Values)]
@@ -1203,7 +1229,9 @@ X_LOCATION  Y_LOCATION  VALUE",
     showModal(modalDialog( "Neural network model creation...",title = "Please wait..."))
     myReactives$nnet <- buildNNET(myReactives$wells, 
                                   input$table_wells_rows_selected, input$table_maps_rows_selected,
-                                  test_ratio = input$test_ratio/100.)
+                                  test_ratio = input$test_ratio/100.,
+                                  max_iter = input$max_iter,
+                                  nnet_complex = input$nnet_complex/100.)
     #browser()
     #plot(myReactives$nnet$inp,myReactives$nnet$out)
     par(mfrow=c(2,2))
@@ -1212,21 +1240,27 @@ X_LOCATION  Y_LOCATION  VALUE",
     plotIterativeError(myReactives$nnet$net)
     plotROC(fitted.values(myReactives$nnet$net), myReactives$nnet$dset$targetsTrain)
     #plotROC(itted.values(myReactives$nnet$net), myReactives$nnet$inp)
-    plot(myReactives$nnet$dset$targetsTrain,myReactives$nnet$net$fitted.values)
+    #plot.nnet(myReactives$nnet$net,col = rainbow(length(myReactives$nnet$net$neurons)))
+    plot(myReactives$nnet$dset$targetsTrain,myReactives$nnet$out)
     par(new = TRUE)
     #browser()
-    lmr = lm(formula = myReactives$nnet$net$fitted.values~myReactives$nnet$dset$targetsTrain)
+    lmr = lm(formula = myReactives$nnet$out~myReactives$nnet$dset$targetsTrain)
     abline(lmr)
+    #plot.nnet(myReactives$nnet$net)
     removeModal()
   })
   output$nnetText <- renderText({ #renderPrint
     #frm = getModelText(myReactives$nnet)
-    frm = summary(myReactives$nnet$net)
+    mesured = myReactives$nnet$dset$targetsTrain
+    predicted = myReactives$nnet$out
+    lmr = lm(formula = predicted~mesured)
+    frm = getModelXplotText(lmfit = lmr)
     paste(frm)
   })
   
   #CB: plot NNET Xplot ####
   output$nnetxPlot <- renderPlot({
+    plot.nnet(myReactives$nnet$net)
     #plot(myReactives$nnet$inp,myReactives$nnet$out)
   })
   

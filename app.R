@@ -18,7 +18,7 @@
 # TODO: 7. provide different Prediction types 
 # TODO: 7.1. classification tools
 # INPR: 7.2. Neural networks tools
-# TODO: 7.3. Linear Modles types selection
+# TODO: 7.3. Linear Models types selection
 # TODO: 7.4. Gaussian Mixture model clastering
 # TODO: 8. Add cross-validation analysis (if not included in LM)
 # DONE: 9. Provide batch maps loading (by path and extension)
@@ -1241,17 +1241,17 @@ X_LOCATION  Y_LOCATION  VALUE",
     plotROC(fitted.values(myReactives$nnet$net), myReactives$nnet$dset$targetsTrain)
     #plotROC(itted.values(myReactives$nnet$net), myReactives$nnet$inp)
     #plot.nnet(myReactives$nnet$net,col = rainbow(length(myReactives$nnet$net$neurons)))
-    plot(myReactives$nnet$dset$targetsTrain,myReactives$nnet$out)
+    plot(myReactives$nnet$inp,myReactives$nnet$out)
     par(new = TRUE)
     #browser()
-    lmr = lm(formula = myReactives$nnet$out~myReactives$nnet$dset$targetsTrain)
+    lmr = lm(formula = myReactives$nnet$out~myReactives$nnet$inp)
     abline(lmr)
     #plot.nnet(myReactives$nnet$net)
     removeModal()
   })
   output$nnetText <- renderText({ #renderPrint
     #frm = getModelText(myReactives$nnet)
-    mesured = myReactives$nnet$dset$targetsTrain
+    mesured = myReactives$nnet$inp
     predicted = myReactives$nnet$out
     lmr = lm(formula = predicted~mesured)
     frm = getModelXplotText(lmfit = lmr)

@@ -47,6 +47,7 @@ require(sp)
 require(RANN)
 require(RSNNS)
 require(ClusterR)
+require(mclust)
 require(hexbin)
 #library(markdown)
 
@@ -137,7 +138,8 @@ ui <- fluidPage(
         #UI: Maps inputs  ####
         tabPanel(
           "Карты",
-
+          tabsetPanel(
+            tabPanel( "Данные",
           sliderInput(
             "bins",
             "Бины гистограммы:",
@@ -163,7 +165,50 @@ ui <- fluidPage(
           ),
           dataTableOutput('table_maps'),
           actionButton("delmap"   , "Удалить выбранные", width = butt_wid)
-        )  ,
+        ),
+        #UI: model KM ####
+        tabPanel(
+          "K-Means",
+          plotOutput(
+            "kmPlot",
+            height = "500px"
+          ),
+          sliderInput(
+            "kmClasses",
+            "Число Классов:",
+            min = 1,
+            max = 10,
+            value = 3
+          ),
+          verbatimTextOutput("kmText"),
+          plotOutput(
+            "kmXPlot",
+            height = "500px"
+          ),
+          verbatimTextOutput("kmXText")            
+        ),
+        #UI: model GMM ####
+        tabPanel(
+          "GMM K-Means",
+          plotOutput(
+            "gmmPlot",
+            height = "500px"
+          ),
+          sliderInput(
+            "gmmClasses",
+            "Число Классов:",
+            min = 1,
+            max = 10,
+            value = 3
+          ),
+          verbatimTextOutput("gmmText"),
+          plotOutput(
+            "gmmXPlot",
+            height = "500px"
+          ),
+          verbatimTextOutput("gmmXText")            
+        )
+        )),
         #UI: models ####
         tabPanel(
           "Модели",
@@ -216,49 +261,7 @@ ui <- fluidPage(
                 height = "500px"
               ),
               verbatimTextOutput("glmXText")
-              ),
-            #UI: model KM ####
-            tabPanel(
-              "K-Means",
-              plotOutput(
-                "kmPlot",
-                height = "500px"
-              ),
-              sliderInput(
-                "kmClasses",
-                "Число Классов:",
-                min = 1,
-                max = 10,
-                value = 3
-              ),
-              verbatimTextOutput("kmText"),
-              plotOutput(
-                "kmXPlot",
-                height = "500px"
-              ),
-              verbatimTextOutput("kmXText")            
-              ),
-            #UI: model GMM ####
-            tabPanel(
-              "GMM K-Means",
-              plotOutput(
-                "gmmPlot",
-                height = "500px"
-              ),
-              sliderInput(
-                "gmmClasses",
-                "Число Классов:",
-                min = 1,
-                max = 10,
-                value = 3
-              ),
-              verbatimTextOutput("gmmText"),
-              plotOutput(
-                "gmmXPlot",
-                height = "500px"
-              ),
-              verbatimTextOutput("gmmXText")            
-            )
+              )
           )
         )
       )
@@ -827,7 +830,7 @@ drawModMapPlot <- function (maps = NULL, clusters = NULL, sr = NULL) {
   plot(datplot,col = rainbow(max(clusters)))
 }
 
-drawGMM <- function(maps = NULL, nclass = 3, sr = NULL) {
+drawGMM_old <- function(maps = NULL, nclass = 3, sr = NULL) {
   if(is.null(maps)) return(NULL)
   
   data = getLiveMapsData(maps,sr)
@@ -839,6 +842,27 @@ drawGMM <- function(maps = NULL, nclass = 3, sr = NULL) {
   
   clr=nclass + 1 - closest$nn.idx[,1]
   plot(as.data.frame(data[,2:length(data[1,])]),col = rainbow(nclass)[clr], pch = 16)
+  return(gmm)
+}
+
+drawGMM <- function(maps = NULL, nclass = 3, sr = NULL) {
+  if(is.null(maps)) return(NULL)
+  
+  data = getLiveMapsData(maps,sr)
+  
+  dat = data[,2:length(data[1,])]
+  #names(dat) = names(data[,2:length(data[1,])])
+  gmmBIC=mclustBIC(dat)
+  gmm <- Mclust(dat,x = gmmBIC)
+  
+  #browser
+#  closest <- nn2(gmm$centroids, dat)
+  
+#  clr=nclass + 1 - closest$nn.idx[,1]
+  col = rainbow(gmm$G+1)
+  #browser()
+  #mclust.options("classPlotColors" = col)
+  plot(gmm, what = "classification")
   return(gmm)
 }
 
@@ -1317,9 +1341,8 @@ X_LOCATION  Y_LOCATION  VALUE",
   output$gmmXPlot <- renderPlot({
     data = getLiveMapsData(myReactives$maps,sr = input$table_maps_rows_selected)
 
-    closest <- nn2(myReactives$gmm$centroids, center_scale(data[,2:length(data[1,])]))
-    
-    clr=input$gmmClasses + 1 - closest$nn.idx[,1]
+
+    clr=myReactives$gmm$classification
     
     drawModMapPlot(myReactives$maps,clr,sr = input$table_maps_rows_selected)
     par(new = TRUE)

@@ -20,11 +20,12 @@
 # INPR: 7.2. Neural networks tools
 # TODO: 7.3. Linear Models types selection
 # TODO: 7.4. Gaussian Mixture model clastering
+# INPR: 7.4.1 GMM automatic classes number diable chec
 # TODO: 8. Add cross-validation analysis (if not included in LM)
 # DONE: 9. Provide batch maps loading (by path and extension)
 # DONE: FIX Well labeling order issue
 # DONE: FIX Maps selection assert for LM
-# TODO: 10. Add results export/output
+# TODO: 10. Add results export/output (download + write.ascigrid() )
 # TODO: 11. How to remove redunant calls to getLiveMaps()
 # DONE: 12. Add modal messages during long-term calculations/loading
 # TODO: 13. Move Maps-only classification tabs from Models to Maps Tab
@@ -78,6 +79,8 @@ myReactives <- reactiveValues(wells = wells0, zoom = map_zoom, fit = NULL, maps 
 # Define UI for application that draws a histogram
 ui <- fluidPage(
   # Application title
+  #tags$head(tags$style("#kmText {white-space: pre;word-wrap: normal}")),
+  #tags$head(tags$style("#gmmText {white-space: pre;word-wrap: normal}")),
   titlePanel("Кроссплоты карт"),
   # test = enc2utf8(c("привет","пока"))
   
@@ -169,10 +172,6 @@ ui <- fluidPage(
         #UI: model KM ####
         tabPanel(
           "K-Means",
-          plotOutput(
-            "kmPlot",
-            height = "500px"
-          ),
           sliderInput(
             "kmClasses",
             "Число Классов:",
@@ -180,33 +179,56 @@ ui <- fluidPage(
             max = 10,
             value = 3
           ),
-          verbatimTextOutput("kmText"),
-          plotOutput(
-            "kmXPlot",
-            height = "500px"
+          tabsetPanel(
+            tabPanel( "Модель",
+              plotOutput(
+                "kmPlot",
+                height = "500px"
+              ),
+              verbatimTextOutput("kmText")
+            ),
+            tabPanel( "Результат",
+              plotOutput(
+                "kmXPlot",
+                height = "500px"
+              ),
+              downloadButton('downloadKMMap', 'Сохранить карту')
+            )
           ),
-          verbatimTextOutput("kmXText")            
+          verbatimTextOutput("kmXText")
         ),
         #UI: model GMM ####
         tabPanel(
           "GMM K-Means",
-          plotOutput(
-            "gmmPlot",
-            height = "500px"
-          ),
           sliderInput(
             "gmmClasses",
-            "Число Классов:",
+            "Число классов:",
             min = 1,
-            max = 10,
+            max = 15,
             value = 3
           ),
-          verbatimTextOutput("gmmText"),
-          plotOutput(
-            "gmmXPlot",
-            height = "500px"
+          checkboxInput(
+            "gmClassUD",
+            "Автоматически",
+            FALSE
           ),
-          verbatimTextOutput("gmmXText")            
+          tabsetPanel(
+            tabPanel( "Модель",
+              plotOutput(
+                "gmmPlot",
+                height = "500px"
+              ),
+              verbatimTextOutput("gmmText")
+            ),
+            tabPanel( "Результат",
+              plotOutput(
+                "gmmXPlot",
+                height = "500px"
+              ),
+              downloadButton('downloadGMMap', 'Сохранить карту')
+            )
+          ),
+          verbatimTextOutput("gmmXText")
         )
         )),
         #UI: models ####
@@ -358,7 +380,7 @@ transposeMap <- function(map_obj = NULL) {
   if(is.null(map_obj)) return(NULL)
   c=map_obj$rstr@ncols 
   r=map_obj$rstr@nrows
-  map_obj$rstr@data@values = matrix(map_obj$rstr@data@values, ncol = c, nrow = r, byrow = TRUE)
+  map_obj$rstr@data@values = as.vector(matrix(map_obj$rstr@data@values, ncol = c, nrow = r, byrow = TRUE))
 #  map_obj$map@data = data.frame(as.vector(map_m))
   
   map_obj$rstr@ncols=r
@@ -595,10 +617,11 @@ selectMap <- function (maps = NULL, sr = NULL, idx = -1) {
   #if ( is.null(sr) || length(sr) < 1 ) map_obj = maps[[1]]
   #else map_obj = maps[[sr[1]]]
   
+  if(length(sr) == 1) return(sr[1])
+  
   if ( is.null(sr) || length(sr) < 1 ) map_idx = idx
   else map_idx = sr[idx]
-  
-  
+
   return(map_idx)
 }
 
@@ -786,13 +809,14 @@ drawModelXplot <- function(data = NULL, lmfit = NULL, srows = NULL) {
 
 }
 
-drawKMeans <- function(maps = NULL, nclass = 3, sr = NULL) {
-  if(is.null(maps)) return(NULL)
+drawKMeans <- function(data = NULL, nclass = 3) {
+  if(is.null(data)) return(NULL)
 
-  data = getLiveMapsData(maps,sr)
+  #data = getLiveMapsData(maps,sr)
   kmns = kmeans(center_scale(data[,2:length(data[1,])]),nclass)
   clr=kmns$cluster
-  plot(as.data.frame(data[,2:length(data[1,])]),col = rainbow(nclass)[clr], pch = 16)
+  plot(as.data.frame(data[,2:length(data[1,])]),col = mclust.options("classPlotColors")[clr], pch = 16)
+  #plot(datplot,col = mclust.options("classPlotColors")[1:max(clusters)])
   return(kmns)
 }
 
@@ -805,6 +829,8 @@ getLiveMapsData <- function (maps = NULL, sr = NULL) {
   #browser()
   data = c(1:length(as.vector(maps[[sr[1]]]$rstr@data@values)))
   for(i in 1:length(sr)) {
+    if(length(as.vector(maps[[sr[1]]]$rstr@data@values)) != length(as.vector(maps[[sr[i]]]$rstr@data@values)))
+      return(NULL)
     data = data.frame(data,as.vector(maps[[sr[i]]]$rstr@data@values))
     colnames(data)[i+1] = maps[[sr[i]]]$fn
   }
@@ -817,18 +843,39 @@ getLiveMapsData <- function (maps = NULL, sr = NULL) {
 }
 
 
-drawModMapPlot <- function (maps = NULL, clusters = NULL, sr = NULL) {
-  if(is.null(maps) || is.null(data)|| is.null(clusters)) return(NULL)
-  
+drawModMapPlot <- function (data = NULL, clusters = NULL, sr = NULL) {
+  if(is.null(data) || is.null(data)|| is.null(clusters)) return(NULL)
   # get live cells
-  data = getLiveMapsData(maps,sr)
+  #data = getLiveMapsData(maps,sr)
   lividx = data[,1]
   if(!is.null(sr) && length(sr)>1) datplot = myReactives$maps[[sr[1]]]$rstr
   else datplot = myReactives$maps[[1]]$rstr
   datplot@data@values = NA
   datplot@data@values[lividx] <- clusters
-  plot(datplot,col = rainbow(max(clusters)))
+  plot(datplot,col = mclust.options("classPlotColors")[1:max(clusters)])
+  return (datplot)
 }
+
+saveModMap <- function (data = NULL, clusters = NULL, sr = NULL) {
+  if(is.null(data) || is.null(data)|| is.null(clusters)) return(NULL)
+  # got live cells
+  lividx = data[,1]
+  if(!is.null(sr) && length(sr)>1) datplot = myReactives$maps[[sr[1]]]$rstr
+  else datplot = myReactives$maps[[1]]$rstr
+  datplot@data@values[lividx] <- clusters
+  datplot_out=datplot
+  dxCellsize=(datplot@extent@xmax-datplot@extent@xmin)/datplot@nrows
+  dyCellsize=(datplot@extent@ymax-datplot@extent@ymin)/datplot@ncols
+  newCellSize = min(dxCellsize,dyCellsize)
+  datplot_out@ncols = as.integer(ceiling((datplot@extent@ymax-datplot@extent@ymin)/newCellSize))
+  datplot_out@nrows = as.integer(ceiling((datplot@extent@xmax-datplot@extent@xmin)/newCellSize))
+  datplot_out = resample(datplot,datplot_out)
+  spgrid = as(datplot_out,'SpatialGridDataFrame') 
+  spgrid@grid@cellsize = rep(newCellSize,2)
+  browser()
+  return (spgrid)
+}
+
 
 drawGMM_old <- function(maps = NULL, nclass = 3, sr = NULL) {
   if(is.null(maps)) return(NULL)
@@ -845,15 +892,20 @@ drawGMM_old <- function(maps = NULL, nclass = 3, sr = NULL) {
   return(gmm)
 }
 
-drawGMM <- function(maps = NULL, nclass = 3, sr = NULL) {
-  if(is.null(maps)) return(NULL)
+drawGMM <- function(data = NULL, nclass = 3) {
+  if(is.null(data)) return(NULL)
   
-  data = getLiveMapsData(maps,sr)
+  #data = getLiveMapsData(maps,sr)
   
   dat = data[,2:length(data[1,])]
   #names(dat) = names(data[,2:length(data[1,])])
-  gmmBIC=mclustBIC(dat)
-  gmm <- Mclust(dat,x = gmmBIC)
+  if(nclass > 0) {
+    gmmBIC=mclustBIC(dat,G=nclass)
+    gmm <- Mclust(dat,x = gmmBIC,G=nclass)
+  } else {
+    gmmBIC=mclustBIC(dat,G=1:12)
+    gmm <- Mclust(dat,x = gmmBIC)
+  }
   
   #browser
 #  closest <- nn2(gmm$centroids, dat)
@@ -1080,13 +1132,6 @@ WELL  X_LOCATION  Y_LOCATION",
     else {
       showNotification(ui = paste(length(wls[,1])," wells loaded"),
                        type = "default")
-      # if(is.null(myReactives$maps) || length(myReactives$maps) == 0 ) {
-      #   map_obj <- upscaleMap(def_map,input$rstr_fact,func = median)
-      #   myReactives$maps <- append(myReactives$maps,list(map_obj))
-      #   myReactives$maps <- append(myReactives$maps,list(map_obj))
-      # }
-      #browser()
-      #wls <- addWellCP(wells = wls,cpdata = c(rep(NA,times = length(wls[,1]))))
       for( i in 1:length(myReactives$maps))  {
         wls <- extractMap2Well(wls,myReactives$maps[[i]]$rstr, paste0("Map",i))
       }
@@ -1131,10 +1176,11 @@ X_LOCATION  Y_LOCATION  VALUE",
         }
       }
     }
+    myReactives$liveMaps <- getLiveMapsData(maps = myReactives$maps)
     removeModal()
   })
   
-  #CB: Delete maps ####
+  #CB: delete maps ####
   observeEvent(input$delmap , {
     #myReactives$maps[[input$table_maps_rows_selected]] = NULL
     #browser()
@@ -1142,33 +1188,17 @@ X_LOCATION  Y_LOCATION  VALUE",
     res = deleteMaps(myReactives$maps,myReactives$wells,sr = input$table_maps_rows_selected)
     myReactives$wells <- res$wells
     myReactives$maps <- res$maps
-    # sr = sort(input$table_maps_rows_selected)
-    # i=length(sr)
-    # while (i) {
-    #   myReactives$maps[[sr[i]]] = NULL
-    #   i=i-1
-    # }
-    # #update Wells attributes
-    # # if(is.null(myReactives$maps) || length(myReactives$maps) == 0 ) {
-    # #   map_obj <- upscaleMap(def_map,input$rstr_fact,func = median)
-    # #   myReactives$maps <- append(myReactives$maps,list(map_obj))
-    # #   myReactives$maps <- append(myReactives$maps,list(map_obj))
-    # # }
-    # browser()
-    # #wls <- addWellCP(wells = wls,cpdata = c(rep(NA,times = length(wls[,1]))))
-    # wls = cbind(myReactives$wells@data$WELL,as.matrix(myReactives$wells@coords),myReactives$wells@data$Values)
-    # colnames(wls) <- c("WELL","X_LOCATION","Y_LOCATION","Value")
-    # wls <- as.data.frame(wls)
-    # coordinates(wls) = ~X_LOCATION+Y_LOCATION
-    # for( i in 1:length(myReactives$maps))  {
-    #   wls <- extractMap2Well(wls,myReactives$maps[[i]]$rstr, paste0("Map",i))
-    # }
-    # myReactives$wells <- wls
-    
+    myReactives$liveMaps <- getLiveMapsData(maps = myReactives$maps)
   })
   
-  
-  #CB: Transposing ####
+  #CB: select maps ####
+  observeEvent(input$table_maps_rows_selected, {
+    #browser()
+    myReactives$liveMaps <- getLiveMapsData(maps = myReactives$maps, sr = input$table_maps_rows_selected)
+    
+  })
+
+  #CB: transposing ####
   observeEvent(input$trans1 , {
     if(length(myReactives$maps)>1) {
       map_idx = selectMap(maps = myReactives$maps,sr = input$table_maps_rows_selected, idx = 1)
@@ -1183,6 +1213,7 @@ X_LOCATION  Y_LOCATION  VALUE",
       map_obj = transposeMap(myReactives$maps[[map_idx]])
       myReactives$wells <- extractMap2Well(myReactives$wells,map_obj$rstr, paste0 ("Map",map_idx))
       myReactives$maps[[map_idx]] <- map_obj
+      myReactives$liveMaps <- getLiveMapsData(maps = myReactives$maps)
     }
   })
   
@@ -1193,6 +1224,7 @@ X_LOCATION  Y_LOCATION  VALUE",
       map_obj = upscaleMap(myReactives$maps[[i]],input$rstr_fact,func = median)
       myReactives$wells <- extractMap2Well(myReactives$wells,map_obj$rstr, paste0 ("Map",i))
       myReactives$maps[[i]] <- map_obj
+      myReactives$liveMaps <- getLiveMapsData(maps = myReactives$maps)
     }
     removeModal()
   })
@@ -1203,6 +1235,7 @@ X_LOCATION  Y_LOCATION  VALUE",
       map_obj <- upscaleMap(def_map,input$rstr_fact,func = median)
       myReactives$maps <- append(myReactives$maps,list(map_obj))
       myReactives$maps <- append(myReactives$maps,list(map_obj))
+      myReactives$liveMaps <- getLiveMapsData(maps = myReactives$maps)
     }
     map_idx = selectMap(maps = myReactives$maps,sr = input$table_maps_rows_selected, idx = 1)
     drawRstr(myReactives$maps[[map_idx]]$rstr,myReactives$zoom)
@@ -1216,7 +1249,7 @@ X_LOCATION  Y_LOCATION  VALUE",
     }
   })
 
-  #CB: Zoom reset ####
+  #CB: zoom reset ####
   observeEvent(input$unzoom1 , {
     myReactives$zoom <- NULL
     session$resetBrush("plot_brush")
@@ -1226,7 +1259,7 @@ X_LOCATION  Y_LOCATION  VALUE",
     session$resetBrush("plot_brush")
   })
   
-  #CB: plot histograms ####
+  #CB: histogram plot  ####
   output$histPlot1 <- renderPlot({
     map_idx = selectMap(maps = myReactives$maps,sr = input$table_maps_rows_selected, idx = 1)
     drawHist(myReactives$maps[[map_idx]]$mat, input$bins)
@@ -1236,7 +1269,7 @@ X_LOCATION  Y_LOCATION  VALUE",
     drawHist(myReactives$maps[[map_idx]]$mat, input$bins)
   })
   
-  #CB: plot hexbin xplot ####
+  #CB: hexbin plot xplot ####
   output$xPlot_hex <- renderPlot({
     if(is.null(myReactives$maps) || length(myReactives$maps) == 0 ) {
       map_obj <- upscaleMap(def_map,input$rstr_fact,func = median)
@@ -1248,7 +1281,7 @@ X_LOCATION  Y_LOCATION  VALUE",
     drawHex(getXYvectors(myReactives$maps[[map_idx1]], myReactives$maps[[map_idx2]]), input$cells)
   })
   
-  #CB: plot NNET model ####
+  #CB: NNET plot model ####
   output$nnetPlot <- renderPlot({
     showModal(modalDialog( "Neural network model creation...",title = "Please wait..."))
     myReactives$nnet <- buildNNET(myReactives$wells, 
@@ -1282,7 +1315,7 @@ X_LOCATION  Y_LOCATION  VALUE",
     paste(frm)
   })
   
-  #CB: plot NNET Xplot ####
+  #CB: NNET plot Xplot ####
   output$nnetxPlot <- renderPlot({
     plot.nnet(myReactives$nnet$net)
     #plot(myReactives$nnet$inp,myReactives$nnet$out)
@@ -1293,7 +1326,7 @@ X_LOCATION  Y_LOCATION  VALUE",
     #paste(txt)
   })
 
-  #CB: plot GLM model ####
+  #CB: GLM plot model ####
   output$glmPlot <- renderPlot({
     showModal(modalDialog( "Multi-Linear regression model creation...",title = "Please wait..."))
     fit <- buildGLM(myReactives$wells, input$table_wells_rows_selected, input$table_maps_rows_selected)
@@ -1307,7 +1340,7 @@ X_LOCATION  Y_LOCATION  VALUE",
     paste(frm)
   })
   
-  #CB: plot GLM Xplot ####
+  #CB: GLM plot Xplot ####
   output$glmXPlot <- renderPlot({
     drawModelXplot (myReactives$wells@data, myReactives$fit, input$table_wells_rows_selected)
   })
@@ -1317,37 +1350,84 @@ X_LOCATION  Y_LOCATION  VALUE",
     paste(txt)
   })
   
-  #CB: plot KM model ####
+  #CB: KM plot model ####
   output$kmPlot <- renderPlot({
     showModal(modalDialog( "K-means classification is in progress...",title = "Please wait..."))
-    myReactives$km <- drawKMeans(myReactives$maps,input$kmClasses,sr = input$table_maps_rows_selected)
+    myReactives$km <- drawKMeans(myReactives$liveMaps,input$kmClasses)#,sr = input$table_maps_rows_selected)
     removeModal()
   })
 
-  output$kmXPlot <- renderPlot({
+  output$kmText <- renderText({ #renderPrint renderText
+    #browser()
+    #txt <- summary(myReactives$km)
+    paste0(capture.output(myReactives$km),"\n")
+  })
+
+    output$kmXPlot <- renderPlot({
     
-    drawModMapPlot(myReactives$maps,myReactives$km$cluster,sr = input$table_maps_rows_selected)
+    myReactives$km_map = drawModMapPlot(myReactives$liveMaps,myReactives$km$cluster,sr = input$table_maps_rows_selected)
     par(new = TRUE)
     drawWells(wells = myReactives$wells)
   })
   
-  #CB: plot GMM model ####
+  #CB: KM download  ####
+  output$downloadKMMap <- downloadHandler(
+    filename = function() {
+      paste0('KMeans_Ncls',input$gmmClasses,'_',Sys.Date(), '.asc')
+    },
+    contentType = '.asc',
+    content = function (fname) {
+      #browser()
+      outgrid = saveModMap(myReactives$liveMaps,myReactives$km$cluster,sr = input$table_maps_rows_selected)
+      save = try( expr = write.asciigrid(outgrid,fname) , TRUE)
+      if(class(save)=="try-error")
+        showNotification(ui = "Error saving Map file.",
+                         type = "error")      
+    }
+  )
+  
+  #CB: GMM plot model ####
   output$gmmPlot <- renderPlot({
     showModal(modalDialog( "GMM classification is in progress...",title = "Please wait..."))
-    myReactives$gmm <- drawGMM(myReactives$maps,input$gmmClasses,sr = input$table_maps_rows_selected)
+    if(input$gmClassUD) nClasses = 0
+    else nClasses = input$gmmClasses
+    myReactives$gmm <- drawGMM(myReactives$liveMaps,nClasses)#,sr = input$table_maps_rows_selected)
+    if(input$gmClassUD)
+      updateSliderInput(session,"gmmClasses",value = myReactives$gmm$G)
     removeModal()
   })
 
-  output$gmmXPlot <- renderPlot({
-    data = getLiveMapsData(myReactives$maps,sr = input$table_maps_rows_selected)
+    output$gmmText <- renderText({ #renderPrint renderText
+      #browser()
+      #txt <- summary(myReactives$gmm)
+      paste0(capture.output(summary(myReactives$gmm)),"\n")
+    })
+    
+    output$gmmXPlot <- renderPlot({
+    #data = getLiveMapsData(myReactives$maps,sr = input$table_maps_rows_selected)
 
 
     clr=myReactives$gmm$classification
     
-    drawModMapPlot(myReactives$maps,clr,sr = input$table_maps_rows_selected)
+    myReactives$gmm_map = drawModMapPlot(myReactives$liveMaps,clr,sr = input$table_maps_rows_selected)
     par(new = TRUE)
     drawWells(wells = myReactives$wells)
   })
+  
+  #CB: GMM download  ####
+  output$downloadGMMap <- downloadHandler(
+    filename = function() {
+      paste0('GMM_Ncls',input$gmmClasses,'_',Sys.Date(), '.asc')
+    },
+    contentType = '.asc',
+    content = function (fname) {
+      outgrid = saveModMap(myReactives$liveMaps,myReactives$gmm$classification,sr = input$table_maps_rows_selected)
+      save = try( expr = write.asciigrid(outgrid,fname) , TRUE)
+      if(class(save)=="try-error")
+        showNotification(ui = "Error saving Map file.",
+                         type = "error")      
+    }
+  )
   
   #CB: plot simple xplot ####
   output$xPlot_simple <- renderPlot({
@@ -1370,11 +1450,13 @@ X_LOCATION  Y_LOCATION  VALUE",
   #CB: set Tabs names ####
   output$tab1 = renderText(({
     map_idx = selectMap(maps = myReactives$maps,sr = input$table_maps_rows_selected, idx = 1)
-    basename(myReactives$maps[[map_idx]]$fn)
+    if(is.null(map_idx)) paste('Проверьте выбор карт')
+    else basename(myReactives$maps[[map_idx]]$fn)
   }))
   output$tab2 = renderText(({
     map_idx = selectMap(maps = myReactives$maps,sr = input$table_maps_rows_selected, idx = 2)
-    basename(myReactives$maps[[map_idx]]$fn)
+    if(is.null(map_idx)) paste('Проверьте выбор карт')
+    else basename(myReactives$maps[[map_idx]]$fn)
   }))
 
   #CB: print out the cursor positions   ####

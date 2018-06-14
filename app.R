@@ -18,6 +18,7 @@
 # TODO: 7. provide different Prediction types 
 # TODO: 7.1. classification tools
 # INPROGRESS: 7.2. Neural networks tools
+# FIXME: 7.1.1 Check the training - the xplot looks strange of the given NNET complexity
 # DONE: 7.3. Linear Models types selection
 # DONE: 7.4. Gaussian Mixture model clastering
 # DONE: 7.4.1 GMM automatic classes number diable chec
@@ -27,12 +28,20 @@
 # DONE: FIX Maps selection assert for LM
 # INPROGRESS: 10. Add results export/output 
 # DONE: 10.1 Maps (download + write.ascigrid() )
-# TODO: 10.2 CP Table with extracted values
+# DONE: 10.2 CP Table with extracted values
 # DONE: 11. How to remove redunant calls to getLiveMaps()
 # DONE: 12. Add modal messages during long-term calculations/loading
-# TODO: 12.1 Add progress idication to the Modal Panels
+# DONE: 12.1 Add progress idication to the Modal Panels
 # DONE: 13. Move Maps-only classification tabs from Models to Maps Tab
 # TODO: 14. Apply Upscaling only to selected maps, if any, to reduce processing time. (manage upscaling parameter?)
+# TODO:?15. Transform the Model/Reslut tabs into radio group and reduce the plot+text to one per model type
+# TODO:?16. Add palette selection for the maps
+# TODO: 17. Add maps averaging
+# DONE: 18. Add bilinear smoothing for Rasters DIsplay plots
+# TODO: 19. Add maps selection for the Map display tabs
+# TODO: 20. Add KM classes id remapping to GMM after calculation according to the metoids/centroids
+# DONE: 21. Add Results Zoom option
+# TODO: 22. Add BIC plot ot GMM and KM
 
 
 
@@ -42,6 +51,7 @@ require(DT)
 
 require(readr)
 require(raster)
+require(miniUI)
 
 ## Acsource from https://gist.github.com/fawda123/7471137/raw/cd6e6a0b0bdb4e065c597e52165e5ac887f5fe95/nnet_plot_update.r'
 source("nnet_plot_update.r")
@@ -71,8 +81,10 @@ map_zoom = NULL
 flist <- list(mean,median,sd)
 names(flist) <- c("Среднее","Медиана","Ст.Откл.")
 
+classRange = 1:15
+
 map_hei = "900px"
-map_wid = "800px"
+map_wid = "900px" #"900px"
 hist_hei = "200px"
 hist_wid = "200px"
 butt_wid = "200px"
@@ -84,7 +96,7 @@ ui <- fluidPage(
   # Application title
   #tags$head(tags$style("#kmText {white-space: pre;word-wrap: normal}")),
   #tags$head(tags$style("#gmmText {white-space: pre;word-wrap: normal}")),
-  titlePanel("Кроссплоты карт"),
+  titlePanel("Анализ карт и контрольных точек"),
   # test = enc2utf8(c("привет","пока"))
   
   
@@ -92,38 +104,6 @@ ui <- fluidPage(
   sidebarLayout(
     sidebarPanel(
       tabsetPanel(
-        tabPanel( "Гексаплот",
-          plotOutput(
-            "xPlot_hex",
-            click = "plot_click",
-            dblclick = "plot_dblclick",
-            hover = "plot_hover",
-            brush = brushOpts( id = "plot_brush", clip = FALSE, resetOnNew = TRUE)
-          ),
-          sliderInput(
-            "cells",
-            "размер бина кроссплота:",
-            min = 1,
-            max = 50,
-            value = 30
-          )
-          ),
-          tabPanel( "Кроссплот",
-                  plotOutput(
-                    "xPlot_simple",
-                    click = "plot_click",
-                    dblclick = "plot_dblclick",
-                    hover = "plot_hover",
-                    brush = brushOpts( id = "plot_brush", clip = FALSE, resetOnNew = TRUE)
-                  ),
-            sliderInput(
-              "transp",
-              "Прозрачность:",
-              min = 0.1,
-              max = 2,
-              value = 1
-            )
-          ),
         #UI: Wells inputs and display ####
         tabPanel(
           "Скважины",
@@ -142,16 +122,18 @@ ui <- fluidPage(
           dataTableOutput('table_wells'),
           downloadButton('downloadWellsCP', 'Сохранить в файл')
         )  ,
-        #UI: Maps inputs  ####
+        #UI: Maps panels  ####
         tabPanel(
           "Карты",
+          # UI: Class definition ####
           conditionalPanel(
-            condition = "input.maps == 'model'",
+            condition = "input.maps == 'modelKM' || input.maps == 'modelGM'",
             sliderInput(
               "numClasses",
               "Число классов:",
-              min = 1,
-              max = 15,
+              min = min(classRange),
+              max = max(classRange),
+              step = 1,
               value = 3
             ),
             checkboxInput(
@@ -161,46 +143,83 @@ ui <- fluidPage(
             )
           ),
           tabsetPanel( id = "maps",
+            #UI: Maps input  ####
             tabPanel( "Данные", value = "input",
-          sliderInput(
-            "bins",
-            "Бины гистограммы:",
-            min = 1,
-            max = 100,
-            value = 30
-          ),
-          sliderInput(
-            "rstr_fact",
-            "Разрешение грида:",
-            min = 0.1,
-            max = 1,
-            value = 0.5
-          ),
-          fileInput(
-            "Mapsfile",
-            "Открыть/Заменить карту:",
-            accept = '.asc',#c("text/plain",
-                       #"text/esri-asciigrid,text/plain",
-                       #"*.asc"),
-                       buttonLabel = "Открыть...",
-                       multiple = TRUE
-          ),
-          dataTableOutput('table_maps'),
-          actionButton("delmap"   , "Удалить выбранные", width = butt_wid)
+              sliderInput(
+                "bins",
+                "Бины гистограммы:",
+                min = 1,
+                max = 100,
+                value = 30
+              ),
+              sliderInput(
+                "rstr_fact",
+                "Разрешение грида:",
+                min = 0.1,
+                max = 1,
+                value = 0.5
+              ),
+              fileInput(
+                "Mapsfile",
+                "Открыть/Заменить карту:",
+                accept = '.asc',#c("text/plain",
+                           #"text/esri-asciigrid,text/plain",
+                           #"*.asc"),
+                           buttonLabel = "Открыть...",
+                           multiple = TRUE
+              ),
+              dataTableOutput('table_maps'),
+              actionButton("delmap"   , "Удалить выбранные", width = butt_wid)
+            ),
+        #UI: HexPlot display ####
+        tabPanel(  value = "xplot",  title = "Гексаплот",
+                  plotOutput(
+                    "xPlot_hex",
+                    click = "plot_zoom",
+                    dblclick = "plot_dblclick",
+                    hover = "plot_hover",
+                    brush = brushOpts( id = "plot_brush", clip = FALSE, resetOnNew = TRUE)
+                  ),
+                  sliderInput(
+                    "cells",
+                    "размер бина кроссплота:",
+                    min = 1,
+                    max = 50,
+                    value = 30
+                  )
+        ),
+        #UI: Xplot display ####
+        tabPanel(  value = "xplot",  title = "Кроссплот",
+                  plotOutput(
+                    "xPlot_simple",
+                    click = "plot_zoom",
+                    dblclick = "plot_dblclick",
+                    hover = "plot_hover",
+                    brush = brushOpts( id = "plot_brush", clip = FALSE, resetOnNew = TRUE)
+                  ),
+                  sliderInput(
+                    "transp",
+                    "Прозрачность:",
+                    min = 0.1,
+                    max = 2,
+                    value = 1
+                  )
         ),
         #UI: model KM ####
-        tabPanel( "K-Means", value = "model",
-          tabsetPanel(
-            tabPanel( "Модель",
+        tabPanel( "K-Means", value = "modelKM",
+          tabsetPanel( id = "modelKM",
+            tabPanel( "Модель", value = "mod",
               plotOutput(
                 "kmPlot",
+                click = "plot_zoom",
                 height = "500px"
               ),
               verbatimTextOutput("kmText")
             ),
-            tabPanel( "Результат",
+            tabPanel( "Результат", value = "res",
               plotOutput(
                 "kmXPlot",
+                click = "plot_zoom",
                 height = "500px"
               ),
               downloadButton('downloadKMMap', 'Сохранить карту')
@@ -209,18 +228,20 @@ ui <- fluidPage(
           verbatimTextOutput("kmXText")
         ),
         #UI: model GMM ####
-        tabPanel( "GMM K-Means", value = "model",
-          tabsetPanel(
-            tabPanel( "Модель",
+        tabPanel(  "GMM K-Means", value = "modelGM",
+          tabsetPanel( id = "modelGM",
+            tabPanel( "Модель", value = "mod",
               plotOutput(
                 "gmmPlot",
+                click = "plot_zoom",
                 height = "500px"
               ),
               verbatimTextOutput("gmmText")
             ),
-            tabPanel( "Результат",
+            tabPanel( "Результат", value = "res",
               plotOutput(
                 "gmmXPlot",
+                click = "plot_zoom",
                 height = "500px"
               ),
               downloadButton('downloadGMMap', 'Сохранить карту')
@@ -372,6 +393,8 @@ ui <- fluidPage(
     
   )
 )
+
+source("plotGadget.r")
 
 ## transpose the maps' matrix 
 transposeMap <- function(map_obj = NULL) {
@@ -631,7 +654,7 @@ drawRstr <- function (map = def_map$rstr, zoom = NULL) {
   else {
     zoom <- NULL
     par(new = TRUE)
-    plot(map)
+    plot(map,interpolate=TRUE)
   }
 }
 
@@ -839,17 +862,39 @@ getLiveMapsData <- function (maps = NULL, sr = NULL) {
   return(data)
 }
 
+plotModel <- function(data,model) {
+  #browser()
+  if(class(model) == 'Mclust') 
+    plot(model, 
+         #main = (capture.output(summary(model)))[2], 
+         what = "classification")
+  else if(class(model) == 'kmeans') {
+    plot(as.data.frame(data[,2:length(data[1,])]),
+         main = (capture.output(model))[1],
+         col = mclust.options("classPlotColors")[model$cluster], pch = 16)
+  }
+}
 
-drawModMapPlot <- function (data = NULL, clusters = NULL, sr = NULL) {
-  if(is.null(data) || is.null(data)|| is.null(clusters)) return(NULL)
-  # get live cells
-  #data = getLiveMapsData(maps,sr)
+drawModMapPlot <- function (data = NULL, model = NULL, sr = NULL) {
+  if(is.null(data) || is.null(data)|| is.null(model)) return(NULL)
+  if(class(model) == 'Mclust') {
+    title = (capture.output(summary(model)))[2]
+    clusters = model$classification
+  }
+  else if(class(model) == 'kmeans') {
+    title = (capture.output(model))[1]
+    clusters = model$cluster
+  }
   lividx = data[,1]
-  if(!is.null(sr) && length(sr)>1) datplot = myReactives$maps[[sr[1]]]$rstr
-  else datplot = myReactives$maps[[1]]$rstr
+  if(!is.null(sr) && length(sr)>1) 
+    datplot = myReactives$maps[[sr[1]]]$rstr
+  else
+    datplot = myReactives$maps[[1]]$rstr
   datplot@data@values = NA
   datplot@data@values[lividx] <- clusters
-  plot(datplot,col = mclust.options("classPlotColors")[1:max(clusters)])
+  plot(datplot,
+       main = title,
+       col = mclust.options("classPlotColors")[1:max(clusters)],interpolate=F)
   return (datplot)
 }
 
@@ -877,8 +922,6 @@ saveModMap <- function (data = NULL, clusters = NULL, sr = NULL) {
 drawGMM <- function(data = NULL, nclass = 3) {
   if(is.null(data)) return(NULL)
   
-  #data = getLiveMapsData(maps,sr)
-  
   dat = data[,2:length(data[1,])]
   #names(dat) = names(data[,2:length(data[1,])])
   if(nclass > 0) {
@@ -889,13 +932,6 @@ drawGMM <- function(data = NULL, nclass = 3) {
     gmm <- Mclust(dat,x = gmmBIC)
   }
   
-  #browser
-#  closest <- nn2(gmm$centroids, dat)
-  
-#  clr=nclass + 1 - closest$nn.idx[,1]
-  col = rainbow(gmm$G+1)
-  #browser()
-  #mclust.options("classPlotColors" = col)
   return(gmm)
 }
 
@@ -1080,6 +1116,7 @@ options(shiny.maxRequestSize = 500 * 1024 ^ 2)
 options(shiny.reactlog = TRUE)
 options(shiny.host = "0.0.0.0")
 options(shiny.port = 8080)
+#options(shiny.style="old")
 
 server <- function(input, output, session) {
   # if(is.null(myReactives$maps)) {
@@ -1177,25 +1214,29 @@ X_LOCATION  Y_LOCATION  VALUE",
   #CB: load maps list files ####
   observeEvent(input$Mapsfile , {
     #browser()
-    showModal(modalDialog( "Loading Maps...",title = "Please wait..."))
-    for(i in 1:length(input$Mapsfile[,1])) {
-      map_obj = loadMapFile(input$Mapsfile[i,])
-      map_obj = upscaleMap(map_obj,input$rstr_fact,func = mean)
-      
-      if (is.null(map_obj)) 
-         showNotification(ui = "Error loading Map file. Assume the Format should be ESRI ASCIIgrid.",
-                            type = "error")
-      else {
-        if (length(input$table_maps_rows_selected)>0 && length(myReactives$maps)>1) {
-          map_idx = selectMap(maps = myReactives$maps,sr = input$table_maps_rows_selected, idx = 1)
-          myReactives$maps[[map_idx]] <- map_obj
-          myReactives$wells <- extractMap2Well(myReactives$wells,map_obj$rstr, paste0 ("Map",map_idx))
-        } else {
-          myReactives$wells <- extractMap2Well(myReactives$wells,map_obj$rstr, paste0 ("Map",length(myReactives$maps)+1))
-          myReactives$maps <- append(myReactives$maps,list(map_obj))
-        }
-      }
-    }
+    showModal(modalDialog( "Processing Maps...",title = "Please wait..."))
+    withProgress(message = "Processing Maps...", detail = "Please wait...", 
+                 value =0, {
+                for(i in 1:length(input$Mapsfile[,1])) {
+                  map_obj = loadMapFile(input$Mapsfile[i,])
+                  map_obj = upscaleMap(map_obj,input$rstr_fact,func = mean)
+                  
+                  if (is.null(map_obj)) 
+                     showNotification(ui = "Error loading Map file. Assume the Format should be ESRI ASCIIgrid.",
+                                        type = "error")
+                  else {
+                    if (length(input$table_maps_rows_selected)>0 && length(myReactives$maps)>1) {
+                      map_idx = selectMap(maps = myReactives$maps,sr = input$table_maps_rows_selected, idx = 1)
+                      myReactives$maps[[map_idx]] <- map_obj
+                      myReactives$wells <- extractMap2Well(myReactives$wells,map_obj$rstr, paste0 ("Map",map_idx))
+                    } else {
+                      myReactives$wells <- extractMap2Well(myReactives$wells,map_obj$rstr, paste0 ("Map",length(myReactives$maps)+1))
+                      myReactives$maps <- append(myReactives$maps,list(map_obj))
+                    }
+                  }
+                  incProgress(detail = paste0('\n"',map_obj$fn,'"\n done.'), amount = 1./length(input$Mapsfile[,1]))
+                }
+              })
     myReactives$liveMaps <- getLiveMapsData(maps = myReactives$maps)
     removeModal()
   })
@@ -1240,12 +1281,15 @@ X_LOCATION  Y_LOCATION  VALUE",
   #CB: upscaling  ####
   observeEvent(input$rstr_fact , {
     showModal(modalDialog( "Processing maps...",title = "Please wait..."))
+    withProgress(message = "Processing Maps...", detail = "Please wait...",  value =0, {
     for (i in 1:length(myReactives$maps)) {
       map_obj = upscaleMap(myReactives$maps[[i]],input$rstr_fact,func = median)
       myReactives$wells <- extractMap2Well(myReactives$wells,map_obj$rstr, paste0 ("Map",i))
       myReactives$maps[[i]] <- map_obj
       myReactives$liveMaps <- getLiveMapsData(maps = myReactives$maps)
+      incProgress(detail = paste0('\n"',map_obj$fn,'"\n done.'), amount = 1./length(myReactives$maps))
     }
+      })
     removeModal()
   })
   
@@ -1371,7 +1415,7 @@ X_LOCATION  Y_LOCATION  VALUE",
   })
   
   recalcKMeans <- reactive({
-    showModal(modalDialog( "K-means classification is in progress...",title = "Please wait..."))
+    showModal(modalDialog( "K-means clusterization is in progress...",title = "Please wait..."))
     myReactives$km <- drawKMeans(myReactives$liveMaps,input$numClasses)#,sr = input$table_maps_rows_selected)
     removeModal()
   })
@@ -1379,20 +1423,16 @@ X_LOCATION  Y_LOCATION  VALUE",
   #CB: KM plot model ####
   output$kmPlot <- renderPlot({
     recalcKMeans()
-    data = myReactives$liveMaps
-    plot(as.data.frame(data[,2:length(data[1,])]),
-         col = mclust.options("classPlotColors")[myReactives$km$cluster], pch = 16)
+    plotModel(myReactives$liveMaps,myReactives$km)
   })
 
   output$kmText <- renderText({ #renderPrint renderText
-    #browser()
-    #txt <- summary(myReactives$km)
     paste0(capture.output(myReactives$km),"\n")
   })
 
   output$kmXPlot <- renderPlot({
     recalcKMeans()
-    myReactives$km_map = drawModMapPlot(myReactives$liveMaps,myReactives$km$cluster,sr = input$table_maps_rows_selected)
+    myReactives$km_map = drawModMapPlot(myReactives$liveMaps,myReactives$km,sr = input$table_maps_rows_selected)
     par(new = TRUE)
     drawWells(wells = myReactives$wells)
   })
@@ -1414,22 +1454,20 @@ X_LOCATION  Y_LOCATION  VALUE",
   )
   #CB: GMM model ####    
   recalcGMM <- reactive ({
-    myReactives$Progress = "|| 0%"
-    showModal(modalDialog( myReactives$gmmProgress ,
-                           title = "Gaussian Mixture clasterization fitting..."))
-    observe(input$numClassUD)
     if(input$numClassUD) nClasses = 0
     else nClasses = input$numClasses
-    #reactiveText(drawGMM(myReactives$liveMaps,nClasses))
+
+    showModal(modalDialog( "Gaussian Mixture clusterization fitting..." ,
+                           title = "Please wait..."))
     myReactives$gmm <- drawGMM(myReactives$liveMaps,nClasses)
+    removeModal() 
     if(input$numClassUD)
       updateSliderInput(session,"numClasses",value = myReactives$gmm$G)
-    removeModal() 
   })
   #CB: GMM plot model ####
   output$gmmPlot <- renderPlot({
     recalcGMM()
-    plot(myReactives$gmm, what = "classification")
+    plotModel(myReactives$liveMaps,myReactives$gmm)
   })
 
   output$gmmText <- renderText({ #renderPrint renderText
@@ -1438,8 +1476,9 @@ X_LOCATION  Y_LOCATION  VALUE",
   
   output$gmmXPlot <- renderPlot({
     recalcGMM()
-    clr=myReactives$gmm$classification
-    myReactives$gmm_map = drawModMapPlot(myReactives$liveMaps,clr,sr = input$table_maps_rows_selected)
+    myReactives$gmm_map = drawModMapPlot(myReactives$liveMaps,
+                                         myReactives$gmm,
+                                         sr = input$table_maps_rows_selected)
     par(new = TRUE)
     drawWells(wells = myReactives$wells)
   })
@@ -1451,13 +1490,57 @@ X_LOCATION  Y_LOCATION  VALUE",
     },
     contentType = '.asc',
     content = function (fname) {
-      outgrid = saveModMap(myReactives$liveMaps,myReactives$gmm$classification,sr = input$table_maps_rows_selected)
+      outgrid = saveModMap(myReactives$liveMaps,
+                           myReactives$gmm$classification,
+                           sr = input$table_maps_rows_selected)
       save = try( expr = write.asciigrid(outgrid,fname) , TRUE)
       if(class(save)=="try-error")
         showNotification(ui = "Error saving Map file.",
                          type = "error")      
     }
   )
+ 
+  # CB: Zoom maps on Click ####
+  zoomPlotCall <- function (name, data) {
+    modalDialog( name,size = "l",
+                 tagList(plotOutput("zoomPlot", dblclick = "plot_zoom_close",
+                                    #width = "900px",
+                                    height = "900px"))
+    )
+  }
+  
+  observeEvent(input$plot_zoom_close, {
+    removeModal() 
+  })
+  
+  observeEvent(input$plot_zoom, {
+    showModal(zoomPlotCall(""))
+  })
+  
+  output$zoomPlot <- renderPlot({
+    if(input$maps == 'modelKM') {
+      #recalcGMM()
+      if(input$modelKM == 'mod')
+        plotModel(myReactives$liveMaps,myReactives$km)
+      else {
+        drawModMapPlot(myReactives$liveMaps,
+                       myReactives$km,
+                       sr = input$table_maps_rows_selected)
+        par(new = TRUE)
+        drawWells(wells = myReactives$wells)
+      }
+    } else if (input$maps == 'modelGM') {
+      if(input$modelGM == 'mod') 
+        plotModel(myReactives$liveMaps,myReactives$gmm)
+      else {
+        drawModMapPlot(myReactives$liveMaps,
+                       myReactives$gmm
+                       ,sr = input$table_maps_rows_selected)
+        par(new = TRUE)
+        drawWells(wells = myReactives$wells)
+      }
+    }
+  })
   
   #CB: plot simple xplot ####
   output$xPlot_simple <- renderPlot({
@@ -1475,7 +1558,6 @@ X_LOCATION  Y_LOCATION  VALUE",
   output$table_maps <- renderDataTable({
     drawMapsTable(myReactives$maps)
   })
-  
 
   #CB: set Tabs names ####
   output$tab1 = renderText(({
@@ -1489,6 +1571,7 @@ X_LOCATION  Y_LOCATION  VALUE",
     else basename(myReactives$maps[[map_idx]]$fn)
   }))
 
+  
   #CB: print out the cursor positions   ####
   output$info <- renderText({
     xy_str <- function(e) {

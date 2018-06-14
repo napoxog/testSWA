@@ -8,43 +8,6 @@
 #
 
 
-# TODO: ####
-# DONE: 1. Control Point loading
-# DONE: 2. Add CP managing
-# DONE: 3. linear models evaluation
-# DONE: 4. Linear models results presentation
-# DONE: 5. Multiple (more than 2) maps loading 
-# DONE: 6. Maps Management
-# TODO: 7. provide different Prediction types 
-# TODO: 7.1. classification tools
-# INPROGRESS: 7.2. Neural networks tools
-# FIXME: 7.1.1 Check the training - the xplot looks strange of the given NNET complexity
-# DONE: 7.3. Linear Models types selection
-# DONE: 7.4. Gaussian Mixture model clastering
-# DONE: 7.4.1 GMM automatic classes number diable chec
-# TODO: 8. Add cross-validation analysis (if not included in LM)
-# DONE: 9. Provide batch maps loading (by path and extension)
-# DONE: FIX Well labeling order issue
-# DONE: FIX Maps selection assert for LM
-# INPROGRESS: 10. Add results export/output 
-# DONE: 10.1 Maps (download + write.ascigrid() )
-# DONE: 10.2 CP Table with extracted values
-# DONE: 11. How to remove redunant calls to getLiveMaps()
-# DONE: 12. Add modal messages during long-term calculations/loading
-# DONE: 12.1 Add progress idication to the Modal Panels
-# DONE: 13. Move Maps-only classification tabs from Models to Maps Tab
-# TODO: 14. Apply Upscaling only to selected maps, if any, to reduce processing time. (manage upscaling parameter?)
-# TODO:?15. Transform the Model/Reslut tabs into radio group and reduce the plot+text to one per model type
-# TODO:?16. Add palette selection for the maps
-# TODO: 17. Add maps averaging
-# DONE: 18. Add bilinear smoothing for Rasters DIsplay plots
-# TODO: 19. Add maps selection for the Map display tabs
-# TODO: 20. Add KM classes id remapping to GMM after calculation according to the metoids/centroids
-# DONE: 21. Add Results Zoom option
-# TODO: 22. Add BIC plot ot GMM and KM
-
-
-
 require(shiny)
 require(shinyjs)
 require(DT)
@@ -53,14 +16,13 @@ require(readr)
 require(raster)
 require(miniUI)
 
-## Acsource from https://gist.github.com/fawda123/7471137/raw/cd6e6a0b0bdb4e065c597e52165e5ac887f5fe95/nnet_plot_update.r'
-source("nnet_plot_update.r")
+#detach(package)
 
 #library(spatial)
 require(sp)
 require(RANN)
 require(RSNNS)
-require(ClusterR)
+#require(ClusterR)
 require(mclust)
 require(hexbin)
 #library(markdown)
@@ -78,10 +40,16 @@ wells0 = NULL
 maps0 = list(NULL,NULL) #list(def_map,def_map)
 map_zoom = NULL
 
-flist <- list(mean,median,sd)
-names(flist) <- c("Среднее","Медиана","Ст.Откл.")
+myReactives <- reactiveValues(wells = wells0, zoom = map_zoom, fit = NULL, maps = NULL)
 
-classRange = 1:15
+source("nnet_plot_update.r") ## Acsource from https://gist.github.com/fawda123/7471137/raw/cd6e6a0b0bdb4e065c597e52165e5ac887f5fe95/nnet_plot_update.r'
+
+#source("app_ui.R")#, echo = F,encoding = "UTF-8" )
+flist <- list(mean,median,sd)
+names(flist) <- c('Среднее','Медиана','Ст.Откл.')
+#names(flist) <- c("Mean","Median","StdDev")
+
+classRange = 2:15
 
 map_hei = "900px"
 map_wid = "900px" #"900px"
@@ -89,16 +57,11 @@ hist_hei = "200px"
 hist_wid = "200px"
 butt_wid = "200px"
 
-myReactives <- reactiveValues(wells = wells0, zoom = map_zoom, fit = NULL, maps = NULL)
-
 # Define UI for application that draws a histogram
 ui <- fluidPage(
   # Application title
-  #tags$head(tags$style("#kmText {white-space: pre;word-wrap: normal}")),
-  #tags$head(tags$style("#gmmText {white-space: pre;word-wrap: normal}")),
   titlePanel("Анализ карт и контрольных точек"),
   # test = enc2utf8(c("привет","пока"))
-  
   
   #UI: Sidebar with a slider input for number of bins ####
   sidebarLayout(
@@ -111,13 +74,13 @@ ui <- fluidPage(
             "wellsfile1",
             "Загрузить координаты скважин:",
             accept = '.txt',
-                       buttonLabel = "Открыть..."
+            buttonLabel = "Открыть..."
           ),
           fileInput(
             "cpfile1",
             "Загрузить контрольные значения:",
             accept = '.txt',
-                       buttonLabel = "Открыть..."
+            buttonLabel = "Открыть..."
           ),
           dataTableOutput('table_wells'),
           downloadButton('downloadWellsCP', 'Сохранить в файл')
@@ -143,113 +106,126 @@ ui <- fluidPage(
             )
           ),
           tabsetPanel( id = "maps",
-            #UI: Maps input  ####
-            tabPanel( "Данные", value = "input",
-              sliderInput(
-                "bins",
-                "Бины гистограммы:",
-                min = 1,
-                max = 100,
-                value = 30
-              ),
-              sliderInput(
-                "rstr_fact",
-                "Разрешение грида:",
-                min = 0.1,
-                max = 1,
-                value = 0.5
-              ),
-              fileInput(
-                "Mapsfile",
-                "Открыть/Заменить карту:",
-                accept = '.asc',#c("text/plain",
-                           #"text/esri-asciigrid,text/plain",
-                           #"*.asc"),
-                           buttonLabel = "Открыть...",
-                           multiple = TRUE
-              ),
-              dataTableOutput('table_maps'),
-              actionButton("delmap"   , "Удалить выбранные", width = butt_wid)
-            ),
-        #UI: HexPlot display ####
-        tabPanel(  value = "xplot",  title = "Гексаплот",
-                  plotOutput(
-                    "xPlot_hex",
-                    click = "plot_zoom",
-                    dblclick = "plot_dblclick",
-                    hover = "plot_hover",
-                    brush = brushOpts( id = "plot_brush", clip = FALSE, resetOnNew = TRUE)
-                  ),
-                  sliderInput(
-                    "cells",
-                    "размер бина кроссплота:",
-                    min = 1,
-                    max = 50,
-                    value = 30
-                  )
-        ),
-        #UI: Xplot display ####
-        tabPanel(  value = "xplot",  title = "Кроссплот",
-                  plotOutput(
-                    "xPlot_simple",
-                    click = "plot_zoom",
-                    dblclick = "plot_dblclick",
-                    hover = "plot_hover",
-                    brush = brushOpts( id = "plot_brush", clip = FALSE, resetOnNew = TRUE)
-                  ),
-                  sliderInput(
-                    "transp",
-                    "Прозрачность:",
-                    min = 0.1,
-                    max = 2,
-                    value = 1
-                  )
-        ),
-        #UI: model KM ####
-        tabPanel( "K-Means", value = "modelKM",
-          tabsetPanel( id = "modelKM",
-            tabPanel( "Модель", value = "mod",
-              plotOutput(
-                "kmPlot",
-                click = "plot_zoom",
-                height = "500px"
-              ),
-              verbatimTextOutput("kmText")
-            ),
-            tabPanel( "Результат", value = "res",
-              plotOutput(
-                "kmXPlot",
-                click = "plot_zoom",
-                height = "500px"
-              ),
-              downloadButton('downloadKMMap', 'Сохранить карту')
-            )
-          ),
-          verbatimTextOutput("kmXText")
-        ),
-        #UI: model GMM ####
-        tabPanel(  "GMM K-Means", value = "modelGM",
-          tabsetPanel( id = "modelGM",
-            tabPanel( "Модель", value = "mod",
-              plotOutput(
-                "gmmPlot",
-                click = "plot_zoom",
-                height = "500px"
-              ),
-              verbatimTextOutput("gmmText")
-            ),
-            tabPanel( "Результат", value = "res",
-              plotOutput(
-                "gmmXPlot",
-                click = "plot_zoom",
-                height = "500px"
-              ),
-              downloadButton('downloadGMMap', 'Сохранить карту')
-            )
-          ),
-          verbatimTextOutput("gmmXText")
-        )
-        )),
+                       #UI: Maps input  ####
+                       tabPanel( "Данные", value = "input",
+                                 sliderInput(
+                                   "bins",
+                                   "Бины гистограммы:",
+                                   min = 1,
+                                   max = 100,
+                                   value = 30
+                                 ),
+                                 sliderInput(
+                                   "rstr_fact",
+                                   "Разрешение грида:",
+                                   min = 0.1,
+                                   max = 1,
+                                   value = 0.5
+                                 ),
+                                 fileInput(
+                                   "Mapsfile",
+                                   "Открыть/Заменить карту:",
+                                   accept = '.asc',#c("text/plain",
+                                   #"text/esri-asciigrid,text/plain",
+                                   #"*.asc"),
+                                   buttonLabel = "Открыть...",
+                                   multiple = TRUE
+                                 ),
+                                 dataTableOutput('table_maps'),
+                                 actionButton("delmap"   , "Удалить выбранные", width = butt_wid)
+                       ),
+                       #UI: HexPlot display ####
+                       tabPanel(  value = "xplot",  title = "Гексаплот",
+                                  plotOutput(
+                                    "xPlot_hex",
+                                    click = "plot_zoom",
+                                    dblclick = "plot_dblclick",
+                                    hover = "plot_hover",
+                                    brush = brushOpts( id = "plot_brush", clip = FALSE, resetOnNew = TRUE)
+                                  ),
+                                  sliderInput(
+                                    "cells",
+                                    "размер бина кроссплота:",
+                                    min = 1,
+                                    max = 50,
+                                    value = 30
+                                  )
+                       ),
+                       #UI: Xplot display ####
+                       tabPanel(  value = "xplot",  title = "Кроссплот",
+                                  plotOutput(
+                                    "xPlot_simple",
+                                    click = "plot_zoom",
+                                    dblclick = "plot_dblclick",
+                                    hover = "plot_hover",
+                                    brush = brushOpts( id = "plot_brush", clip = FALSE, resetOnNew = TRUE)
+                                  ),
+                                  sliderInput(
+                                    "transp",
+                                    "Прозрачность:",
+                                    min = 0.1,
+                                    max = 2,
+                                    value = 1
+                                  )
+                       ),
+                       #UI: model KM ####
+                       tabPanel( "K-Means", value = "modelKM",
+                                 tabsetPanel( id = "modelKM",
+                                              tabPanel( "Модель", value = "mod",
+                                                        plotOutput(
+                                                          "kmPlot",
+                                                          click = "plot_zoom",
+                                                          height = "500px"
+                                                        ),
+                                                        verbatimTextOutput("kmText")
+                                              ),
+                                              tabPanel( "Результат", value = "res",
+                                                        plotOutput(
+                                                          "kmXPlot",
+                                                          click = "plot_zoom",
+                                                          height = "500px"
+                                                        ),
+                                                        downloadButton('downloadKMMap', 'Сохранить карту')
+                                              )
+                                 ),
+                                 verbatimTextOutput("kmXText")
+                       ),
+                       #UI: model GMM ####
+                       tabPanel(  "GMM K-Means", value = "modelGM",
+                                  tabsetPanel( id = "modelGM",
+                                               tabPanel( "Модель", value = "mod",
+                                                         plotOutput(
+                                                           "gmmPlot",
+                                                           click = "plot_zoom",
+                                                           height = "500px"
+                                                         ),
+                                                         verbatimTextOutput("gmmText")
+                                               ),
+                                               tabPanel( "Результат", value = "res",
+                                                         plotOutput(
+                                                           "gmmXPlot",
+                                                           click = "plot_zoom",
+                                                           height = "500px"
+                                                         ),
+                                                         downloadButton('downloadGMMap', 'Сохранить карту')
+                                               ),
+                                               tabPanel( "Дополнительно", value = "aux",
+                                                         plotOutput(
+                                                           "gmAuxPlot",
+                                                           click = "plot_zoom",
+                                                           height = "500px"
+                                                         ),
+                                                         radioButtons("gmmAuxMode",
+                                                           label = "",
+                                                           choices = c("BIC" = "BIC",
+                                                                       "PDF" = "density",
+                                                                       "Uncertainty" = "uncertainty")
+                                                         )
+                                               )
+                                  ),
+                                  verbatimTextOutput("gmmXText")
+                       )
+          )),
         #UI: models ####
         tabPanel(
           "Модели",
@@ -302,7 +278,7 @@ ui <- fluidPage(
                 height = "500px"
               ),
               verbatimTextOutput("glmXText")
-              )
+            )
           )
         )
       )
@@ -322,34 +298,34 @@ ui <- fluidPage(
           #UI: Tab1 ####
           uiOutput("tab1"),
           flowLayout(
-          flowLayout(
-            verticalLayout(
-              flowLayout(
-              selectInput("funcSelect1", "Метод осреднения"
-                          ,choices = names(flist), width = butt_wid
-                          )
+            flowLayout(
+              verticalLayout(
+                flowLayout(
+                  selectInput("funcSelect1", "Метод осреднения"
+                              ,choices = names(flist), width = butt_wid
+                  )
+                ),
+                flowLayout(
+                  actionButton("unzoom1"   , "Сброс масштаба  ", width = butt_wid),
+                  actionButton("trans1"    , "Транспонировать ", width = butt_wid)
+                )
               ),
-              flowLayout(
-                actionButton("unzoom1"   , "Сброс масштаба  ", width = butt_wid),
-                actionButton("trans1"    , "Транспонировать ", width = butt_wid)
+              plotOutput("histPlot1",  
+                         height = hist_hei,
+                         width = hist_wid
               )
+              , cellWidths = c("80%","20%")
             ),
-            plotOutput("histPlot1",  
-                       height = hist_hei,
-                       width = hist_wid
+            #UI: Map1 ####
+            plotOutput(
+              "mapPlot1",
+              click = "plot_click",
+              dblclick = "plot_dblclick",
+              hover = "plot_hover",
+              brush = "plot_brush",
+              height = map_hei,
+              width = map_wid
             )
-            , cellWidths = c("80%","20%")
-          ),
-          #UI: Map1 ####
-          plotOutput(
-            "mapPlot1",
-            click = "plot_click",
-            dblclick = "plot_dblclick",
-            hover = "plot_hover",
-            brush = "plot_brush",
-            height = map_hei,
-            width = map_wid
-          )
           )
         ),
         tabPanel(
@@ -357,34 +333,34 @@ ui <- fluidPage(
           uiOutput("tab2"),
           flowLayout(
             flowLayout(
-            verticalLayout(
-              flowLayout(
-                selectInput("funcSelect2", "Метод осреднения"
-                            ,choices = names(flist), width = butt_wid
+              verticalLayout(
+                flowLayout(
+                  selectInput("funcSelect2", "Метод осреднения"
+                              ,choices = names(flist), width = butt_wid
+                  )
+                ),
+                flowLayout(
+                  actionButton("unzoom2"   , "Сброс масштаба  ", width = butt_wid),
+                  actionButton("trans2"    , "Транспонировать ", width = butt_wid)
                 )
               ),
-              flowLayout(
-                actionButton("unzoom2"   , "Сброс масштаба  ", width = butt_wid),
-                actionButton("trans2"    , "Транспонировать ", width = butt_wid)
+              plotOutput("histPlot2",  
+                         height = hist_hei,
+                         width = hist_wid
               )
+              , cellWidths = c("80%","20%")
             ),
-            plotOutput("histPlot2",  
-                       height = hist_hei,
-                       width = hist_wid
+            #UI: Map2 ####
+            plotOutput(
+              "mapPlot2",
+              click = "plot_click",
+              dblclick = "plot_dblclick",
+              hover = "plot_hover",
+              brush = "plot_brush",
+              height = map_hei,
+              width = map_wid
             )
-            , cellWidths = c("80%","20%")
-          ),
-          #UI: Map2 ####
-          plotOutput(
-            "mapPlot2",
-            click = "plot_click",
-            dblclick = "plot_dblclick",
-            hover = "plot_hover",
-            brush = "plot_brush",
-            height = map_hei,
-            width = map_wid
           )
-        )
         )
       ),
       #UI: Status panel ####
@@ -393,8 +369,6 @@ ui <- fluidPage(
     
   )
 )
-
-source("plotGadget.r")
 
 ## transpose the maps' matrix 
 transposeMap <- function(map_obj = NULL) {
@@ -830,11 +804,12 @@ drawModelXplot <- function(data = NULL, lmfit = NULL, srows = NULL) {
 
 }
 
-drawKMeans <- function(data = NULL, nclass = 3) {
+calcKMeans <- function(data = NULL, nclass = 3) {
   if(is.null(data)) return(NULL)
 
   #data = getLiveMapsData(maps,sr)
-  kmns = kmeans(center_scale(data[,2:length(data[1,])]),nclass)
+  kmns = kmeans(scale(as.matrix(data[,2:length(data[1,])])),nclass)
+  #kmns = kmeans(data[,2:length(data[1,])],nclass)
   clr=kmns$cluster
   #plot(datplot,col = mclust.options("classPlotColors")[1:max(clusters)])
   return(kmns)
@@ -862,7 +837,7 @@ getLiveMapsData <- function (maps = NULL, sr = NULL) {
   return(data)
 }
 
-plotModel <- function(data,model) {
+drawModel <- function(data,model) {
   #browser()
   if(class(model) == 'Mclust') 
     plot(model, 
@@ -898,6 +873,26 @@ drawModMapPlot <- function (data = NULL, model = NULL, sr = NULL) {
   return (datplot)
 }
 
+kmeansIC = function(fit){
+  
+  m = ncol(fit$centers)
+  n = length(fit$cluster)
+  k = nrow(fit$centers)
+  D = fit$tot.withinss
+  return(data.frame(AIC = D + 2*m*k,
+                    BIC = D + log(n)*m*k))
+}
+
+drawModBIC <- function(model=NULL,mode = "BIC") {
+  #browser()
+  if(class(model)=='Mclust') 
+    plot(model,what = mode,main = (capture.output(summary(model)))[2])
+  else if( class(model)=='kmeans') {
+    plot(kmeansIC(model))
+  }
+  
+}
+
 saveModMap <- function (data = NULL, clusters = NULL, sr = NULL) {
   if(is.null(data) || is.null(data)|| is.null(clusters)) return(NULL)
   # got live cells
@@ -919,7 +914,7 @@ saveModMap <- function (data = NULL, clusters = NULL, sr = NULL) {
 }
 
 
-drawGMM <- function(data = NULL, nclass = 3) {
+calcGMM <- function(data = NULL, nclass = 3) {
   if(is.null(data)) return(NULL)
   
   dat = data[,2:length(data[1,])]
@@ -928,7 +923,7 @@ drawGMM <- function(data = NULL, nclass = 3) {
     gmmBIC = mclustBIC(dat,G=nclass)
     gmm <- Mclust(dat,x = gmmBIC,G=nclass)
   } else {
-    gmmBIC=mclustBIC(dat,G=1:12)
+    gmmBIC=mclustBIC(dat,G=classRange)
     gmm <- Mclust(dat,x = gmmBIC)
   }
   
@@ -1206,7 +1201,7 @@ X_LOCATION  Y_LOCATION  VALUE",
                                     col.names = F) 
                   , TRUE)
       if(class(save)=="try-error")
-        showNotification(ui = "Error saving Map file.",
+        showNotification(ui = "Ошибка при сохранении файла",
                          type = "error")      
     }
   )
@@ -1214,17 +1209,18 @@ X_LOCATION  Y_LOCATION  VALUE",
   #CB: load maps list files ####
   observeEvent(input$Mapsfile , {
     #browser()
-    showModal(modalDialog( "Processing Maps...",title = "Please wait..."))
-    withProgress(message = "Processing Maps...", detail = "Please wait...", 
+    showModal(modalDialog( "Обработка карт...",title = "Ожидайте..."))
+    withProgress(message = "обработка карт...", detail = "Ожидайте......", 
                  value =0, {
                 for(i in 1:length(input$Mapsfile[,1])) {
                   map_obj = loadMapFile(input$Mapsfile[i,])
                   map_obj = upscaleMap(map_obj,input$rstr_fact,func = mean)
                   
                   if (is.null(map_obj)) 
-                     showNotification(ui = "Error loading Map file. Assume the Format should be ESRI ASCIIgrid.",
+                     showNotification(ui = "Ошибка при загрузке. Ожидаемый формат - ESRI ASCIIgrid.",
                                         type = "error")
                   else {
+                    incProgress(detail = paste0('"',map_obj$fn,'"'), amount = 1./length(input$Mapsfile[,1]))
                     if (length(input$table_maps_rows_selected)>0 && length(myReactives$maps)>1) {
                       map_idx = selectMap(maps = myReactives$maps,sr = input$table_maps_rows_selected, idx = 1)
                       myReactives$maps[[map_idx]] <- map_obj
@@ -1234,7 +1230,6 @@ X_LOCATION  Y_LOCATION  VALUE",
                       myReactives$maps <- append(myReactives$maps,list(map_obj))
                     }
                   }
-                  incProgress(detail = paste0('\n"',map_obj$fn,'"\n done.'), amount = 1./length(input$Mapsfile[,1]))
                 }
               })
     myReactives$liveMaps <- getLiveMapsData(maps = myReactives$maps)
@@ -1280,14 +1275,14 @@ X_LOCATION  Y_LOCATION  VALUE",
   
   #CB: upscaling  ####
   observeEvent(input$rstr_fact , {
-    showModal(modalDialog( "Processing maps...",title = "Please wait..."))
-    withProgress(message = "Processing Maps...", detail = "Please wait...",  value =0, {
+    showModal(modalDialog( "Обработка карт...",title = "Ожидайте..."))
+    withProgress(message = "Обработка карт...", detail = "Ожидайте...",  value =0, {
     for (i in 1:length(myReactives$maps)) {
       map_obj = upscaleMap(myReactives$maps[[i]],input$rstr_fact,func = median)
+      incProgress(detail = paste0('"',map_obj$fn,'"'), amount = 1./length(myReactives$maps))
       myReactives$wells <- extractMap2Well(myReactives$wells,map_obj$rstr, paste0 ("Map",i))
       myReactives$maps[[i]] <- map_obj
       myReactives$liveMaps <- getLiveMapsData(maps = myReactives$maps)
-      incProgress(detail = paste0('\n"',map_obj$fn,'"\n done.'), amount = 1./length(myReactives$maps))
     }
       })
     removeModal()
@@ -1347,7 +1342,7 @@ X_LOCATION  Y_LOCATION  VALUE",
   
   #CB: NNET plot model ####
   output$nnetPlot <- renderPlot({
-    showModal(modalDialog( "Neural network model creation...",title = "Please wait..."))
+    showModal(modalDialog( "Обучение нейронной сети MLP...",title = "Ожидайте..."))
     myReactives$nnet <- buildNNET(myReactives$wells, 
                                   input$table_wells_rows_selected, input$table_maps_rows_selected,
                                   test_ratio = input$test_ratio/100.,
@@ -1392,7 +1387,7 @@ X_LOCATION  Y_LOCATION  VALUE",
 
   #CB: GLM plot model ####
   output$glmPlot <- renderPlot({
-    showModal(modalDialog( "Multi-Linear regression model creation...",title = "Please wait..."))
+    showModal(modalDialog( "Создание модели многомерной линейной регрессии...",title = "Ожидайте..."))
     fit <- buildGLM(myReactives$wells, input$table_wells_rows_selected, input$table_maps_rows_selected)
     par(mfrow = c(2,2))
     plot(fit)
@@ -1415,15 +1410,15 @@ X_LOCATION  Y_LOCATION  VALUE",
   })
   
   recalcKMeans <- reactive({
-    showModal(modalDialog( "K-means clusterization is in progress...",title = "Please wait..."))
-    myReactives$km <- drawKMeans(myReactives$liveMaps,input$numClasses)#,sr = input$table_maps_rows_selected)
+    showModal(modalDialog( "Кластеризация K-means...",title = "Please wait..."))
+    myReactives$km <- calcKMeans(myReactives$liveMaps,input$numClasses)#,sr = input$table_maps_rows_selected)
     removeModal()
   })
   
   #CB: KM plot model ####
   output$kmPlot <- renderPlot({
     recalcKMeans()
-    plotModel(myReactives$liveMaps,myReactives$km)
+    drawModel(myReactives$liveMaps,myReactives$km)
   })
 
   output$kmText <- renderText({ #renderPrint renderText
@@ -1448,7 +1443,7 @@ X_LOCATION  Y_LOCATION  VALUE",
       outgrid = saveModMap(myReactives$liveMaps,myReactives$km$cluster,sr = input$table_maps_rows_selected)
       save = try( expr = write.asciigrid(outgrid,fname) , TRUE)
       if(class(save)=="try-error")
-        showNotification(ui = "Error saving Map file.",
+        showNotification(ui = "Ошибка при сохранении файла",
                          type = "error")      
     }
   )
@@ -1457,9 +1452,9 @@ X_LOCATION  Y_LOCATION  VALUE",
     if(input$numClassUD) nClasses = 0
     else nClasses = input$numClasses
 
-    showModal(modalDialog( "Gaussian Mixture clusterization fitting..." ,
+    showModal(modalDialog( "Кластеризация Gaussian Mixture - EM..." ,
                            title = "Please wait..."))
-    myReactives$gmm <- drawGMM(myReactives$liveMaps,nClasses)
+    myReactives$gmm <- calcGMM(myReactives$liveMaps,nClasses)
     removeModal() 
     if(input$numClassUD)
       updateSliderInput(session,"numClasses",value = myReactives$gmm$G)
@@ -1467,7 +1462,7 @@ X_LOCATION  Y_LOCATION  VALUE",
   #CB: GMM plot model ####
   output$gmmPlot <- renderPlot({
     recalcGMM()
-    plotModel(myReactives$liveMaps,myReactives$gmm)
+    drawModel(myReactives$liveMaps,myReactives$gmm)
   })
 
   output$gmmText <- renderText({ #renderPrint renderText
@@ -1483,6 +1478,11 @@ X_LOCATION  Y_LOCATION  VALUE",
     drawWells(wells = myReactives$wells)
   })
   
+  output$gmAuxPlot <- renderPlot({
+    recalcGMM()
+    drawModBIC(model = myReactives$gmm,mode = input$gmmAuxMode)
+  })
+  
   #CB: GMM download  ####
   output$downloadGMMap <- downloadHandler(
     filename = function() {
@@ -1495,7 +1495,7 @@ X_LOCATION  Y_LOCATION  VALUE",
                            sr = input$table_maps_rows_selected)
       save = try( expr = write.asciigrid(outgrid,fname) , TRUE)
       if(class(save)=="try-error")
-        showNotification(ui = "Error saving Map file.",
+        showNotification(ui = "Ошибка при сохранении файла",
                          type = "error")      
     }
   )
@@ -1521,7 +1521,7 @@ X_LOCATION  Y_LOCATION  VALUE",
     if(input$maps == 'modelKM') {
       #recalcGMM()
       if(input$modelKM == 'mod')
-        plotModel(myReactives$liveMaps,myReactives$km)
+        drawModel(myReactives$liveMaps,myReactives$km)
       else {
         drawModMapPlot(myReactives$liveMaps,
                        myReactives$km,
@@ -1531,8 +1531,10 @@ X_LOCATION  Y_LOCATION  VALUE",
       }
     } else if (input$maps == 'modelGM') {
       if(input$modelGM == 'mod') 
-        plotModel(myReactives$liveMaps,myReactives$gmm)
-      else {
+        drawModel(myReactives$liveMaps,myReactives$gmm)
+      else if (input$modelGM == 'bic'){
+          drawModBIC(myReactives$gmm)
+        } else {
         drawModMapPlot(myReactives$liveMaps,
                        myReactives$gmm
                        ,sr = input$table_maps_rows_selected)

@@ -1,0 +1,48 @@
+---
+title: "Анализ карт и моделей"
+author: "Алекесй Гриценко <gritsenkoam@oilteam.ru>"
+output: 
+  html_document: 
+    toc: yes
+---
+
+# testSWA
+
+This is the README file for the pilot Shiny app for the map-well and clustering analysis.
+ 
+# TODO: 
+###   DONE: 1. Control Point loading
+###   DONE: 2. Add CP managing
+###   DONE: 3. linear models evaluation
+###   DONE: 4. Linear models results presentation
+###   DONE: 5. Multiple (more than 2) maps loading 
+###   DONE: 6. Maps Management
+###   TODO: 7. provide different Prediction types 
+####  TODO: 7.1. classification tools
+##### FIXME: 7.1.1 Check the training - the xplot looks strange of the given NNET complexity
+####  INPROGRESS: 7.2. Neural networks tools
+####  DONE: 7.3. Linear Models types selection
+####  DONE: 7.4. Gaussian Mixture model clastering
+##### DONE: 7.4.1 GMM automatic classes number diable chec
+###   TODO: 8. Add cross-validation analysis (if not included in LM)
+###   DONE: 9. Provide batch maps loading (by path and extension)
+##    DONE: FIX Well labeling order issue
+##    DONE: FIX Maps selection assert for LM
+###   DONE: 10. Add results export/output 
+####  DONE: 10.1 Maps (download + write.ascigrid() )
+####  DONE: 10.2 CP Table with extracted values
+###   DONE: 11. How to remove redunant calls to getLiveMaps()
+###   DONE: 12. Add modal messages during long-term calculations/loading
+####  DONE: 12.1 Add progress idication to the Modal Panels
+###   DONE: 13. Move Maps-only classification tabs from Models to Maps Tab
+###   TODO: 14. Apply Upscaling only to selected maps, if any, to reduce processing time. (manage upscaling parameter?)
+###   TODO:?15. Transform the Model/Reslut tabs into radio group and reduce the plot+text to one per model type
+###   TODO:?16. Add palette selection for the maps
+###   TODO: 17. Add maps averaging
+###   DONE: 18. Add bilinear smoothing for Rasters DIsplay plots
+###   TODO: 19. Add maps selection for the Map display tabs
+###   TODO: 20. Add KM classes id remapping to GMM after calculation according to the metoids/centroids
+###   DONE: 21. Add Results Zoom option
+###   TODO: 22. Add BIC plot ot GMM and KM
+###   TODO: 23. Add Brush zoom in the Results Modals.
+

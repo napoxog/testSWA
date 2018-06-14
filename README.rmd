@@ -44,5 +44,4 @@ This is the README file for the pilot Shiny app for the map-well and clustering 
 ###   TODO: 20. Add KM classes id remapping to GMM after calculation according to the metoids/centroids
 ###   DONE: 21. Add Results Zoom option
 ###   TODO: 22. Add BIC plot ot GMM and KM
-###   TODO: 23. Add Brush zoom in the Results Modals.
 

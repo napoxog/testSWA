@@ -41,7 +41,9 @@ This is the README file for the pilot Shiny app for the map-well and clustering 
 ###   TODO: 17. Add maps averaging
 ###   DONE: 18. Add bilinear smoothing for Rasters DIsplay plots
 ###   TODO: 19. Add maps selection for the Map display tabs
-###   TODO: 20. Add KM classes id remapping to GMM after calculation according to the metoids/centroids
-###   DONE: 21. Add Results Zoom option
-###   TODO: 22. Add BIC plot ot GMM and KM
+###   TODO: 20. Add KM classes id remapping to GMM after calculation according to the Wells' CPs
+###   DONE: 21. Add Results Zoom option modal popup
+###   DONE: 22. Add BIC plot to GMM
+###   DONE: 23. Add Brush zoom in the Results Modal popups.
+###   TODO: 24. Add Hover text with X.Y.Z on the Results zoom modal popup
 

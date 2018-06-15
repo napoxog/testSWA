@@ -47,6 +47,11 @@ source("nnet_plot_update.r") ## Acsource from https://gist.github.com/fawda123/7
 #source("app_ui.R")#, echo = F,encoding = "UTF-8" )
 flist <- list(mean,median,sd)
 names(flist) <- c('Среднее','Медиана','Ст.Откл.')
+
+auxList <- list("BIC","density","uncertainty")
+names(auxList) <- c("Критерий информативности Байеса", 
+                    "Функция плотности вероятности",
+                    "Кроссплот с учетом неопределенности")
 #names(flist) <- c("Mean","Median","StdDev")
 
 classRange = 2:15
@@ -217,9 +222,7 @@ ui <- fluidPage(
                                                          ),
                                                          radioButtons("gmmAuxMode",
                                                            label = "",
-                                                           choices = c("BIC" = "BIC",
-                                                                       "PDF" = "density",
-                                                                       "Uncertainty" = "uncertainty")
+                                                           choices = auxList
                                                          )
                                                )
                                   ),
@@ -850,7 +853,7 @@ drawModel <- function(data,model) {
   }
 }
 
-drawModMapPlot <- function (data = NULL, model = NULL, sr = NULL) {
+drawModMapPlot <- function (data = NULL, model = NULL, sr = NULL, zoom = NULL) {
   if(is.null(data) || is.null(data)|| is.null(model)) return(NULL)
   if(class(model) == 'Mclust') {
     title = (capture.output(summary(model)))[2]
@@ -867,9 +870,15 @@ drawModMapPlot <- function (data = NULL, model = NULL, sr = NULL) {
     datplot = myReactives$maps[[1]]$rstr
   datplot@data@values = NA
   datplot@data@values[lividx] <- clusters
-  plot(datplot,
-       main = title,
-       col = mclust.options("classPlotColors")[1:max(clusters)],interpolate=F)
+  if(is.null(zoom))
+    plot(datplot,
+         main = title,
+         col = mclust.options("classPlotColors")[1:max(clusters)],interpolate=F)
+  else
+    plot(datplot,
+         main = title,
+         xlim = zoom[1,], ylim = zoom[2,],
+         col = mclust.options("classPlotColors")[1:max(clusters)],interpolate=F)
   return (datplot)
 }
 
@@ -926,7 +935,7 @@ calcGMM <- function(data = NULL, nclass = 3) {
     gmmBIC=mclustBIC(dat,G=classRange)
     gmm <- Mclust(dat,x = gmmBIC)
   }
-  
+
   return(gmm)
 }
 
@@ -1209,7 +1218,7 @@ X_LOCATION  Y_LOCATION  VALUE",
   #CB: load maps list files ####
   observeEvent(input$Mapsfile , {
     #browser()
-    showModal(modalDialog( "Обработка карт...",title = "Ожидайте..."))
+    showModal(modalDialog( "Обработка карт...",title = "Ожидайте...", footer = modalButton("Закрыть")))
     withProgress(message = "обработка карт...", detail = "Ожидайте......", 
                  value =0, {
                 for(i in 1:length(input$Mapsfile[,1])) {
@@ -1275,7 +1284,7 @@ X_LOCATION  Y_LOCATION  VALUE",
   
   #CB: upscaling  ####
   observeEvent(input$rstr_fact , {
-    showModal(modalDialog( "Обработка карт...",title = "Ожидайте..."))
+    showModal(modalDialog( "Обработка карт...",title = "Ожидайте...", footer = modalButton("Закрыть")))
     withProgress(message = "Обработка карт...", detail = "Ожидайте...",  value =0, {
     for (i in 1:length(myReactives$maps)) {
       map_obj = upscaleMap(myReactives$maps[[i]],input$rstr_fact,func = median)
@@ -1342,7 +1351,7 @@ X_LOCATION  Y_LOCATION  VALUE",
   
   #CB: NNET plot model ####
   output$nnetPlot <- renderPlot({
-    showModal(modalDialog( "Обучение нейронной сети MLP...",title = "Ожидайте..."))
+    showModal(modalDialog( "Обучение нейронной сети MLP...",title = "Ожидайте...", footer = modalButton("Закрыть")))
     myReactives$nnet <- buildNNET(myReactives$wells, 
                                   input$table_wells_rows_selected, input$table_maps_rows_selected,
                                   test_ratio = input$test_ratio/100.,
@@ -1387,7 +1396,7 @@ X_LOCATION  Y_LOCATION  VALUE",
 
   #CB: GLM plot model ####
   output$glmPlot <- renderPlot({
-    showModal(modalDialog( "Создание модели многомерной линейной регрессии...",title = "Ожидайте..."))
+    showModal(modalDialog( "Создание модели многомерной линейной регрессии...",title = "Ожидайте...", footer = modalButton("Закрыть")))
     fit <- buildGLM(myReactives$wells, input$table_wells_rows_selected, input$table_maps_rows_selected)
     par(mfrow = c(2,2))
     plot(fit)
@@ -1410,7 +1419,7 @@ X_LOCATION  Y_LOCATION  VALUE",
   })
   
   recalcKMeans <- reactive({
-    showModal(modalDialog( "Кластеризация K-means...",title = "Please wait..."))
+    showModal(modalDialog( "Кластеризация K-means...",title = "Ожидайте...", footer = modalButton("Закрыть")))
     myReactives$km <- calcKMeans(myReactives$liveMaps,input$numClasses)#,sr = input$table_maps_rows_selected)
     removeModal()
   })
@@ -1451,14 +1460,16 @@ X_LOCATION  Y_LOCATION  VALUE",
   recalcGMM <- reactive ({
     if(input$numClassUD) nClasses = 0
     else nClasses = input$numClasses
-
-    showModal(modalDialog( "Кластеризация Gaussian Mixture - EM..." ,
-                           title = "Please wait..."))
+    modDial = modalDialog( "Кластеризация Gaussian Mixture - EM...",
+                           title = "Ожидайте...", footer = modalButton("Закрыть"))
+    showModal(modDial)
     myReactives$gmm <- calcGMM(myReactives$liveMaps,nClasses)
+    #myReactives$gmm <- calcGMM(myReactives$liveMaps,nClasses)
     removeModal() 
     if(input$numClassUD)
       updateSliderInput(session,"numClasses",value = myReactives$gmm$G)
   })
+
   #CB: GMM plot model ####
   output$gmmPlot <- renderPlot({
     recalcGMM()
@@ -1503,11 +1514,53 @@ X_LOCATION  Y_LOCATION  VALUE",
   # CB: Zoom maps on Click ####
   zoomPlotCall <- function (name, data) {
     modalDialog( name,size = "l",
-                 tagList(plotOutput("zoomPlot", dblclick = "plot_zoom_close",
+                 tagList(plotOutput("zoomPlot", 
+                                    dblclick = "plot_zoom_close",
+                                    brush = "plot_zoom_brush",
+                                    hover = "plot_zoom_hover",
                                     #width = "900px",
-                                    height = "900px"))
+                                    height = "800px")
+                  ),
+                 footer = tagList(
+                   actionButton("plot_zoom_xyz","test"),
+                   actionButton("plot_zoom_reset","Сбросить увеличение"),
+                   modalButton("Закрыть")
+                   )
     )
   }
+  # CB: Zoom maps Text ####
+  #output$plot_zoom_xyz <- renderText({
+  observeEvent(input$plot_zoom_hover, {
+    xyz = NA
+    xy = data.frame(x = input$plot_zoom_hover$x,y = input$plot_zoom_hover$y)
+#    browser()
+    labs = c(" X:","Y:","Z:")
+    if(length(xy) == 0) {
+      lab=paste0(labs,xy)
+      updateActionButton(session,"plot_zoom_xyz",label = lab)
+    }
+    else 
+    {
+      coordinates(xy) = ~x+y
+      if(input$maps =='modelKM' && input$modelKM == 'res') 
+        xy$z = extract(myReactives$km_map,xy)
+      else if (input$maps =='modelGM' && input$modelGM == 'res')
+        xy$z = extract(myReactives$gmm_map,xy)
+      #browser()
+      lab=paste0(labs,prettyNum(c(xy@coords,xy$z)))
+      updateActionButton(session,"plot_zoom_xyz",label = lab)
+    }
+  })
+  # CB: Zoom maps Zoom ####
+  observeEvent(input$plot_zoom_reset, {
+    myReactives$plot_zoom <- NULL
+    session$resetBrush("plot_zoom_brush")
+  })
+  
+  observeEvent(input$plot_zoom_brush , {
+    myReactives$plot_zoom <- rbind(c(input$plot_zoom_brush$xmin,input$plot_zoom_brush$xmax),
+                              c(input$plot_zoom_brush$ymin,input$plot_zoom_brush$ymax))
+  })
   
   observeEvent(input$plot_zoom_close, {
     removeModal() 
@@ -1523,9 +1576,12 @@ X_LOCATION  Y_LOCATION  VALUE",
       if(input$modelKM == 'mod')
         drawModel(myReactives$liveMaps,myReactives$km)
       else {
+        #plot(myReactives$km_map,myReactives$km$cluster)
+        
         drawModMapPlot(myReactives$liveMaps,
                        myReactives$km,
-                       sr = input$table_maps_rows_selected)
+                       sr = input$table_maps_rows_selected,
+                       zoom = myReactives$plot_zoom)
         par(new = TRUE)
         drawWells(wells = myReactives$wells)
       }
@@ -1535,9 +1591,11 @@ X_LOCATION  Y_LOCATION  VALUE",
       else if (input$modelGM == 'bic'){
           drawModBIC(myReactives$gmm)
         } else {
+        #plot(myReactives$gmm_map,myReactives$gmm$classification)  
         drawModMapPlot(myReactives$liveMaps,
-                       myReactives$gmm
-                       ,sr = input$table_maps_rows_selected)
+                       myReactives$gmm,
+                       sr = input$table_maps_rows_selected,
+                       zoom = myReactives$plot_zoom)
         par(new = TRUE)
         drawWells(wells = myReactives$wells)
       }

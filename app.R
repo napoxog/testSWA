@@ -24,6 +24,7 @@ require(RANN)
 require(RSNNS)
 #require(ClusterR)
 require(mclust)
+require(amap)
 require(hexbin)
 #library(markdown)
 
@@ -47,12 +48,42 @@ source("nnet_plot_update.r") ## Acsource from https://gist.github.com/fawda123/7
 #source("app_ui.R")#, echo = F,encoding = "UTF-8" )
 flist <- list(mean,median,sd)
 names(flist) <- c('Среднее','Медиана','Ст.Откл.')
+#names(flist) <- c("Mean","Median","StdDev")
 
 auxList <- list("BIC","density","uncertainty")
 names(auxList) <- c("Критерий информативности Байеса", 
                     "Функция плотности вероятности",
                     "Кроссплот с учетом неопределенности")
-#names(flist) <- c("Mean","Median","StdDev")
+hcmModes_hclust <- list("ward.D", "ward.D2", "single", "complete", "average" , 
+                 "mcquitty" , "median" , "centroid")
+names(hcmModes_hclust) <- c("Ward's minimum variance (compact, spherical clusters)", 
+                     "Ward's with (1963) clustering criterion", 
+                     "single (‘friends of friends’ clustering strategy)", 
+                     "complete (finds similar clusters)",
+                     "average (somewhere between the single and complete)" , 
+                     "mcquitty (somewhere between the single and complete)" ,
+                     "median (not leading to a monotone distance measure)" ,
+                     "centroid (not leading to a monotone distance measure)")
+
+hcmModes_hcluster <- list("ward", "single", "complete", 
+                          "average", "mcquitty", "median" ,
+                          "centroid","centroid2")
+names(hcmModes_hcluster) <- c("ward (compact, spherical clusters)",
+                              "single (‘friends of friends’ clustering strategy)",
+                              "complete (finds similar clusters)", 
+                              "average (somewhere between the single and complete)",
+                              "mcquitty (somewhere between the single and complete)", 
+                              "median (not leading to a monotone distance measure)" ,
+                              "centroid (not leading to a monotone distance measure)",
+                              "centroid2 (not leading to a monotone distance measure)")
+
+hcmDistModes <- list("euclidean", "maximum", "manhattan", "canberra", "binary", 
+                     "pearson", "abspearson", "correlation", "abscorrelation", 
+                     "spearman" , "kendall")
+names(hcmDistModes) <- c("euclidean", "maximum", "manhattan", "canberra", "binary", 
+                         "pearson", "abspearson", "correlation", "abscorrelation", 
+                         "spearman" , "kendall")
+
 
 classRange = 2:15
 
@@ -61,6 +92,7 @@ map_wid = "900px" #"900px"
 hist_hei = "200px"
 hist_wid = "200px"
 butt_wid = "200px"
+modPlot_wid = "500px"
 
 # Define UI for application that draws a histogram
 ui <- fluidPage(
@@ -95,7 +127,7 @@ ui <- fluidPage(
           "Карты",
           # UI: Class definition ####
           conditionalPanel(
-            condition = "input.maps == 'modelKM' || input.maps == 'modelGM'",
+            condition = "input.maps == 'modelKM' || input.maps == 'modelGM' || input.maps == 'modelHC'",
             sliderInput(
               "numClasses",
               "Число классов:",
@@ -180,7 +212,7 @@ ui <- fluidPage(
                                                         plotOutput(
                                                           "kmPlot",
                                                           click = "plot_zoom",
-                                                          height = "500px"
+                                                          height = modPlot_wid
                                                         ),
                                                         verbatimTextOutput("kmText")
                                               ),
@@ -188,7 +220,7 @@ ui <- fluidPage(
                                                         plotOutput(
                                                           "kmXPlot",
                                                           click = "plot_zoom",
-                                                          height = "500px"
+                                                          height = modPlot_wid
                                                         ),
                                                         downloadButton('downloadKMMap', 'Сохранить карту')
                                               )
@@ -196,13 +228,13 @@ ui <- fluidPage(
                                  verbatimTextOutput("kmXText")
                        ),
                        #UI: model GMM ####
-                       tabPanel(  "GMM K-Means", value = "modelGM",
+                       tabPanel(  "GMM", value = "modelGM",
                                   tabsetPanel( id = "modelGM",
                                                tabPanel( "Модель", value = "mod",
                                                          plotOutput(
                                                            "gmmPlot",
                                                            click = "plot_zoom",
-                                                           height = "500px"
+                                                           height = modPlot_wid
                                                          ),
                                                          verbatimTextOutput("gmmText")
                                                ),
@@ -210,7 +242,7 @@ ui <- fluidPage(
                                                          plotOutput(
                                                            "gmmXPlot",
                                                            click = "plot_zoom",
-                                                           height = "500px"
+                                                           height = modPlot_wid
                                                          ),
                                                          downloadButton('downloadGMMap', 'Сохранить карту')
                                                ),
@@ -218,7 +250,7 @@ ui <- fluidPage(
                                                          plotOutput(
                                                            "gmAuxPlot",
                                                            click = "plot_zoom",
-                                                           height = "500px"
+                                                           height = modPlot_wid
                                                          ),
                                                          radioButtons("gmmAuxMode",
                                                            label = "",
@@ -227,6 +259,34 @@ ui <- fluidPage(
                                                )
                                   ),
                                   verbatimTextOutput("gmmXText")
+                       ),
+                       #UI: model HC ####
+                       tabPanel(  "Иерархич.", value = "modelHC",
+                                  tabsetPanel( id = "modelHC",
+                                               tabPanel( "Модель", value = "mod",
+                                                         plotOutput(
+                                                           "hcPlot",
+                                                           click = "plot_zoom",
+                                                           height = modPlot_wid
+                                                         ),
+                                                         selectInput("hcMode", "Метод аггломерации"
+                                                                     ,choices = names(hcmModes_hcluster), width = modPlot_wid
+                                                         ),
+                                                         selectInput("hcDistMode", "Метод расчета расстояний"
+                                                                     ,choices = names(hcmDistModes), width = modPlot_wid
+                                                         ),
+                                                         verbatimTextOutput("hcText")
+                                               ),
+                                               tabPanel( "Результат", value = "res",
+                                                         plotOutput(
+                                                           "hcXPlot",
+                                                           click = "plot_zoom",
+                                                           height = modPlot_wid
+                                                         ),
+                                                         downloadButton('downloadHCmap', 'Сохранить карту')
+                                               )
+                                  ),
+                                  verbatimTextOutput("hcXText")
                        )
           )),
         #UI: models ####
@@ -259,12 +319,12 @@ ui <- fluidPage(
               ),
               plotOutput(
                 "nnetPlot",
-                height = "500px"
+                height = modPlot_wid
               ),
               verbatimTextOutput("nnetText"),
               plotOutput(
                 "nnetxPlot",
-                height = "500px"
+                height = modPlot_wid
               ),
               verbatimTextOutput("nnetXText")
             ),
@@ -273,12 +333,12 @@ ui <- fluidPage(
               "GLM",
               plotOutput(
                 "glmPlot",
-                height = "500px"
+                height = modPlot_wid
               ),
               verbatimTextOutput("glmText"),
               plotOutput(
                 "glmXPlot",
-                height = "500px"
+                height = modPlot_wid
               ),
               verbatimTextOutput("glmXText")
             )
@@ -490,6 +550,30 @@ loadWells <- function(file_obj = NULL) {
   coordinates(wells_) = ~X_LOCATION+Y_LOCATION
   return(wells_)
 }
+
+sortClasses <- function (rstr = NULL, wells = NULL) {
+  if(is.null(rstr) || 
+     is.null(wells) || 
+     length(wells$Values[!is.na(wells$Values)])<1)
+    return(rstr)
+  
+  clsAtWells = data.frame( Values = wells$Values, 
+                  iClasses = extract(rstr,data.frame(wells$X_LOCATION,wells$Y_LOCATION)))
+  ##??? - what is the limit for the actual well hits ??? ####
+  if(length(clsAtWells$iClasses[is.na(clsAtWells$iClasses)]) < 2)
+    return(rstr)
+  
+  ncls=max(rstr@data@values,na.rm = T)
+  cls = data.frame ( iClasses = c(1:ncls),Values = rep(NA,times = ncls))
+  for (icls in 1:ncls)
+    cls$Values[icls] = median(clsAtWells$Values[!is.na(clsAtWells$Values) & clsAtWells$iClasses==icls],na.rm=T)
+  browser()
+  cls = cls[match(sort(cls$Values),cls$Values),]
+  cat(paste(capture.output(cls),'\n'))
+  replace(rstr@data@values,cls$iClasses,c(1:ncls))
+  return(rstr)
+}
+
 
 extractMap2Well <- function (wells = NULL, rstr = NULL, name = "Map") {
   if(is.null(wells) || is.null(rstr)) return(NULL)
@@ -850,18 +934,49 @@ drawModel <- function(data,model) {
     plot(as.data.frame(data[,2:length(data[1,])]),
          main = (capture.output(model))[1],
          col = mclust.options("classPlotColors")[model$cluster], pch = 16)
+    #if(class(model) == 'kmeans')
+    #  points(model$centers,pch = 4, cex = 4, lwd = 4)
+  }
+  else if(class(model) == 'hclust') {
+    plot(model)
   }
 }
 
-drawModMapPlot <- function (data = NULL, model = NULL, sr = NULL, zoom = NULL) {
+dmode <- function(x, ...) {
+  dx <- density(x, ...)
+  dx$x[which.max(dx$y)]
+} 
+
+fill.na <- function(x) {
+  #browser()
+  i= floor(length(x)/2)
+  if( is.na(x)[i] && length(x[!is.na(x)]) > 2 ) {
+    return( round(median(x, na.rm=TRUE),0) )
+  } else {
+    return( round(x[i],0) )
+  }
+}  
+
+drawModMapPlot <- function (data = NULL, model = NULL, sr = NULL, zoom = NULL, nClass = 3) {
   if(is.null(data) || is.null(data)|| is.null(model)) return(NULL)
+  msize = 1
   if(class(model) == 'Mclust') {
     title = (capture.output(summary(model)))[2]
     clusters = model$classification
-  }
-  else if(class(model) == 'kmeans') {
+  } else if(class(model) == 'kmeans') {
     title = (capture.output(model))[1]
     clusters = model$cluster
+  } else if(class(model) == 'hclust') {
+    title = (capture.output(model))[1]
+    if(is.null(model$ids))
+      clusters = cutree(model,min(nClass,length(model$height)))
+    else {
+      clusters = rep(0,times = length(data[,1]))
+      clusters[model$ids] = cutree(model,min(nClass,length(model$height)))
+      msize = floor(model$reduceFactor/2)*2+1
+    }
+    title = paste("reduceFactor = ",model$reduceFactor,"msize =", msize)
+    #clusters = model$cluster
   }
   lividx = data[,1]
   if(!is.null(sr) && length(sr)>1) 
@@ -870,6 +985,12 @@ drawModMapPlot <- function (data = NULL, model = NULL, sr = NULL, zoom = NULL) {
     datplot = myReactives$maps[[1]]$rstr
   datplot@data@values = NA
   datplot@data@values[lividx] <- clusters
+  datplot@data@values[datplot@data@values==0] <- NA
+  
+  if(msize!=1)
+    datplot <- focal(datplot, w = matrix(1,msize,msize), fun = fill.na, 
+                pad = TRUE, na.rm = FALSE , NAonly = T)
+  datplot = sortClasses(datplot,myReactives$wells)
   if(is.null(zoom))
     plot(datplot,
          main = title,
@@ -925,8 +1046,8 @@ saveModMap <- function (data = NULL, clusters = NULL, sr = NULL) {
 
 calcGMM <- function(data = NULL, nclass = 3) {
   if(is.null(data)) return(NULL)
-  
-  dat = data[,2:length(data[1,])]
+
+  dat = scale(data[,2:length(data[1,])])
   #names(dat) = names(data[,2:length(data[1,])])
   if(nclass > 0) {
     gmmBIC = mclustBIC(dat,G=nclass)
@@ -937,6 +1058,36 @@ calcGMM <- function(data = NULL, nclass = 3) {
   }
 
   return(gmm)
+}
+
+calcHC <- function(data = NULL, nclass = 3, mode = "complete", distMode = "euclidean", maxPairs = 16000) {
+  if(is.null(data)) return(NULL)
+  #browser()
+  dat = data[,2:length(data[1,])]
+  #names(dat) = names(data[,2:length(data[1,])])
+  # usage of hclust require dist matrix which size would exceed the available memory
+  # in most cases
+  # hcluster requires less memory, but still requires the data decimation by reduceFactor.
+  #reduceFactor = as.integer(max(1,length(dat[,1])/65000L^(1/(length(dat[1,])-1))))
+  reduceFactor = ceiling(length(dat[,1])/maxPairs)
+  if(reduceFactor > 1 ) {
+    ids = seq(1,length(dat[,1]),reduceFactor)
+    dat_= dat[ids,]
+    hcm = hcluster(dat_,method = distMode, link = mode)
+    #dat_$class=cutree(hcm,min(nclass,length(hcm$height)))
+    #kmn=kmeans(dat,centers = dat_)
+    #hcm$cluster=kmn$cluster
+    hcm$ids = ids
+    hcm$reduceFactor = reduceFactor
+    #hcm$cluster = rep(0,times = length(dat[,1]))
+    #hcm$cluster[ids] = cutree(hcm,min(nclass,length(hcm$height)))
+    
+  } else {
+    hcm = hcluster(dat,method = distMode, link = mode)
+    hcm$ids = NULL
+    #hcm$cluster = cutree(hcm,min(nclass,length(hcm$height)))
+  }
+  return(hcm)
 }
 
 
@@ -1117,7 +1268,7 @@ getXYvectors <- function(map1, map2) {
 
 # Define server logic required to draw a histogram
 options(shiny.maxRequestSize = 500 * 1024 ^ 2)
-options(shiny.reactlog = TRUE)
+#options(shiny.reactlog = TRUE)
 options(shiny.host = "0.0.0.0")
 options(shiny.port = 8080)
 #options(shiny.style="old")
@@ -1422,6 +1573,7 @@ X_LOCATION  Y_LOCATION  VALUE",
     showModal(modalDialog( "Кластеризация K-means...",title = "Ожидайте...", footer = modalButton("Закрыть")))
     myReactives$km <- calcKMeans(myReactives$liveMaps,input$numClasses)#,sr = input$table_maps_rows_selected)
     removeModal()
+    return(myReactives$hcm)
   })
   
   #CB: KM plot model ####
@@ -1468,6 +1620,7 @@ X_LOCATION  Y_LOCATION  VALUE",
     removeModal() 
     if(input$numClassUD)
       updateSliderInput(session,"numClasses",value = myReactives$gmm$G)
+    return(myReactives$gmm)
   })
 
   #CB: GMM plot model ####
@@ -1510,7 +1663,63 @@ X_LOCATION  Y_LOCATION  VALUE",
                          type = "error")      
     }
   )
- 
+
+  #CB: HC model ####    
+  recalcHCM <- reactive ({
+    modDial = modalDialog( "Иерархическая кластеризация...",
+                           title = "Ожидайте...", footer = modalButton("Закрыть"))
+    showModal(modDial)
+    myReactives$hcm <- calcHC(myReactives$liveMaps,
+                              mode = hcmModes_hcluster[[input$hcMode]],
+                              distMode = hcmDistModes[[input$hcDistMode]])
+    removeModal() 
+    return(myReactives$hcm)
+   # if(input$numClassUD)
+    #  updateSliderInput(session,"numClasses",value = myReactives$gmm$G)
+  })
+  
+  #CB: HC plot model ####
+  output$hcPlot <- renderPlot({
+    recalcHCM()
+    drawModel(myReactives$liveMaps,myReactives$hcm)
+  })
+  
+  output$hcText <- renderText({ #renderPrint renderText
+    paste0(capture.output(summary(myReactives$hcm)),"\n")
+  })
+  
+  output$hcXPlot <- renderPlot({
+    recalcHCM()
+    myReactives$hcm_map = drawModMapPlot(myReactives$liveMaps,
+                                         myReactives$hcm,
+                                         sr = input$table_maps_rows_selected,
+                                         nClass = input$numClasses)
+    par(new = TRUE)
+    drawWells(wells = myReactives$wells)
+  })
+  
+  output$hcAuxPlot <- renderPlot({
+    recalcHCM()
+    drawModBIC(model = myReactives$hcm,mode = input$hcmAuxMode)
+  })
+  
+  #CB: HC download  ####
+  output$downloadHCMap <- downloadHandler(
+    filename = function() {
+      paste0('HCM_Ncls',input$numClasses,'_',Sys.Date(), '.asc')
+    },
+    contentType = '.asc',
+    content = function (fname) {
+      outgrid = saveModMap(myReactives$liveMaps,
+                           myReactives$hcm$classification,
+                           sr = input$table_maps_rows_selected)
+      save = try( expr = write.asciigrid(outgrid,fname) , TRUE)
+      if(class(save)=="try-error")
+        showNotification(ui = "Ошибка при сохранении файла",
+                         type = "error")      
+    }
+  )
+  
   # CB: Zoom maps on Click ####
   zoomPlotCall <- function (name, data) {
     modalDialog( name,size = "l",
@@ -1546,8 +1755,10 @@ X_LOCATION  Y_LOCATION  VALUE",
         xy$z = extract(myReactives$km_map,xy)
       else if (input$maps =='modelGM' && input$modelGM == 'res')
         xy$z = extract(myReactives$gmm_map,xy)
+      else if (input$maps =='modelHC' && input$modelHC == 'res')
+        xy$z = extract(myReactives$hcm_map,xy)
       #browser()
-      lab=paste0(labs,prettyNum(c(xy@coords,xy$z)))
+      lab=paste0('[',prettyNum(xy@coords[1]),':',prettyNum(xy@coords[2]),'] = ',prettyNum(xy$z))
       updateActionButton(session,"plot_zoom_xyz",label = lab)
     }
   })
@@ -1575,9 +1786,7 @@ X_LOCATION  Y_LOCATION  VALUE",
       #recalcGMM()
       if(input$modelKM == 'mod')
         drawModel(myReactives$liveMaps,myReactives$km)
-      else {
-        #plot(myReactives$km_map,myReactives$km$cluster)
-        
+      else if (input$modelKM == 'res'){
         drawModMapPlot(myReactives$liveMaps,
                        myReactives$km,
                        sr = input$table_maps_rows_selected,
@@ -1591,11 +1800,22 @@ X_LOCATION  Y_LOCATION  VALUE",
       else if (input$modelGM == 'bic'){
           drawModBIC(myReactives$gmm)
         } else {
-        #plot(myReactives$gmm_map,myReactives$gmm$classification)  
         drawModMapPlot(myReactives$liveMaps,
                        myReactives$gmm,
                        sr = input$table_maps_rows_selected,
                        zoom = myReactives$plot_zoom)
+        par(new = TRUE)
+        drawWells(wells = myReactives$wells)
+      }
+    } else if (input$maps == 'modelHC') {
+      if(input$modelHC == 'mod') 
+        drawModel(myReactives$liveMaps,myReactives$hcm)
+      else if (input$modelHC == 'res'){
+        drawModMapPlot(myReactives$liveMaps,
+                       myReactives$hcm,
+                       sr = input$table_maps_rows_selected,
+                       zoom = myReactives$plot_zoom,
+                       nClass = input$numClasses)
         par(new = TRUE)
         drawWells(wells = myReactives$wells)
       }

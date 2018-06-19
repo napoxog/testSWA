@@ -46,4 +46,6 @@ This is the README file for the pilot Shiny app for the map-well and clustering 
 ###   DONE: 22. Add BIC plot to GMM
 ###   DONE: 23. Add Brush zoom in the Results Modal popups.
 ###   TODO: 24. Add Hover text with X.Y.Z on the Results zoom modal popup
+###   TODO: 25. Add Hclust to clusterization methods
+###   FIXME: WA the Hclust limitation due to memory consumption. (propagate the lmited product)
 

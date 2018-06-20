@@ -24,6 +24,10 @@ This is the README file for the pilot Shiny app for the map-well and clustering 
 ####  DONE: 7.3. Linear Models types selection
 ####  DONE: 7.4. Gaussian Mixture model clastering
 ##### DONE: 7.4.1 GMM automatic classes number diable chec
+##### DONE: 7.4.2 Add BIC plot to GMM
+##### DONE: 7.5 Add Hclust to clusterization methods
+##### FIXME: 7.5.1 Fix Hclust Model and result Labeling
+###   FIXED: WA the Hclust limitation due to memory consumption. (propagate the lmited product)
 ###   TODO: 8. Add cross-validation analysis (if not included in LM)
 ###   DONE: 9. Provide batch maps loading (by path and extension)
 ##    DONE: FIX Well labeling order issue
@@ -41,11 +45,11 @@ This is the README file for the pilot Shiny app for the map-well and clustering 
 ###   TODO: 17. Add maps averaging
 ###   DONE: 18. Add bilinear smoothing for Rasters DIsplay plots
 ###   TODO: 19. Add maps selection for the Map display tabs
-###   TODO: 20. Add KM classes id remapping to GMM after calculation according to the Wells' CPs
+###   DONE: 20. Add KM and GMM classes id remapping after calculation according to the Wells' CPs
+####  TODO: 20.1 Add classes remapping for classes not covered by wells through the classes covered by wells' CP
 ###   DONE: 21. Add Results Zoom option modal popup
-###   DONE: 22. Add BIC plot to GMM
 ###   DONE: 23. Add Brush zoom in the Results Modal popups.
-###   TODO: 24. Add Hover text with X.Y.Z on the Results zoom modal popup
-###   TODO: 25. Add Hclust to clusterization methods
-###   FIXME: WA the Hclust limitation due to memory consumption. (propagate the lmited product)
+###   DONE: 24. Add Hover text with X.Y.Z on the Results zoom modal popup
+###   DONE: 26. Added the 0.5 transparency in Classification results plot
+###   TODO: 27. Make use of raster Layers instead of separate rasters !!!
 

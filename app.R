@@ -222,10 +222,10 @@ ui <- fluidPage(
                                                           click = "plot_zoom",
                                                           height = modPlot_wid
                                                         ),
-                                                        downloadButton('downloadKMMap', 'Сохранить карту')
+                                                        downloadButton('downloadKMMap', 'Сохранить карту'),
+                                                        verbatimTextOutput("kmXText")
                                               )
-                                 ),
-                                 verbatimTextOutput("kmXText")
+                                 )#,                                 verbatimTextOutput("kmXText")
                        ),
                        #UI: model GMM ####
                        tabPanel(  "GMM", value = "modelGM",
@@ -244,7 +244,8 @@ ui <- fluidPage(
                                                            click = "plot_zoom",
                                                            height = modPlot_wid
                                                          ),
-                                                         downloadButton('downloadGMMap', 'Сохранить карту')
+                                                         downloadButton('downloadGMMap', 'Сохранить карту'),
+                                                         verbatimTextOutput("gmmXText")
                                                ),
                                                tabPanel( "Дополнительно", value = "aux",
                                                          plotOutput(
@@ -257,8 +258,7 @@ ui <- fluidPage(
                                                            choices = auxList
                                                          )
                                                )
-                                  ),
-                                  verbatimTextOutput("gmmXText")
+                                  )#,                                  verbatimTextOutput("gmmXText")
                        ),
                        #UI: model HC ####
                        tabPanel(  "Иерархич.", value = "modelHC",
@@ -283,10 +283,10 @@ ui <- fluidPage(
                                                            click = "plot_zoom",
                                                            height = modPlot_wid
                                                          ),
-                                                         downloadButton('downloadHCmap', 'Сохранить карту')
+                                                         downloadButton('downloadHCmap', 'Сохранить карту'),
+                                                         verbatimTextOutput("hcXText")
                                                )
-                                  ),
-                                  verbatimTextOutput("hcXText")
+                                  )#,                                  verbatimTextOutput("hcXText")
                        )
           )),
         #UI: models ####
@@ -551,6 +551,12 @@ loadWells <- function(file_obj = NULL) {
   return(wells_)
 }
 
+dbgmes <- function (message = "message", expr = NULL) {
+  #browser()
+  fname = unlist(strsplit(x = as.character(sys.calls()[length(sys.calls())-1]),split = "\\("))
+  cat(paste0(fname[1],':',message,':',capture.output(expr),'\n'))
+}
+
 sortClasses <- function (rstr = NULL, wells = NULL) {
   if(is.null(rstr) || 
      is.null(wells) || 
@@ -565,12 +571,40 @@ sortClasses <- function (rstr = NULL, wells = NULL) {
   
   ncls=max(rstr@data@values,na.rm = T)
   cls = data.frame ( iClasses = c(1:ncls),Values = rep(NA,times = ncls))
-  for (icls in 1:ncls)
-    cls$Values[icls] = median(clsAtWells$Values[!is.na(clsAtWells$Values) & clsAtWells$iClasses==icls],na.rm=T)
-  browser()
-  cls = cls[match(sort(cls$Values),cls$Values),]
-  cat(paste(capture.output(cls),'\n'))
-  replace(rstr@data@values,cls$iClasses,c(1:ncls))
+  for (icls in 1:ncls) {
+    vals=clsAtWells$Values[clsAtWells$iClasses==icls]
+    vals = vals[!is.na(vals)]
+    #browser()
+    if(length(vals)>1)
+    {
+      dens = density(vals,na.rm=T)
+      cls$Values[icls] = dens$x[which.max(dens$y)]
+    } else if( length(vals)==1 ) {
+      cls$Values[icls] = vals
+    }
+    else 
+      cls$Values[icls] = NA
+    dbgmes("icls=",vals)
+  }
+  
+  #cls_out = cls$iClasses[!is.na(cls$Values)]
+  dbgmes("in",cls)
+  
+  cls_sorted = sort(cls$Values,na.last=F)
+  cls = cls[append(which(is.na(cls$Values)),match(cls_sorted[!is.na(cls_sorted)],cls$Values)),]
+  dbgmes("out",cls)
+  #dbgmes("cls_out",cls_out)
+  if(length(cls)>0) {
+    values = rep(NA,times = length(rstr@data@values))
+    for(icls in 1:ncls) {
+      idxs = which(rstr@data@values == cls$iClasses[icls])
+      values[idxs] = replace(rstr@data@values,idxs,icls)[idxs]
+    }
+    rstr@data@values = values
+  }
+  #browser()
+  rownames(cls)<-as.character(c(1:ncls))
+  attributes(rstr)$cls = cls
   return(rstr)
 }
 
@@ -983,6 +1017,7 @@ drawModMapPlot <- function (data = NULL, model = NULL, sr = NULL, zoom = NULL, n
     datplot = myReactives$maps[[sr[1]]]$rstr
   else
     datplot = myReactives$maps[[1]]$rstr
+  names(datplot) = title
   datplot@data@values = NA
   datplot@data@values[lividx] <- clusters
   datplot@data@values[datplot@data@values==0] <- NA
@@ -991,15 +1026,21 @@ drawModMapPlot <- function (data = NULL, model = NULL, sr = NULL, zoom = NULL, n
     datplot <- focal(datplot, w = matrix(1,msize,msize), fun = fill.na, 
                 pad = TRUE, na.rm = FALSE , NAonly = T)
   datplot = sortClasses(datplot,myReactives$wells)
+
+  colors = mclust.options("classPlotColors")[1:max(clusters)]
+  #browser()
+  colors = apply(sapply(colors, col2rgb)/255, 2, 
+        function(x) rgb(x[1], x[2], x[3], alpha=0.5)) 
+  
   if(is.null(zoom))
     plot(datplot,
          main = title,
-         col = mclust.options("classPlotColors")[1:max(clusters)],interpolate=F)
+         col = colors ,interpolate=F)
   else
     plot(datplot,
          main = title,
          xlim = zoom[1,], ylim = zoom[2,],
-         col = mclust.options("classPlotColors")[1:max(clusters)],interpolate=F)
+         col = colors,interpolate=F)
   return (datplot)
 }
 
@@ -1103,7 +1144,16 @@ getModelText <- function(fit = NULL) {
   #browser()
   return(frm)
 }
-  
+
+getModelMapText <- function (model_map = NULL) {
+  if(is.null(model_map)) return("")
+  cls = attributes(model_map)$cls
+  txt_gen = paste0(capture.output(model_map),"\n")
+  txt_cls =""
+  if(!is.null(cls))
+    txt_cls = paste0(capture.output(cls),"\n")
+  return(c(txt_gen,txt_cls))
+}  
 
 getModelXplotText <- function(data = NULL, lmfit = NULL, srows = NULL) {
   if(is.null(data)) {
@@ -1592,6 +1642,10 @@ X_LOCATION  Y_LOCATION  VALUE",
     par(new = TRUE)
     drawWells(wells = myReactives$wells)
   })
+
+  output$kmXText <- renderText({ #renderPrint renderText
+    getModelMapText(myReactives$km_map)
+  })
   
   #CB: KM download  ####
   output$downloadKMMap <- downloadHandler(
@@ -1631,6 +1685,10 @@ X_LOCATION  Y_LOCATION  VALUE",
 
   output$gmmText <- renderText({ #renderPrint renderText
     paste0(capture.output(summary(myReactives$gmm)),"\n")
+  })
+
+  output$gmmXText <- renderText({ #renderPrint renderText
+    getModelMapText(myReactives$gmm_map)
   })
   
   output$gmmXPlot <- renderPlot({
@@ -1685,7 +1743,7 @@ X_LOCATION  Y_LOCATION  VALUE",
   })
   
   output$hcText <- renderText({ #renderPrint renderText
-    paste0(capture.output(summary(myReactives$hcm)),"\n")
+    paste0(capture.output(summary(myReactives$hcm_map)),"\n")
   })
   
   output$hcXPlot <- renderPlot({
@@ -1698,6 +1756,11 @@ X_LOCATION  Y_LOCATION  VALUE",
     drawWells(wells = myReactives$wells)
   })
   
+  output$hcXText <- renderText({ #renderPrint renderText
+    getModelMapText(myReactives$hcm_map)
+    
+  })
+
   output$hcAuxPlot <- renderPlot({
     recalcHCM()
     drawModBIC(model = myReactives$hcm,mode = input$hcmAuxMode)
@@ -1731,7 +1794,7 @@ X_LOCATION  Y_LOCATION  VALUE",
                                     height = "800px")
                   ),
                  footer = tagList(
-                   actionButton("plot_zoom_xyz","test"),
+                   actionButton("plot_zoom_xyz","XYZ"),
                    actionButton("plot_zoom_reset","Сбросить увеличение"),
                    modalButton("Закрыть")
                    )

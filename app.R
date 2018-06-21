@@ -14,7 +14,7 @@ require(DT)
 
 require(readr)
 require(raster)
-require(miniUI)
+#require(miniUI)
 
 #detach(package)
 

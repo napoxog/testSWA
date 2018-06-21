@@ -51,7 +51,13 @@ This is the README file for the pilot Shiny app for the map-well and clustering 
 ###   DONE: 23. Add Brush zoom in the Results Modal popups.
 ###   DONE: 24. Add Hover text with X.Y.Z on the Results zoom modal popup
 ###   DONE: 26. Added the 0.5 transparency in Classification results plot
+<<<<<<< HEAD
 ###   TODO:?27. Make use of raster Layers instead of separate rasters !!!
 ###   DONE: 28. Add input Maps transparency setting
 ###   INPROGRESS: 29. Add optional Contours display for input maps
 
+=======
+###   TODO: 27. Make use of raster Layers instead of separate rasters !!!
+###   TODO: 28. Tune the hover delay in zoom modal plots
+###   TODO: 29. Estimate and print the StD of wells' CP for each class
+>>>>>>> 48adae5422593cd2bef84e991376bf58f377ebf7

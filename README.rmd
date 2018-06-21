@@ -17,7 +17,7 @@ This is the README file for the pilot Shiny app for the map-well and clustering 
 ###   DONE: 4. Linear models results presentation
 ###   DONE: 5. Multiple (more than 2) maps loading 
 ###   DONE: 6. Maps Management
-###   TODO: 7. provide different Prediction types 
+###   INPROGRESS: 7. provide different Prediction types 
 ####  TODO: 7.1. classification tools
 ##### FIXME: 7.1.1 Check the training - the xplot looks strange of the given NNET complexity
 ####  INPROGRESS: 7.2. Neural networks tools
@@ -41,15 +41,17 @@ This is the README file for the pilot Shiny app for the map-well and clustering 
 ###   DONE: 13. Move Maps-only classification tabs from Models to Maps Tab
 ###   TODO: 14. Apply Upscaling only to selected maps, if any, to reduce processing time. (manage upscaling parameter?)
 ###   TODO:?15. Transform the Model/Reslut tabs into radio group and reduce the plot+text to one per model type
-###   TODO:?16. Add palette selection for the maps
+###   DONE:?16. Add palette selection for the maps
 ###   TODO: 17. Add maps averaging
 ###   DONE: 18. Add bilinear smoothing for Rasters DIsplay plots
-###   TODO: 19. Add maps selection for the Map display tabs
+###   DONE: 19. Add maps selection for the Map display tabs
 ###   DONE: 20. Add KM and GMM classes id remapping after calculation according to the Wells' CPs
-####  TODO: 20.1 Add classes remapping for classes not covered by wells through the classes covered by wells' CP
+####  TODO:?20.1 Add classes remapping for classes not covered by wells through the classes covered by wells' CP
 ###   DONE: 21. Add Results Zoom option modal popup
 ###   DONE: 23. Add Brush zoom in the Results Modal popups.
 ###   DONE: 24. Add Hover text with X.Y.Z on the Results zoom modal popup
 ###   DONE: 26. Added the 0.5 transparency in Classification results plot
-###   TODO: 27. Make use of raster Layers instead of separate rasters !!!
+###   TODO:?27. Make use of raster Layers instead of separate rasters !!!
+###   DONE: 28. Add input Maps transparency setting
+###   INPROGRESS: 29. Add optional Contours display for input maps
 

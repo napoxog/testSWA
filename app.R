@@ -587,7 +587,8 @@ loadWells <- function(file_obj = NULL) {
 dbgmes <- function (message = "message", expr = NULL) {
   #browser()
   funame = unlist(strsplit(x = as.character(sys.calls()[length(sys.calls())-1]),split = "\\("))
-  cat(paste0('==>',funame[1],':\n',paste0(message,':',capture.output(expr),'\n')))
+  cat(paste0('==>',funame[1],':\n'))
+  cat(paste0(message,':',capture.output(expr),'\n'))
 }
 
 sortClasses <- function (rstr = NULL, wells = NULL) {
@@ -945,12 +946,13 @@ drawModelQC <- function(fit = NULL){
 }
 
 drawModelXplot <- function(data = NULL, lmfit = NULL, srows = NULL) {
-  sel = c( 1:length(data$WELL))
-  sel[srows] = NA
-  sel = sel[!is.na(data$Values)]
-  sel = sel[!is.na(sel)]
+  #sel = c( 1:length(data$WELL))
+  #sel[srows] = NA
+  #sel = sel[!is.na(data$Values)]
+  #sel = sel[!is.na(sel)]
   predicted = predict.lm(lmfit)
-  measured = data$Values[sel]
+  #measured = data$Values[sel]
+  measured = data$Values[data$WELL %in% names(predicted)]
   abl = lm(predicted~measured)
   #sel[input$table_wells_rows_selected] = FALSE
   #sel <- sel[!is.na(myReactives$wells@data$Values)]
@@ -966,7 +968,8 @@ drawModelXplot <- function(data = NULL, lmfit = NULL, srows = NULL) {
   #     paste(abl$call$formula[2]," = ", 
   #           abl$call$formula[3]," * ",prettyNum(abl$coefficients[2]),"+",
   #           prettyNum(abl$coefficients[1])))
-  text(measured,predicted, labels = data$WELL[sel], pos = 1)
+  #text(measured,predicted, labels = data$WELL[sel], pos = 1)
+  text(measured,predicted, labels = names(predicted), pos = 1)
   
 
 }
@@ -1226,12 +1229,17 @@ getModelXplotText <- function(data = NULL, lmfit = NULL, srows = NULL) {
   if(is.null(data)) {
     return(paste(lmfit$call$formula[2]," = ", lmfit$call$formula[3]," * ",prettyNum(lmfit$coefficients[2]),"+",prettyNum(lmfit$coefficients[1])))  } 
   if(is.null(lmfit)) return("No model built")
-  sel = c( 1:length(data$WELL))
-  sel[srows] = NA
-  sel = sel[!is.na(data$Values)]
-  sel = sel[!is.na(sel)]
+  #dbgmes("data=",data)
+  #sel = c( 1:length(data$WELL))
+  #sel[srows] = NA
+  #sel = sel[!is.na(data$Values)]
+  #sel = sel[!is.na(sel)]
   predicted = predict.lm(lmfit)
-  measured = data$Values[sel]
+  #measured = data$Values[sel]
+  measured = data$Values[data$WELL %in% names(predicted)]
+  browser()
+  dbgmes("xplot data = ", c((predicted),(measured)))
+  dbgmes("length = ", c(length(predicted),length(measured)))
   abl = lm(predicted~measured)
   return(paste(abl$call$formula[2]," = ", abl$call$formula[3]," * ",prettyNum(abl$coefficients[2]),"+",prettyNum(abl$coefficients[1])))
   #plot(anova(myReactives$fit))

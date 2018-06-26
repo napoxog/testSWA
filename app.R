@@ -43,7 +43,7 @@ map_zoom = NULL
 
 
 source("nnet_plot_update.r") ## Acsource from https://gist.github.com/fawda123/7471137/raw/cd6e6a0b0bdb4e065c597e52165e5ac887f5fe95/nnet_plot_update.r'
-
+## INIT: selectLists ####
 #source("app_ui.R")#, echo = F,encoding = "UTF-8" )
 flist <- list(mean,median,sd)
 names(flist) <- c('Среднее','Медиана','Ст.Откл.')
@@ -88,6 +88,17 @@ mapPalList <- list (terrain.colors, heat.colors, topo.colors,
 names(mapPalList) <- c("Покров", "Тепло", "Рельеф", 
                        "Радуга", "ЧРЖ", "Монохром")
 
+mapFormats <- list (write.asciigrid,write_csv,write_excel_csv,write_tsv)
+mapFormatsRead <- list (read.asciigrid,read_csv2,read_csv2,read_tsv)
+names(mapFormats) <- c("ESRI ASCII грид",
+                       "Формат CSV",
+                       "Формат CSV (Excel)",
+                       "Разделитель - табуляция")
+names(mapFormatsRead) <- c("ESRI ASCII грид",
+                       "Формат CSV",
+                       "Формат CSV (Excel)",
+                       "Разделитель - табуляция")
+
 classRange = 2:15
 classPalette = mclust.options("classPlotColors")
 mapPalette = terrain.colors
@@ -98,6 +109,7 @@ hist_hei = "200px"
 hist_wid = "200px"
 butt_wid = "200px"
 modPlot_wid = "500px"
+busy_size = "30px"
 
 myReactives <- reactiveValues(wells = wells0, 
                               zoom = map_zoom, 
@@ -170,6 +182,8 @@ ui <- fluidPage(
                                    max = 1,
                                    value = 0.5
                                  ),
+                                 selectInput("mapFormatSel", "Формат файлов загрузки/выгрузки"
+                                             ,choices = names(mapFormats)),
                                  fileInput(
                                    "Mapsfile",
                                    "Открыть/Заменить карту:",
@@ -376,19 +390,20 @@ ui <- fluidPage(
               verticalLayout(
                 flowLayout(
                   selectInput("selectMap1", "Карта"
-                              ,choices = "", width = butt_wid
+                              ,choices = NULL, width = butt_wid, 
                   )
                 ),
                 flowLayout(
                   actionButton("unzoom1"   , "Сброс масштаба  ", width = butt_wid),
                   actionButton("trans1"    , "Транспонировать ", width = butt_wid),
                   checkboxInput("showContours1","Контуры", width = butt_wid),
+                  checkboxInput("interpMap1","Интерполяция", width = butt_wid),
                   selectInput("mapPalSelect1", "Палитра"
                               ,choices = names(mapPalList), width = butt_wid),
                   sliderInput(
                     "mapPalTransp1",
                     "Прозрачность:",
-                    min = 0.1,
+                    min = 0.0,
                     max = 1,
                     value = 0.5,
                     step = 0.1)
@@ -421,19 +436,20 @@ ui <- fluidPage(
               verticalLayout(
                 flowLayout(
                   selectInput("selectMap2", "Карта"
-                              ,choices = "", width = butt_wid
+                              ,choices = NULL, width = butt_wid
                   )
                 ),
                 flowLayout(
                   actionButton("unzoom2"   , "Сброс масштаба  ", width = butt_wid),
                   actionButton("trans2"    , "Транспонировать ", width = butt_wid),
                   checkboxInput("showContours2","Контуры", width = butt_wid),
+                  checkboxInput("interpMap2","Интерполяция", width = butt_wid),
                   selectInput("mapPalSelect2", "Палитра"
                               ,choices = names(mapPalList), width = butt_wid),
                   sliderInput(
                     "mapPalTransp2",
                     "Прозрачность:",
-                    min = 0.1,
+                    min = 0.0,
                     max = 1,
                     value = 0.5,
                     step = 0.1)
@@ -497,24 +513,32 @@ upscaleMap <- function(map_obj = NULL, fact = 1.0, func = mean) {
 }
 
 ## load map file in ESRI ascii grid format, with optional transposing of the matrix ##
-loadMapFile <- function (file_obj = NULL, transpose = FALSE) {
+loadMapFile <- function (file_obj = NULL, transpose = FALSE, loadFunction = "ESRI ASCII грид") {
+  #cat(capture.output(loadFunc))
+  loadFunc = mapFormatsRead[[loadFunction]]
   if (is.null(file_obj)) {
-    map = try( expr = sp::read.asciigrid("../Data/Maps/default.asc") , TRUE)
+    map = try( expr = loadFunc("../Data/Maps/default.asc") , TRUE)
     if(class(map)=="try-error"){
       return(NULL)
     }
     fn = "default.asc"
   } else {
-    map = try( expr = sp::read.asciigrid(file_obj$datapath), TRUE)
+    map = try( expr = loadFunc(file_obj$datapath), TRUE)
     if(class(map)=="try-error"){
       return(NULL)
     }
     fn = file_obj$name
   }
+  if(loadFunction != "ESRI ASCII грид") {
+    browser()
+    rstr = rasterFromXYZ(map)
+    map = as(rstr,'SpatialGridDataFrame')
+  } else {
+    rstr = raster(map)
+  }
   
   names(map@data) = fn
   ##projection(map) <- "+proj=longlat +datum=WGS84"
-  rstr = raster(map)
   map_m = as.vector(rstr)
   names(map_m) = fn
   map_obj = list(
@@ -699,6 +723,27 @@ loadCP <- function (wells = NULL, cpFile , tolerance = 10, replace = TRUE, cpnam
   return (addWellCP(wells,cpdata,TRUE,cpname))
 }
 
+selectMap <- function (maps = NULL, sr = NULL, idx = -1) {
+  #browser()
+  #dbgmes(message = " in_idx=",idx)
+  idx = as.integer(idx)
+  if(is.null(maps)) return (NULL)
+  if(is.null(idx) || is.na(idx) || idx<1 || idx > length(maps)) return (1) 
+  
+  #if ( is.null(sr) || length(sr) < 1 ) map_obj = maps[[1]]
+  #else map_obj = maps[[sr[1]]]
+  
+  if(length(sr) == 1) return(sr[1])
+  
+  if ( is.null(sr) || length(sr) < 1 ) map_idx = idx
+  else map_idx = sr[idx]
+  #map_idx = as.integer(map_idx)
+  #if(is.na(map_idx)) browser()
+  #dbgmes(message = "sr=",sr)
+  #dbgmes(message = "out_idx=",c(idx,map_idx))
+  return(map_idx)
+}
+
 # Draw single map
 drawMap <- function (map = def_map$map, fact = 1.0, zoom = NULL, pal = NULL, alpha = 0) {
   meanx = (map@bbox[1, 1] + map@bbox[1, 2]) / 2
@@ -764,38 +809,19 @@ drawMap <- function (map = def_map$map, fact = 1.0, zoom = NULL, pal = NULL, alp
   }
 }
 
-selectMap <- function (maps = NULL, sr = NULL, idx = -1) {
-  #browser()
-  #dbgmes(message = " in_idx=",idx)
-  idx = as.integer(idx)
-  if(is.null(maps)) return (NULL)
-  if(is.null(idx) || is.na(idx) || idx<1 || idx > length(maps)) return (1) 
-  
-  #if ( is.null(sr) || length(sr) < 1 ) map_obj = maps[[1]]
-  #else map_obj = maps[[sr[1]]]
-  
-  if(length(sr) == 1) return(sr[1])
-  
-  if ( is.null(sr) || length(sr) < 1 ) map_idx = idx
-  else map_idx = idx
-  #map_idx = as.integer(map_idx)
-  #if(is.na(map_idx)) browser()
-  #dbgmes(message = "out_idx=",map_idx)
-  return(map_idx)
-}
 
-drawRstr <- function (map = def_map$rstr, zoom = NULL,  pal = mapPalette, alpha = 0, contours = F) {
+drawRstr <- function (map = def_map$rstr, zoom = NULL,  pal = mapPalette, alpha = 0, contours = F, interpolate = TRUE) {
   colors = pal(128)
   if(!is.null(alpha))
     colors = setPaletteTransp(colors,1-alpha)
 
   if(!is.null(zoom)) {
-    plot(map, xlim = zoom[1,], ylim = zoom[2,],col = colors)
+    plot(map, xlim = zoom[1,], ylim = zoom[2,],interpolate=interpolate,col = colors)
   } 
   else {
     zoom <- NULL
     par(new = TRUE)
-    plot(map,interpolate=TRUE,col = colors)
+    plot(map,interpolate=interpolate,col = colors)
     if(contours) contour(map,add=T)
   }
 }
@@ -933,6 +959,10 @@ buildGLM <- function(wells = NULL, rows = NULL, sel_maps = NULL, lmfunc = glm, f
     fit = lmfunc(formula = frml, data[sel,], family = family)
     #names(fit$residuals) = data$WELL[sel]
   }
+  #cost <- function(r, pi = 0) mean((r-pi)^2)
+  #K-fold Cross-Validation estimate
+  #browser()
+  #fit$cvDelta = cv.glm(data = fit$data[!is.na(fit$data)],glmfit = fit,cost = cost,K=7)[3]
   return(fit)
 }
 
@@ -969,6 +999,7 @@ drawModelXplot <- function(data = NULL, lmfit = NULL, srows = NULL) {
   #           abl$call$formula[3]," * ",prettyNum(abl$coefficients[2]),"+",
   #           prettyNum(abl$coefficients[1])))
   #text(measured,predicted, labels = data$WELL[sel], pos = 1)
+  glm
   text(measured,predicted, labels = names(predicted), pos = 1)
   
 
@@ -1144,7 +1175,7 @@ drawModBIC <- function(model=NULL,mode = "BIC") {
   
 }
 
-saveModMap <- function (data = NULL, clusters = NULL, sr = NULL) {
+saveModMap <- function (data = NULL, clusters = NULL, sr = NULL, fname = NULL, format = "ESRI ASCII грид") {
   if(is.null(data) || is.null(data)|| is.null(clusters)) return(NULL)
   # got live cells
   lividx = data[,1]
@@ -1152,15 +1183,37 @@ saveModMap <- function (data = NULL, clusters = NULL, sr = NULL) {
   else datplot = myReactives$maps[[1]]$rstr
   datplot@data@values[lividx] <- clusters
   datplot_out=datplot
-  dxCellsize=(datplot@extent@xmax-datplot@extent@xmin)/datplot@nrows
-  dyCellsize=(datplot@extent@ymax-datplot@extent@ymin)/datplot@ncols
+  dxCellsize=(datplot@extent@xmax-datplot@extent@xmin)/datplot@ncols
+  dyCellsize=(datplot@extent@ymax-datplot@extent@ymin)/datplot@nrows
   newCellSize = min(dxCellsize,dyCellsize)
-  datplot_out@ncols = as.integer(ceiling((datplot@extent@ymax-datplot@extent@ymin)/newCellSize))
-  datplot_out@nrows = as.integer(ceiling((datplot@extent@xmax-datplot@extent@xmin)/newCellSize))
-  datplot_out = resample(datplot,datplot_out)
+  datplot_out@nrows = as.integer(ceiling((datplot@extent@ymax-datplot@extent@ymin)/newCellSize))
+  datplot_out@ncols = as.integer(ceiling((datplot@extent@xmax-datplot@extent@xmin)/newCellSize))
+  datplot_out = resample(datplot,datplot_out,method = "ngb")
   spgrid = as(datplot_out,'SpatialGridDataFrame') 
   spgrid@grid@cellsize = rep(newCellSize,2)
   #browser()
+  if(!is.null(fname))
+  {
+    wrFunc = mapFormats[[format]]
+    if(format == "ESRI ASCII грид") {
+      exprWr = as.expression({
+        close( file( fname, open="w" ) )
+        wrFunc(spgrid,fname)
+        })
+    } else {
+      q= as.data.frame(datplot_out,xy=T)
+      exprWr = as.expression({
+        close( file( fname, open="w" ) )
+        wrFunc(q,fname)
+        })
+    }
+    save = try( expr = exprWr , FALSE)
+    if(class(save)=="try-error"){
+      showNotification(ui = "Ошибка при сохранении файла",
+                       type = "error")      
+      cat(save)
+    }
+  }
   return (spgrid)
 }
 
@@ -1237,11 +1290,20 @@ getModelXplotText <- function(data = NULL, lmfit = NULL, srows = NULL) {
   predicted = predict.lm(lmfit)
   #measured = data$Values[sel]
   measured = data$Values[data$WELL %in% names(predicted)]
-  browser()
+  
   dbgmes("xplot data = ", c((predicted),(measured)))
   dbgmes("length = ", c(length(predicted),length(measured)))
   abl = lm(predicted~measured)
-  return(paste(abl$call$formula[2]," = ", abl$call$formula[3]," * ",prettyNum(abl$coefficients[2]),"+",prettyNum(abl$coefficients[1])))
+  if(is.null(lmfit$cvDelta)) 
+    res = paste(abl$call$formula[2]," = ", abl$call$formula[3]," * ",
+                prettyNum(abl$coefficients[2]),"+",
+                prettyNum(abl$coefficients[1]),
+                "\nValidation error ="+lmfit$cvDelta[2])
+  else
+    res = paste(abl$call$formula[2]," = ", abl$call$formula[3]," * ",
+                prettyNum(abl$coefficients[2]),"+",
+                prettyNum(abl$coefficients[1]))
+  return(res)
   #plot(anova(myReactives$fit))
 }
 
@@ -1467,10 +1529,8 @@ X_LOCATION  Y_LOCATION  VALUE",
     content = function (fname) {
       #browser()
       if(length(input$table_maps_rows_selected)>0) {
-        map_idx1 = selectMap(maps = myReactives$maps,
-                             sr = input$table_maps_rows_selected, idx = input$selectMap1)
-        map_idx2 = selectMap(maps = myReactives$maps,
-                             sr = input$table_maps_rows_selected, idx = input$selectMap2)        
+        map_idx1 = selectMap(maps = myReactives$maps, idx = input$selectMap1)
+        map_idx2 = selectMap(maps = myReactives$maps, idx = input$selectMap2)        
         out_wells = cbind( myReactives$wells@coords, 
                            myReactives$wells[,map_idx1+3]@data,
                            myReactives$wells[,map_idx2+3]@data)              
@@ -1503,8 +1563,10 @@ X_LOCATION  Y_LOCATION  VALUE",
     showModal(modalDialog( "Обработка карт...",title = "Ожидайте...", footer = modalButton("Закрыть")))
     withProgress(message = "обработка карт...", detail = "Ожидайте......", 
                  value =0, {
+                selIdx =1
+                   
                 for(i in 1:length(input$Mapsfile[,1])) {
-                  map_obj = loadMapFile(input$Mapsfile[i,])
+                  map_obj = loadMapFile(input$Mapsfile[i,], loadFunc = input$mapFormatSel)
                   map_obj = upscaleMap(map_obj,input$rstr_fact,func = mean)
                   
                   if (is.null(map_obj)) 
@@ -1513,9 +1575,18 @@ X_LOCATION  Y_LOCATION  VALUE",
                   else {
                     incProgress(detail = paste0('"',map_obj$fn,'"'), amount = 1./length(input$Mapsfile[,1]))
                     if (length(input$table_maps_rows_selected)>0 && length(myReactives$maps)>1) {
-                      map_idx = selectMap(maps = myReactives$maps,sr = input$table_maps_rows_selected, idx = input$selectMap1)
+                      map_idx = selectMap(maps = myReactives$maps,sr = input$table_maps_rows_selected, idx = selIdx)
+                      
+                      if(selIdx<=length(input$table_maps_rows_selected))
+                      {
                       myReactives$maps[[map_idx]] <- map_obj
                       myReactives$wells <- extractMap2Well(myReactives$wells,map_obj$rstr, paste0 ("Map",map_idx))
+                      selIdx = selIdx + 1
+                      } else {
+                        myReactives$wells <- extractMap2Well(myReactives$wells,map_obj$rstr, paste0 ("Map",length(myReactives$maps)+1))
+                        myReactives$maps <- append(myReactives$maps,list(map_obj))
+                      }
+                      
                     } else {
                       myReactives$wells <- extractMap2Well(myReactives$wells,map_obj$rstr, paste0 ("Map",length(myReactives$maps)+1))
                       myReactives$maps <- append(myReactives$maps,list(map_obj))
@@ -1543,6 +1614,8 @@ X_LOCATION  Y_LOCATION  VALUE",
   #CB: select maps ####
   updateMapLists <- function (maps = NULL, sr = NULL) {
     #browser()
+    if(is.null(maps)) return(NULL)
+    
     sr = getLiveMapsIds(maps, sr)
     nsr=length(sr)
     for(im in 1:nsr)  
@@ -1571,7 +1644,7 @@ X_LOCATION  Y_LOCATION  VALUE",
   #CB: transposing ####
   observeEvent(input$trans1 , {
     if(length(myReactives$maps)>1) {
-      map_idx = selectMap(maps = myReactives$maps,sr = input$table_maps_rows_selected, idx = input$selectMap1)
+      map_idx = selectMap(maps = myReactives$maps, idx = input$selectMap1)
       map_obj = transposeMap(myReactives$maps[[map_idx]])
       myReactives$wells <- extractMap2Well(myReactives$wells,map_obj$rstr, paste0 ("Map",map_idx))
       myReactives$maps[[map_idx]] <- map_obj
@@ -1580,7 +1653,7 @@ X_LOCATION  Y_LOCATION  VALUE",
   })
   observeEvent(input$trans2 , {
     if(length(myReactives$maps)>1) {
-      map_idx = selectMap(maps = myReactives$maps,sr = input$table_maps_rows_selected, idx = input$selectMap2)
+      map_idx = selectMap(maps = myReactives$maps, idx = input$selectMap2)
       map_obj = transposeMap(myReactives$maps[[map_idx]])
       myReactives$wells <- extractMap2Well(myReactives$wells,map_obj$rstr, paste0 ("Map",map_idx))
       myReactives$maps[[map_idx]] <- map_obj
@@ -1612,12 +1685,15 @@ X_LOCATION  Y_LOCATION  VALUE",
       myReactives$liveMaps <- getLiveMapsData(maps = myReactives$maps)
       updateMapLists(myReactives$maps,input$table_maps_rows_selected)
     }
-    map_idx = selectMap(maps = myReactives$maps,sr = input$table_maps_rows_selected, idx = input$selectMap1)
+    map_idx = selectMap(maps = myReactives$maps, idx = input$selectMap1)
+    #dbgmes(message = "map_idx=",map_idx)
+    if(is.na(map_idx)) return()
     #browser()
     drawRstr(map = myReactives$maps[[map_idx]]$rstr,zoom = myReactives$zoom, 
              pal = mapPalList[[input$mapPalSelect1]],
              alpha = input$mapPalTransp1,
-             contours = input$showContours1)
+             contours = input$showContours1,
+             interpolate = input$interpMap1)
     drawWells(myReactives$wells, myReactives$maps[[map_idx]]$rstr, sr = input$table_wells_rows_selected,srmap = input$table_maps_rows_selected)
   })
   output$mapPlot2 <- renderPlot({
@@ -1626,7 +1702,8 @@ X_LOCATION  Y_LOCATION  VALUE",
       drawRstr(myReactives$maps[[map_idx]]$rstr,myReactives$zoom, 
                pal = mapPalList[[input$mapPalSelect2]],
                alpha = input$mapPalTransp2,
-               contours = input$showContours2)
+               contours = input$showContours2,
+               interpolate = input$interpMap2)
       drawWells(myReactives$wells, myReactives$maps[[map_idx]]$rstr, sr = input$table_wells_rows_selected,srmap = input$table_maps_rows_selected)
     }
   })
@@ -1651,11 +1728,11 @@ X_LOCATION  Y_LOCATION  VALUE",
   
   #CB: histogram plot  ####
   output$histPlot1 <- renderPlot({
-    map_idx = selectMap(maps = myReactives$maps,sr = input$table_maps_rows_selected, idx = input$selectMap1)
+    map_idx = selectMap(maps = myReactives$maps, idx = input$selectMap1)
     drawHist(myReactives$maps[[map_idx]]$mat, input$bins)
   })
   output$histPlot2 <- renderPlot({
-    map_idx = selectMap(maps = myReactives$maps,sr = input$table_maps_rows_selected, idx = input$selectMap2)
+    map_idx = selectMap(maps = myReactives$maps, idx = input$selectMap2)
     drawHist(myReactives$maps[[map_idx]]$mat, input$bins)
   })
   
@@ -1666,8 +1743,8 @@ X_LOCATION  Y_LOCATION  VALUE",
       myReactives$maps <- append(myReactives$maps,list(map_obj))
       myReactives$maps <- append(myReactives$maps,list(map_obj))
     }
-    map_idx1 = selectMap(maps = myReactives$maps,sr = input$table_maps_rows_selected, idx = input$selectMap1)
-    map_idx2 = selectMap(maps = myReactives$maps,sr = input$table_maps_rows_selected, idx = input$selectMap2)
+    map_idx1 = selectMap(maps = myReactives$maps, idx = input$selectMap1)
+    map_idx2 = selectMap(maps = myReactives$maps, idx = input$selectMap2)
     drawHex(getXYvectors(myReactives$maps[[map_idx1]], myReactives$maps[[map_idx2]]), input$cells)
   })
   
@@ -1741,7 +1818,9 @@ X_LOCATION  Y_LOCATION  VALUE",
   })
   
   recalcKMeans <- reactive({
-    showModal(modalDialog( "Кластеризация K-means...",title = "Ожидайте...", footer = modalButton("Закрыть")))
+    showModal(modalDialog( list(imageOutput("cycle", width = busy_size,height = busy_size),
+                                "Кластеризация K-means..."),
+                           title = "Ожидайте...", footer = modalButton("Закрыть")))
     myReactives$km <- calcKMeans(myReactives$liveMaps,input$numClasses)#,sr = input$table_maps_rows_selected)
     removeModal()
     return(myReactives$hcm)
@@ -1776,18 +1855,20 @@ X_LOCATION  Y_LOCATION  VALUE",
     contentType = '.asc',
     content = function (fname) {
       #browser()
-      outgrid = saveModMap(myReactives$liveMaps,myReactives$km$cluster,sr = input$table_maps_rows_selected)
-      save = try( expr = write.asciigrid(outgrid,fname) , TRUE)
-      if(class(save)=="try-error")
-        showNotification(ui = "Ошибка при сохранении файла",
-                         type = "error")      
+      outgrid = saveModMap(myReactives$liveMaps,
+                           myReactives$km$cluster,
+                           sr = input$table_maps_rows_selected,
+                           fname = fname,
+                           format = input$mapFormatSel)
+      
     }
   )
   #CB: GMM model ####    
   recalcGMM <- reactive ({
     if(input$numClassUD) nClasses = 0
     else nClasses = input$numClasses
-    modDial = modalDialog( "Кластеризация Gaussian Mixture - EM...",
+    modDial = modalDialog( list(imageOutput("cycle", width = busy_size,height = busy_size),
+                                "Кластеризация Gaussian Mixture - EM..."),
                            title = "Ожидайте...", footer = modalButton("Закрыть"))
     showModal(modDial)
     myReactives$gmm <- calcGMM(myReactives$liveMaps,nClasses)
@@ -1797,6 +1878,13 @@ X_LOCATION  Y_LOCATION  VALUE",
       updateSliderInput(session,"numClasses",value = myReactives$gmm$G)
     return(myReactives$gmm)
   })
+  
+  output$cycle <- renderImage ({
+    return(list(
+    src = "images/busy.gif",
+    contentType = "image/gif",
+    alt = "Busy"))
+  }, deleteFile = FALSE)
 
   #CB: GMM plot model ####
   output$gmmPlot <- renderPlot({
@@ -1835,17 +1923,20 @@ X_LOCATION  Y_LOCATION  VALUE",
     content = function (fname) {
       outgrid = saveModMap(myReactives$liveMaps,
                            myReactives$gmm$classification,
-                           sr = input$table_maps_rows_selected)
-      save = try( expr = write.asciigrid(outgrid,fname) , TRUE)
-      if(class(save)=="try-error")
-        showNotification(ui = "Ошибка при сохранении файла",
-                         type = "error")      
+                           sr = input$table_maps_rows_selected,
+                           fname = fname,
+                           format = input$mapFormatSel)
+      #save = try( expr = write.asciigrid(outgrid,fname) , TRUE)
+      #if(class(save)=="try-error")
+        #showNotification(ui = "Ошибка при сохранении файла",
+      #                   type = "error")      
     }
   )
 
   #CB: HC model ####    
   recalcHCM <- reactive ({
-    modDial = modalDialog( "Иерархическая кластеризация...",
+    modDial = modalDialog( list(imageOutput("cycle", width = busy_size,height = busy_size),
+                                "Иерархическая кластеризация..."),
                            title = "Ожидайте...", footer = modalButton("Закрыть"))
     showModal(modDial)
     myReactives$hcm <- calcHC(myReactives$liveMaps,
@@ -1896,11 +1987,13 @@ X_LOCATION  Y_LOCATION  VALUE",
     content = function (fname) {
       outgrid = saveModMap(myReactives$liveMaps,
                            myReactives$hcm$classification,
-                           sr = input$table_maps_rows_selected)
-      save = try( expr = write.asciigrid(outgrid,fname) , TRUE)
-      if(class(save)=="try-error")
-        showNotification(ui = "Ошибка при сохранении файла",
-                         type = "error")      
+                           sr = input$table_maps_rows_selected,
+                           fname = fname,
+                           format = input$mapFormatSel)
+      #save = try( expr = write.asciigrid(outgrid,fname) , TRUE)
+      #if(class(save)=="try-error")
+      #  showNotification(ui = "Ошибка при сохранении файла",
+      #                   type = "error")      
     }
   )
   
@@ -2008,8 +2101,8 @@ X_LOCATION  Y_LOCATION  VALUE",
   
   #CB: plot simple xplot ####
   output$xPlot_simple <- renderPlot({
-    map_idx1 = selectMap(maps = myReactives$maps,sr = input$table_maps_rows_selected, idx = input$selectMap1)
-    map_idx2 = selectMap(maps = myReactives$maps,sr = input$table_maps_rows_selected, idx = input$selectMap2)
+    map_idx1 = selectMap(maps = myReactives$maps, idx = input$selectMap1)
+    map_idx2 = selectMap(maps = myReactives$maps, idx = input$selectMap2)
     drawXYplot(getXYvectors(myReactives$maps[[map_idx1]], myReactives$maps[[map_idx2]]),input$transp)
   })
   
@@ -2025,14 +2118,13 @@ X_LOCATION  Y_LOCATION  VALUE",
 
   #CB: set Tabs names ####
   output$tab1 = renderText(({
-    map_idx = selectMap(maps = myReactives$maps,sr = input$table_maps_rows_selected, idx = input$selectMap1)
-    if(is.null(map_idx)) paste('Проверьте выбор карт')
+    map_idx = selectMap(maps = myReactives$maps, idx = input$selectMap1)
+    if(is.null(map_idx) || is.null(myReactives$maps[[map_idx]])) paste('Проверьте выбор карт')
     else basename(myReactives$maps[[map_idx]]$fn)
   }))
   output$tab2 = renderText(({
-    map_idx = selectMap(maps = myReactives$maps,sr = input$table_maps_rows_selected, idx = input$selectMap2)
-    #browser()
-    if(is.null(map_idx)) paste('Проверьте выбор карт')
+    map_idx = selectMap(maps = myReactives$maps, idx = input$selectMap2)
+    if(is.null(map_idx) || is.null(myReactives$maps[[map_idx]])) paste('Проверьте выбор карт')
     else basename(myReactives$maps[[map_idx]]$fn)
   }))
 

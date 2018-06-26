@@ -76,11 +76,11 @@ names(hcmModes_hcluster) <- c("ward (compact, spherical clusters)",
                               "centroid (not leading to a monotone distance measure)",
                               "centroid2 (not leading to a monotone distance measure)")
 
-hcmDistModes <- list("euclidean", "maximum", "manhattan", "canberra", "binary", 
-                     "pearson", "abspearson", "correlation", "abscorrelation", 
+hcmDistModes <- list("pearson","euclidean", "maximum", "manhattan", "canberra", "binary", 
+                      "abspearson", "correlation", "abscorrelation", 
                      "spearman" , "kendall")
-names(hcmDistModes) <- c("euclidean", "maximum", "manhattan", "canberra", "binary", 
-                         "pearson", "abspearson", "correlation", "abscorrelation", 
+names(hcmDistModes) <- c("pearson","euclidean", "maximum", "manhattan", "canberra", "binary", 
+                          "abspearson", "correlation", "abscorrelation", 
                          "spearman" , "kendall")
 
 mapPalList <- list (terrain.colors, heat.colors, topo.colors, 
@@ -109,7 +109,7 @@ hist_hei = "200px"
 hist_wid = "200px"
 butt_wid = "200px"
 modPlot_wid = "500px"
-busy_size = "30px"
+busy_size = "50px"
 
 myReactives <- reactiveValues(wells = wells0, 
                               zoom = map_zoom, 
@@ -1047,6 +1047,7 @@ getLiveMapsData <- function (maps = NULL, sr = NULL) {
     data = data[!is.na(data[,i]),]
   }
  #browser()
+  #dbgmes(message = "upscaling=",c(length(maps),length(data)))
   return(data)
 }
 
@@ -1220,14 +1221,15 @@ saveModMap <- function (data = NULL, clusters = NULL, sr = NULL, fname = NULL, f
 
 calcGMM <- function(data = NULL, nclass = 3) {
   if(is.null(data)) return(NULL)
+  itmax = 50
 
   dat = scale(data[,2:length(data[1,])])
   #names(dat) = names(data[,2:length(data[1,])])
   if(nclass > 0) {
-    gmmBIC = mclustBIC(dat,G=nclass)
+    gmmBIC = mclustBIC(dat,G=nclass, control = emControl(itmax = itmax))
     gmm <- Mclust(dat,x = gmmBIC,G=nclass)
   } else {
-    gmmBIC=mclustBIC(dat,G=classRange)
+    gmmBIC=mclustBIC(dat,G=classRange, control = emControl(itmax = itmax))
     gmm <- Mclust(dat,x = gmmBIC)
   }
 
@@ -1291,15 +1293,9 @@ getModelXplotText <- function(data = NULL, lmfit = NULL, srows = NULL) {
   #measured = data$Values[sel]
   measured = data$Values[data$WELL %in% names(predicted)]
   
-  dbgmes("xplot data = ", c((predicted),(measured)))
-  dbgmes("length = ", c(length(predicted),length(measured)))
+  #dbgmes("xplot data = ", c((predicted),(measured)))
+  #dbgmes("length = ", c(length(predicted),length(measured)))
   abl = lm(predicted~measured)
-  if(is.null(lmfit$cvDelta)) 
-    res = paste(abl$call$formula[2]," = ", abl$call$formula[3]," * ",
-                prettyNum(abl$coefficients[2]),"+",
-                prettyNum(abl$coefficients[1]),
-                "\nValidation error ="+lmfit$cvDelta[2])
-  else
     res = paste(abl$call$formula[2]," = ", abl$call$formula[3]," * ",
                 prettyNum(abl$coefficients[2]),"+",
                 prettyNum(abl$coefficients[1]))
@@ -1470,6 +1466,25 @@ server <- function(input, output, session) {
   # if(is.null(myReactives$maps)) {
   #   myReactives$maps <- list(def_map,def_map)
   # }
+  showModDial <- function(message = "Ожидайте...") {
+    showModal(modalDialog( list(imageOutput("cycle", 
+                                            width = busy_size,
+                                            height = busy_size,
+                                            inline = T),
+                                message),
+                           title = "Ожидайте...", footer = modalButton("Закрыть")))
+  }
+  
+  #CB: Busy Modal diaplay ####
+  output$cycle <- renderImage ({
+    return(list(
+      src = "images/busy.gif",
+      contentType = "image/gif",
+      alt = "Busy")
+      #,style="display: block; margin-left: auto; margin-right: auto;"
+      )
+  }, deleteFile = FALSE)
+  
   #CB: set Zoom rect ####
   observeEvent(input$plot_brush , {
     myReactives$zoom <- rbind(c(input$plot_brush$xmin,input$plot_brush$xmax),
@@ -1560,7 +1575,8 @@ X_LOCATION  Y_LOCATION  VALUE",
   #CB: load maps list files ####
   observeEvent(input$Mapsfile , {
     #browser()
-    showModal(modalDialog( "Обработка карт...",title = "Ожидайте...", footer = modalButton("Закрыть")))
+    #showModal(modalDialog( "Обработка карт...",title = "Ожидайте...", footer = modalButton("Закрыть")))
+    showModDial("Обработка карт...")
     withProgress(message = "обработка карт...", detail = "Ожидайте......", 
                  value =0, {
                 selIdx =1
@@ -1594,7 +1610,7 @@ X_LOCATION  Y_LOCATION  VALUE",
                   }
                 }
               })
-    myReactives$liveMaps <- getLiveMapsData(maps = myReactives$maps)
+    myReactives$liveMaps <- getLiveMapsData(maps = myReactives$maps, sr = input$table_maps_rows_selected)
     updateMapLists(myReactives$maps,input$table_maps_rows_selected)
     removeModal()
   })
@@ -1607,7 +1623,7 @@ X_LOCATION  Y_LOCATION  VALUE",
     res = deleteMaps(myReactives$maps,myReactives$wells,sr = input$table_maps_rows_selected)
     myReactives$wells <- res$wells
     myReactives$maps <- res$maps
-    myReactives$liveMaps <- getLiveMapsData(maps = myReactives$maps)
+    myReactives$liveMaps <- getLiveMapsData(maps = myReactives$maps, sr = input$table_maps_rows_selected)
     updateMapLists(myReactives$maps)
   })
   
@@ -1648,7 +1664,7 @@ X_LOCATION  Y_LOCATION  VALUE",
       map_obj = transposeMap(myReactives$maps[[map_idx]])
       myReactives$wells <- extractMap2Well(myReactives$wells,map_obj$rstr, paste0 ("Map",map_idx))
       myReactives$maps[[map_idx]] <- map_obj
-      myReactives$liveMaps <- getLiveMapsData(maps = myReactives$maps)
+      myReactives$liveMaps <- getLiveMapsData(maps = myReactives$maps, sr = input$table_maps_rows_selected)
     }
   })
   observeEvent(input$trans2 , {
@@ -1657,22 +1673,24 @@ X_LOCATION  Y_LOCATION  VALUE",
       map_obj = transposeMap(myReactives$maps[[map_idx]])
       myReactives$wells <- extractMap2Well(myReactives$wells,map_obj$rstr, paste0 ("Map",map_idx))
       myReactives$maps[[map_idx]] <- map_obj
-      myReactives$liveMaps <- getLiveMapsData(maps = myReactives$maps)
+      myReactives$liveMaps <- getLiveMapsData(maps = myReactives$maps, sr = input$table_maps_rows_selected)
     }
   })
   
   #CB: upscaling  ####
   observeEvent(input$rstr_fact , {
-    showModal(modalDialog( "Обработка карт...",title = "Ожидайте...", footer = modalButton("Закрыть")))
+    #showModal(modalDialog( "Обработка карт...",title = "Ожидайте...", footer = modalButton("Закрыть")))
+    showModDial("Обработка карт...")
     withProgress(message = "Обработка карт...", detail = "Ожидайте...",  value =0, {
     for (i in 1:length(myReactives$maps)) {
       map_obj = upscaleMap(myReactives$maps[[i]],input$rstr_fact,func = median)
       incProgress(detail = paste0('"',map_obj$fn,'"'), amount = 1./length(myReactives$maps))
       myReactives$wells <- extractMap2Well(myReactives$wells,map_obj$rstr, paste0 ("Map",i))
       myReactives$maps[[i]] <- map_obj
-      myReactives$liveMaps <- getLiveMapsData(maps = myReactives$maps)
     }
       })
+    myReactives$liveMaps <- getLiveMapsData(maps = myReactives$maps, sr = input$table_maps_rows_selected)
+    #dbgmes(message = "upscaling=",c(length(myReactives$liveMaps),length(myReactives$maps)))
     removeModal()
   })
   
@@ -1682,7 +1700,7 @@ X_LOCATION  Y_LOCATION  VALUE",
       map_obj <- upscaleMap(def_map,input$rstr_fact,func = median)
       myReactives$maps <- append(myReactives$maps,list(map_obj))
       myReactives$maps <- append(myReactives$maps,list(map_obj))
-      myReactives$liveMaps <- getLiveMapsData(maps = myReactives$maps)
+      myReactives$liveMaps <- getLiveMapsData(maps = myReactives$maps, sr = input$table_maps_rows_selected)
       updateMapLists(myReactives$maps,input$table_maps_rows_selected)
     }
     map_idx = selectMap(maps = myReactives$maps, idx = input$selectMap1)
@@ -1696,9 +1714,10 @@ X_LOCATION  Y_LOCATION  VALUE",
              interpolate = input$interpMap1)
     drawWells(myReactives$wells, myReactives$maps[[map_idx]]$rstr, sr = input$table_wells_rows_selected,srmap = input$table_maps_rows_selected)
   })
+  
   output$mapPlot2 <- renderPlot({
     if(length(myReactives$maps)>1) {
-      map_idx = selectMap(maps = myReactives$maps,sr = input$table_maps_rows_selected, idx = input$selectMap2)
+      map_idx = selectMap(maps = myReactives$maps, idx = input$selectMap2)
       drawRstr(myReactives$maps[[map_idx]]$rstr,myReactives$zoom, 
                pal = mapPalList[[input$mapPalSelect2]],
                alpha = input$mapPalTransp2,
@@ -1750,7 +1769,8 @@ X_LOCATION  Y_LOCATION  VALUE",
   
   #CB: NNET plot model ####
   output$nnetPlot <- renderPlot({
-    showModal(modalDialog( "Обучение нейронной сети MLP...",title = "Ожидайте...", footer = modalButton("Закрыть")))
+    #showModal(modalDialog( "Обучение нейронной сети MLP...",title = "Ожидайте...", footer = modalButton("Закрыть")))
+    showModDial("Обучение нейронной сети MLP...")
     myReactives$nnet <- buildNNET(myReactives$wells, 
                                   input$table_wells_rows_selected, input$table_maps_rows_selected,
                                   test_ratio = input$test_ratio/100.,
@@ -1795,7 +1815,8 @@ X_LOCATION  Y_LOCATION  VALUE",
 
   #CB: GLM plot model ####
   output$glmPlot <- renderPlot({
-    showModal(modalDialog( "Создание модели многомерной линейной регрессии...",title = "Ожидайте...", footer = modalButton("Закрыть")))
+    #showModal(modalDialog( "Создание модели многомерной линейной регрессии...",title = "Ожидайте...", footer = modalButton("Закрыть")))
+    showModDial("Создание модели многомерной линейной регрессии...")
     fit <- buildGLM(myReactives$wells, input$table_wells_rows_selected, input$table_maps_rows_selected)
     par(mfrow = c(2,2))
     plot(fit)
@@ -1818,9 +1839,8 @@ X_LOCATION  Y_LOCATION  VALUE",
   })
   
   recalcKMeans <- reactive({
-    showModal(modalDialog( list(imageOutput("cycle", width = busy_size,height = busy_size),
-                                "Кластеризация K-means..."),
-                           title = "Ожидайте...", footer = modalButton("Закрыть")))
+    #dbgmes(message = "maps=",myReactives$liveMaps)
+    showModDial("Кластеризация K-means...")
     myReactives$km <- calcKMeans(myReactives$liveMaps,input$numClasses)#,sr = input$table_maps_rows_selected)
     removeModal()
     return(myReactives$hcm)
@@ -1867,10 +1887,7 @@ X_LOCATION  Y_LOCATION  VALUE",
   recalcGMM <- reactive ({
     if(input$numClassUD) nClasses = 0
     else nClasses = input$numClasses
-    modDial = modalDialog( list(imageOutput("cycle", width = busy_size,height = busy_size),
-                                "Кластеризация Gaussian Mixture - EM..."),
-                           title = "Ожидайте...", footer = modalButton("Закрыть"))
-    showModal(modDial)
+    showModDial("Кластеризация Gaussian Mixture - EM...")
     myReactives$gmm <- calcGMM(myReactives$liveMaps,nClasses)
     #myReactives$gmm <- calcGMM(myReactives$liveMaps,nClasses)
     removeModal() 
@@ -1879,13 +1896,6 @@ X_LOCATION  Y_LOCATION  VALUE",
     return(myReactives$gmm)
   })
   
-  output$cycle <- renderImage ({
-    return(list(
-    src = "images/busy.gif",
-    contentType = "image/gif",
-    alt = "Busy"))
-  }, deleteFile = FALSE)
-
   #CB: GMM plot model ####
   output$gmmPlot <- renderPlot({
     recalcGMM()
@@ -1935,10 +1945,7 @@ X_LOCATION  Y_LOCATION  VALUE",
 
   #CB: HC model ####    
   recalcHCM <- reactive ({
-    modDial = modalDialog( list(imageOutput("cycle", width = busy_size,height = busy_size),
-                                "Иерархическая кластеризация..."),
-                           title = "Ожидайте...", footer = modalButton("Закрыть"))
-    showModal(modDial)
+    showModDial("Иерархическая кластеризация...")
     myReactives$hcm <- calcHC(myReactives$liveMaps,
                               mode = hcmModes_hcluster[[input$hcMode]],
                               distMode = hcmDistModes[[input$hcDistMode]])
@@ -2003,7 +2010,9 @@ X_LOCATION  Y_LOCATION  VALUE",
                  tagList(plotOutput("zoomPlot", 
                                     dblclick = "plot_zoom_close",
                                     brush = "plot_zoom_brush",
-                                    hover = "plot_zoom_hover",
+                                    hover = hoverOpts( 
+                                      id ="plot_zoom_hover",
+                                      delay =100),
                                     #width = "900px",
                                     height = "800px")
                   ),
@@ -2020,6 +2029,7 @@ X_LOCATION  Y_LOCATION  VALUE",
     xyz = NA
     xy = data.frame(x = input$plot_zoom_hover$x,y = input$plot_zoom_hover$y)
 #    browser()
+    #dbgmes(message = "xy=",xy)
     labs = c(" X:","Y:","Z:")
     if(length(xy) == 0) {
       lab=paste0(labs,xy)
@@ -2028,12 +2038,14 @@ X_LOCATION  Y_LOCATION  VALUE",
     else 
     {
       coordinates(xy) = ~x+y
+      
       if(input$maps =='modelKM' && input$modelKM == 'res') 
         xy$z = extract(myReactives$km_map,xy)
       else if (input$maps =='modelGM' && input$modelGM == 'res')
         xy$z = extract(myReactives$gmm_map,xy)
       else if (input$maps =='modelHC' && input$modelHC == 'res')
         xy$z = extract(myReactives$hcm_map,xy)
+      else xy$z = 0
       #browser()
       lab=paste0('[',prettyNum(xy@coords[1]),':',prettyNum(xy@coords[2]),'] = ',prettyNum(xy$z))
       updateActionButton(session,"plot_zoom_xyz",label = lab)
@@ -2074,8 +2086,8 @@ X_LOCATION  Y_LOCATION  VALUE",
     } else if (input$maps == 'modelGM') {
       if(input$modelGM == 'mod') 
         drawModel(myReactives$liveMaps,myReactives$gmm)
-      else if (input$modelGM == 'bic'){
-          drawModBIC(myReactives$gmm)
+      else if (input$modelGM == 'aux'){
+          drawModBIC(myReactives$gmm,mode = input$gmmAuxMode)
         } else {
         drawModMapPlot(myReactives$liveMaps,
                        myReactives$gmm,

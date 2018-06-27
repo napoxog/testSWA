@@ -63,6 +63,8 @@ names(auxList) <- c("Критерий информативности Байес�
 nnetDispMode <- list("mod","net","xplot","res")
 names(nnetDispMode) <- c("Модель","Сеть","Кроссплот","Прогноз")
 
+glmDispMode <- list("mod","xplot","res")
+names(glmDispMode) <- c("Модель","Кроссплот","Прогноз")
 
 hcmModes_hclust <- list("ward.D", "ward.D2", "single", "complete", "average" , 
                  "mcquitty" , "median" , "centroid")
@@ -366,16 +368,21 @@ ui <- fluidPage(
             #UI: model GLM ####
             tabPanel(
               "GLM",
+              verbatimTextOutput("glmText"),
+              radioButtons("glmAuxMode",
+                           label = "",
+                           choices = glmDispMode,
+                           inline=T
+              ),
               plotOutput(
                 "glmPlot",
                 height = modPlot_wid
               ),
-              verbatimTextOutput("glmText"),
-              plotOutput(
-                "glmXPlot",
-                height = modPlot_wid
-              ),
-              verbatimTextOutput("glmXText")
+              # plotOutput(
+              #   "glmXPlot",
+              #   height = modPlot_wid
+              # ),
+               verbatimTextOutput("glmXText")
             )
           )
         )
@@ -1934,15 +1941,25 @@ X_LOCATION  Y_LOCATION  VALUE",
     #paste(txt)
   })
 
+  recalcGLM <- reactive({
+    showModDial("Создание модели многомерной линейной регрессии...")
+    myReactives$fit <- buildGLM(myReactives$wells, input$table_wells_rows_selected, input$table_maps_rows_selected)
+  })
   #CB: GLM plot model ####
   output$glmPlot <- renderPlot({
-    #showModal(modalDialog( "Создание модели многомерной линейной регрессии...",title = "Ожидайте...", footer = modalButton("Закрыть")))
-    showModDial("Создание модели многомерной линейной регрессии...")
-    fit <- buildGLM(myReactives$wells, input$table_wells_rows_selected, input$table_maps_rows_selected)
-    par(mfrow = c(2,2))
-    plot(fit)
+    recalcGLM()
+    mode = input$glmAuxMode
+
+    if(mode == "mod") {    
+      par(mfrow = c(2,2))
+      plot(myReactives$fit)
+    } else if(mode =="xplot") {
+      drawModelXplot (myReactives$wells@data, myReactives$fit, input$table_wells_rows_selected)
+    } else if(mode =="res") {
+      
+    }
+#    observe(myReactives$fit <- fit)
     removeModal()
-    observe(myReactives$fit <- fit)
   })
   output$glmText <- renderText({ #renderPrint
     frm = getModelText(myReactives$fit)

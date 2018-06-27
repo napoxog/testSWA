@@ -25,6 +25,8 @@ This is the README file for the pilot Shiny app for the map-well and clustering 
 ####  TODO: 7.2.2 Add saving of the prediction result
 ####  DONE: 7.2.3 Add NNET QC tools
 ####  DONE: 7.3. Linear Models types selection
+####  TODO: 7.3.1. Add prediction map dispay with wells
+####  TODO: 7.3.2. Group the QC plots as for other methods
 ####  DONE: 7.4. Gaussian Mixture model clastering
 ##### DONE: 7.4.1 GMM automatic classes number diable chec
 ##### DONE: 7.4.2 Add BIC plot to GMM

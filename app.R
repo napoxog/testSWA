@@ -37,7 +37,14 @@ def_map <- list("fn" = fn0,
                 "map" = map0,
                 "mat" = as.vector(rstr0),
                 "rstr" = rstr0)
-wells0 = NULL
+nDefWels = 10
+wells0 <- as.data.frame(list( paste0("WELL",1:nDefWels),
+            runif(nDefWels,min = map0@bbox[1,1],max = map0@bbox[1,2]),
+            runif(nDefWels,min = map0@bbox[2,1],max = map0@bbox[2,2]),
+            runif(nDefWels,min = min(map0@data,na.rm = T),max = max(map0@data,na.rm = T))))
+#browser()
+names(wells0) <- c("WELL", "X_LOCATION","Y_LOCATION","Values")
+coordinates(wells0) <- ~X_LOCATION+Y_LOCATION
 maps0 = list(NULL,NULL) #list(def_map,def_map)
 map_zoom = NULL
 
@@ -53,6 +60,10 @@ auxList <- list("BIC","density","uncertainty")
 names(auxList) <- c("Критерий информативности Байеса", 
                     "Функция плотности вероятности",
                     "Кроссплот с учетом неопределенности")
+nnetDispMode <- list("mod","net","xplot","res")
+names(nnetDispMode) <- c("Модель","Сеть","Кроссплот","Прогноз")
+
+
 hcmModes_hclust <- list("ward.D", "ward.D2", "single", "complete", "average" , 
                  "mcquitty" , "median" , "centroid")
 names(hcmModes_hclust) <- c("Ward's minimum variance (compact, spherical clusters)", 
@@ -111,12 +122,6 @@ butt_wid = "200px"
 modPlot_wid = "500px"
 busy_size = "50px"
 
-myReactives <- reactiveValues(wells = wells0, 
-                              zoom = map_zoom, 
-                              fit = NULL, 
-                              maps = NULL,
-                              classPalette = classPalette,
-                              mapPalette = mapPalette)
 # Define UI for application that draws a histogram
 ui <- fluidPage(
   # Application title
@@ -342,16 +347,21 @@ ui <- fluidPage(
                 max = 500,
                 value = 50
               ),
+              verbatimTextOutput("nnetText"),
+              radioButtons("nnetAuxMode",
+                           label = "",
+                           choices = nnetDispMode,
+                           inline=T
+              ),
               plotOutput(
                 "nnetPlot",
                 height = modPlot_wid
-              ),
-              verbatimTextOutput("nnetText"),
-              plotOutput(
-                "nnetxPlot",
-                height = modPlot_wid
-              ),
-              verbatimTextOutput("nnetXText")
+              )
+              # plotOutput(
+              #   "nnetxPlot",
+              #   height = modPlot_wid
+              # ),
+#              verbatimTextOutput("nnetXText")
             ),
             #UI: model GLM ####
             tabPanel(
@@ -838,7 +848,7 @@ drawWells <- function(wells = NULL, rstr = NULL, sr = NULL, srmap = NULL) {
 
       labs = prettyNum(wls@data[,id][!is.na(wls@data[,id])], 
                        digits = 2, drop0trailing = TRUE)
-
+      #browser()
       clrs = rep("black", times = length(wls@data$WELL))
       if(!is.null(sr)) {
         clrs[sr] = "red"
@@ -896,43 +906,97 @@ drawHex <- function (xy = NULL, cells = 30) {
   #text(c(1,1),labels = basename(myReactives$map1$fn))
 }
 
+drawNNETmap <- function (data = NULL ,sr = NULL, nnet = NULL,zoom = NULL) {
+  if(is.null(data) || is.null(nnet)) return(NULL)
+  dset = normalizeData(data[,2:length(data)],getNormParameters(nnet$dset$inputsTrain))
+  res = predict(nnet$net,dset)
+  res = denormalizeData(res,getNormParameters(nnet$dset$targetsTrain))
+  
+  #browser()
+  lividx = data[,1]
+  if(!is.null(sr) && length(sr)>1) 
+    datplot = myReactives$maps[[sr[1]]]$rstr
+  else
+    datplot = myReactives$maps[[1]]$rstr
+  title = ""
+  names(datplot) = title
+  datplot@data@values = NA
+  datplot@data@values[lividx] <- res
+  datplot@data@values[datplot@data@values==0] <- NA
+  
+  colors = mapPalette(128)
+  #browser()
+  colors = setPaletteTransp(colors,0.5)
+  
+  if(is.null(zoom))
+    plot(datplot,
+         main = title,
+         col = colors ,interpolate=T)
+  else
+    plot(datplot,
+         main = title,
+         xlim = zoom[1,], ylim = zoom[2,],
+         col = colors,interpolate=T)
+  
+  return (datplot)
+}  
 
 buildNNET <- function(wells = NULL, rows = NULL, sel_maps = NULL, test_ratio = 0.25, max_iter = 100, nnet_complex = 0.1){
   if(is.null(wells) || length(wells@data[1,])<4) return(NULL)
-  
   if(is.null(sel_maps) || length(sel_maps)<1)
     data = wells@data
   else {
+    #data = cbind(wells@data[!is.na(wells@data),1:2],wells@data[!is.na(wells@data),2+sel_maps])
     data = data.frame(wells@data[,1:2],wells@data[,2+sel_maps])
-    colnames(data) = c("WELL","Values",names(wells@data[2+sel_maps]))
+    #colnames(data) = c("WELL","Values",names(wells@data[2+sel_maps]))
   }
-
-  row.names(data) = wells$WELL
-  if(!is.null(rows)) {
-    data[rows,] = NA
+  ddd = list()
+  for(i in 1:length(data[,1]))
+  {
+    if(all(!is.na(data[i,2:length(data[1,])])))
+      ddd = rbind(ddd,data[i,])
   }
-  for (i in 1:length(data[1,])){
-    data = data[!is.na(data[,i]),]
-  }
+  #browser()
+  #data = data[,!is.na(data)]
+  data = ddd
+  
+  #row.names(data) = wells$WELL
+  # if(!is.null(rows)) {
+  #   data[rows,] = NA
+  # }
+  # for (i in 1:length(data[1,])){
+  #   data = data[!is.na(data[,i]),]
+  # }
   size = max(1,ceiling(sqrt(length(data[,1]))*nnet_complex*5*2))
   layers = max(1,ceiling(log(base = 5, size)))
   
   
   #browser()
-  dset = splitForTrainingAndTest(x = data[,3:length(data[1,])],y = as.matrix(data$Values), ratio = test_ratio)
-  nninp = dset$targetsTrain
-  dset = normTrainingAndTestSet(dset,dontNormTargets = FALSE)
+  dset0 = splitForTrainingAndTest(
+    x = data[,3:length(data[1,])],
+    y = as.matrix(data$Values), ratio = 0)
+  #nninp = dset0$targetsTrain
+  dset0 = normTrainingAndTestSet(dset0,dontNormTargets = FALSE)
+
+  dset = splitForTrainingAndTest(
+    x = dset0$inputsTrain,
+    y = dset0$targetsTrain, ratio = test_ratio)
+  #dset = normTrainingAndTestSet(dset0,dontNormTargets = FALSE,type = getNormParameters(dset0$inputsTrain))
   nnet = mlp(dset$inputsTrain, dset$targetsTrain, 
              size = ceiling(seq.int(size/2,3, length.out = layers)), 
              learnFuncParams = c(0.5),maxit = max_iter,
-             inputsTest = dset$inputsTest, targetsTest = dset$targetsTest)
+             inputsTest = dset$inputsTest, targetsTest = dset$targetsTest,
+             linOut = T)
   # nnet = mlp(y = as.matrix(data$Values), 
   #            x = as.matrix(data[,3:length(data[1,])]), 
   #            size = c(sqrt(length(data$Values))),
   #            learnFuncParams=c(0.1))
-  nnout = predict( nnet, inp = dset$inputsTrain)  
-  nnout = denormalizeData(nnout,getNormParameters(dset$targetsTrain))
-  return(list(net = nnet,dset = dset, out = nnout, inp = nninp))
+  #browser()
+  rownames(dset0$inputsTrain) = (data$WELL)
+  colnames(dset0$inputsTrain) = colnames(data[,3:length(data[1,])])
+  nnout = predict( nnet, newdata = dset0$inputsTrain)  
+  nnout = denormalizeData(nnout,getNormParameters(dset0$targetsTrain))
+  return(list(net = nnet,dset = dset0, out = nnout[,1], inp = data$Values))
 }
 
 buildGLM <- function(wells = NULL, rows = NULL, sel_maps = NULL, lmfunc = glm, family = gaussian){
@@ -999,7 +1063,7 @@ drawModelXplot <- function(data = NULL, lmfit = NULL, srows = NULL) {
   #           abl$call$formula[3]," * ",prettyNum(abl$coefficients[2]),"+",
   #           prettyNum(abl$coefficients[1])))
   #text(measured,predicted, labels = data$WELL[sel], pos = 1)
-  glm
+  #glm
   text(measured,predicted, labels = names(predicted), pos = 1)
   
 
@@ -1092,7 +1156,12 @@ setPaletteTransp <- function(colors = NULL ,alpha = 0.5) {
   #cat(capture.output(colors))
   return(colors)
 }
+
+getNewMapFromValues <- function (maps=NULL,sr = NULL,values = NULL) {
+  if(is.null(maps) || is.null(values)) return(NULL)
   
+  
+}
 
 drawModMapPlot <- function (data = NULL, model = NULL, sr = NULL, zoom = NULL, nClass = 3) {
   if(is.null(data) || is.null(data)|| is.null(model)) return(NULL)
@@ -1115,6 +1184,7 @@ drawModMapPlot <- function (data = NULL, model = NULL, sr = NULL, zoom = NULL, n
     title = paste("reduceFactor = ",model$reduceFactor,"msize =", msize)
     #clusters = model$cluster
   }
+  
   lividx = data[,1]
   if(!is.null(sr) && length(sr)>1) 
     datplot = myReactives$maps[[sr[1]]]$rstr
@@ -1461,12 +1531,17 @@ options(shiny.maxRequestSize = 500 * 1024 ^ 2)
 options(shiny.host = "0.0.0.0")
 options(shiny.port = 8080)
 #options(shiny.style="old")
+myReactives <- reactiveValues(wells = wells0, 
+                              zoom = map_zoom, 
+                              fit = NULL, 
+                              maps = NULL)
+
 
 server <- function(input, output, session) {
   # if(is.null(myReactives$maps)) {
   #   myReactives$maps <- list(def_map,def_map)
   # }
-  showModDial <- function(message = "Ожидайте...") {
+    showModDial <- function(message = "Ожидайте...") {
     showModal(modalDialog( list(imageOutput("cycle", 
                                             width = busy_size,
                                             height = busy_size,
@@ -1696,6 +1771,11 @@ X_LOCATION  Y_LOCATION  VALUE",
   
   #CB: plot maps ####
   output$mapPlot1 <- renderPlot({
+    if(is.null(myReactives$wells)) {
+      myReactives$wells <- wells0
+      for (i in 1:length(myReactives$maps)) 
+        myReactives$wells <- extractMap2Well(myReactives$wells,myReactives$maps[[i]]$rstr, paste0 ("Map",i))
+    }
     if(is.null(myReactives$maps) || length(myReactives$maps) == 0 ) {
       map_obj <- upscaleMap(def_map,input$rstr_fact,func = median)
       myReactives$maps <- append(myReactives$maps,list(map_obj))
@@ -1767,45 +1847,86 @@ X_LOCATION  Y_LOCATION  VALUE",
     drawHex(getXYvectors(myReactives$maps[[map_idx1]], myReactives$maps[[map_idx2]]), input$cells)
   })
   
-  #CB: NNET plot model ####
-  output$nnetPlot <- renderPlot({
-    #showModal(modalDialog( "Обучение нейронной сети MLP...",title = "Ожидайте...", footer = modalButton("Закрыть")))
+  #CB: NNET calc model ####
+  recalcNNET <- reactive ({
     showModDial("Обучение нейронной сети MLP...")
-    myReactives$nnet <- buildNNET(myReactives$wells, 
+    myReactives$nnet <- buildNNET(myReactives$wells,
                                   input$table_wells_rows_selected, input$table_maps_rows_selected,
                                   test_ratio = input$test_ratio/100.,
                                   max_iter = input$max_iter,
                                   nnet_complex = input$nnet_complex/100.)
-    #browser()
-    #plot(myReactives$nnet$inp,myReactives$nnet$out)
-    par(mfrow=c(2,2))
-    
-    plotRegressionError(myReactives$nnet$dset$targetsTrain,myReactives$nnet$net$fitted.values)
-    plotIterativeError(myReactives$nnet$net)
-    plotROC(fitted.values(myReactives$nnet$net), myReactives$nnet$dset$targetsTrain)
-    #plotROC(itted.values(myReactives$nnet$net), myReactives$nnet$inp)
-    #plot.nnet(myReactives$nnet$net,col = rainbow(length(myReactives$nnet$net$neurons)))
-    plot(myReactives$nnet$inp,myReactives$nnet$out)
-    par(new = TRUE)
-    #browser()
-    lmr = lm(formula = myReactives$nnet$out~myReactives$nnet$inp)
-    abline(lmr)
-    #plot.nnet(myReactives$nnet$net)
     removeModal()
+  })
+  #CB: NNET plot model ####
+  output$nnetPlot <- renderPlot({
+    recalcNNET()
+    if(is.null(myReactives$nnet)) {
+      removeModal()
+      return(NULL)
+      }
+    mode = input$nnetAuxMode
+    #browser()
+    if(mode == "mod")
+    {
+      par(mfrow=c(2,1))
+      #par(new = TRUE)
+      
+      plot(myReactives$nnet$net$IterativeTestError,col="red", type = "l",
+           xlab = "Iteration",ylab = "Error",
+           ylim=c(0,max(myReactives$nnet$net$IterativeTestError,myReactives$nnet$net$IterativeFitError)))
+      lines(myReactives$nnet$net$IterativeFitError)
+      plot(myReactives$nnet$net$IterativeFitError,myReactives$nnet$net$IterativeTestError,
+        col = heat.colors(length(myReactives$nnet$net$IterativeTestError))[1:length(myReactives$nnet$net$IterativeTestError)],
+        pch = 16,
+        xlab = "Learning Error",ylab = "Test set Error"
+      )
+      #browser()
+      #plotRegressionError(myReactives$nnet$net$targetsTrain,myReactives$nnet$net$fitted.values)
+      #plotROC(fitted.values(myReactives$nnet$net), myReactives$nnet$dset$targetsTrain)
+    } else if(mode == "net") {
+      par(new = TRUE)
+      par(mfrow=c(1,1))
+      plot.nnet(myReactives$nnet$net)
+    } else if(mode == "xplot") {
+      par(new = TRUE)
+      par(mfrow=c(1,1))
+      #browser()
+      
+      measured = myReactives$nnet$inp
+      predicted = myReactives$nnet$out
+      xccf <- ccf(measured,predicted, lag.max = 0, plot = F)
+      plot(measured,predicted,
+           xlim = bbexpand(c(min(measured),max(measured)),0.1),
+           ylim = bbexpand(c(min(predicted),max(predicted)),0.1),
+           xlab = "measured",ylab = "predicted",
+           main = paste("Корреляция = ", prettyNum(xccf$acf)))
+      lmr = lm(formula = predicted~measured)
+      #browser()
+      abline(lmr)
+      text(measured,predicted, 
+           labels = rownames(myReactives$nnet$dset$inputsTrain),
+           pos = 1)
+      
+    } else if(mode == "res") {
+      par(new = TRUE)
+      par(mfrow=c(1,1))
+      myReactives$nnet_map = drawNNETmap(data = myReactives$liveMaps,
+                                         sr = input$table_maps_rows_selected,
+                                         nnet = myReactives$nnet)
+      par(new = TRUE)
+      drawWells(wells = myReactives$wells, 
+                sr = input$table_wells_rows_selected,
+                srmap = input$table_maps_rows_selected)
+    }
   })
   output$nnetText <- renderText({ #renderPrint
     #frm = getModelText(myReactives$nnet)
-    mesured = myReactives$nnet$inp
+    if(is.null(myReactives$nnet)) return(NULL)
+    measured = myReactives$nnet$inp
     predicted = myReactives$nnet$out
-    lmr = lm(formula = predicted~mesured)
+    lmr = lm(formula = predicted~measured)
     frm = getModelXplotText(lmfit = lmr)
     paste(frm)
-  })
-  
-  #CB: NNET plot Xplot ####
-  output$nnetxPlot <- renderPlot({
-    plot.nnet(myReactives$nnet$net)
-    #plot(myReactives$nnet$inp,myReactives$nnet$out)
   })
   
   output$nnetXText <- renderText({ #renderPrint
@@ -1860,7 +1981,9 @@ X_LOCATION  Y_LOCATION  VALUE",
     recalcKMeans()
     myReactives$km_map = drawModMapPlot(myReactives$liveMaps,myReactives$km,sr = input$table_maps_rows_selected)
     par(new = TRUE)
-    drawWells(wells = myReactives$wells)
+    drawWells(wells = myReactives$wells, 
+              sr = input$table_wells_rows_selected,
+              srmap = input$table_maps_rows_selected)
   })
 
   output$kmXText <- renderText({ #renderPrint renderText
@@ -1916,7 +2039,9 @@ X_LOCATION  Y_LOCATION  VALUE",
                                          myReactives$gmm,
                                          sr = input$table_maps_rows_selected)
     par(new = TRUE)
-    drawWells(wells = myReactives$wells)
+    drawWells(wells = myReactives$wells, 
+              sr = input$table_wells_rows_selected,
+              srmap = input$table_maps_rows_selected)
   })
   
   output$gmAuxPlot <- renderPlot({
@@ -1972,7 +2097,9 @@ X_LOCATION  Y_LOCATION  VALUE",
                                          sr = input$table_maps_rows_selected,
                                          nClass = input$numClasses)
     par(new = TRUE)
-    drawWells(wells = myReactives$wells)
+    drawWells(wells = myReactives$wells, 
+              sr = input$table_wells_rows_selected,
+              srmap = input$table_maps_rows_selected)
   })
   
   output$hcXText <- renderText({ #renderPrint renderText
@@ -2081,7 +2208,9 @@ X_LOCATION  Y_LOCATION  VALUE",
                        sr = input$table_maps_rows_selected,
                        zoom = myReactives$plot_zoom)
         par(new = TRUE)
-        drawWells(wells = myReactives$wells)
+        drawWells(wells = myReactives$wells, 
+                  sr = input$table_wells_rows_selected,
+                  srmap = input$table_maps_rows_selected)
       }
     } else if (input$maps == 'modelGM') {
       if(input$modelGM == 'mod') 
@@ -2094,7 +2223,9 @@ X_LOCATION  Y_LOCATION  VALUE",
                        sr = input$table_maps_rows_selected,
                        zoom = myReactives$plot_zoom)
         par(new = TRUE)
-        drawWells(wells = myReactives$wells)
+        drawWells(wells = myReactives$wells, 
+                  sr = input$table_wells_rows_selected,
+                  srmap = input$table_maps_rows_selected)
       }
     } else if (input$maps == 'modelHC') {
       if(input$modelHC == 'mod') 
@@ -2106,7 +2237,9 @@ X_LOCATION  Y_LOCATION  VALUE",
                        zoom = myReactives$plot_zoom,
                        nClass = input$numClasses)
         par(new = TRUE)
-        drawWells(wells = myReactives$wells)
+        drawWells(wells = myReactives$wells, 
+                  sr = input$table_wells_rows_selected,
+                  srmap = input$table_maps_rows_selected)
       }
     }
   })

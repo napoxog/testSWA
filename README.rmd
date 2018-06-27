@@ -21,6 +21,9 @@ This is the README file for the pilot Shiny app for the map-well and clustering 
 ####  INPROGRESS: 7.1. classification tools
 ##### FIXME: 7.1.1 Check the training - the xplot looks strange of the given NNET complexity
 ####  INPROGRESS: 7.2. Neural networks tools
+####  DONE: 7.2.1 Add NNET maps prediction
+####  TODO: 7.2.2 Add saving of the prediction result
+####  DONE: 7.2.3 Add NNET QC tools
 ####  DONE: 7.3. Linear Models types selection
 ####  DONE: 7.4. Gaussian Mixture model clastering
 ##### DONE: 7.4.1 GMM automatic classes number diable chec
@@ -57,3 +60,4 @@ This is the README file for the pilot Shiny app for the map-well and clustering 
 ###   TODO: 30. Tune the hover delay in zoom modal plots
 ###   TODO: 31. Estimate and print the StD of wells' CP for each class
 ###   TODO: 32. Add Export format Selection (XYZ/ESRI/ZAMP)
+

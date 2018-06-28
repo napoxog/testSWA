@@ -11,6 +11,7 @@
 require(shiny)
 require(shinyjs)
 require(DT)
+require(shinythemes)
 
 require(readr)
 require(raster)
@@ -112,7 +113,7 @@ names(mapFormatsRead) <- c("ESRI ASCII грид",
                        "Формат CSV (Excel)",
                        "Разделитель - табуляция")
 
-classRange = 2:15
+classRange = 2:16
 classPalette = mclust.options("classPlotColors")
 mapPalette = terrain.colors
 
@@ -125,9 +126,10 @@ modPlot_wid = "500px"
 busy_size = "50px"
 
 # Define UI for application that draws a histogram
-ui <- fluidPage(
+ui <- fluidPage(theme = shinytheme("simplex"),
   # Application title
   titlePanel("Анализ карт и контрольных точек"),
+  shinythemes::themeSelector(),
   # test = enc2utf8(c("привет","пока"))
   
   #UI: Sidebar with a slider input for number of bins ####
@@ -1512,6 +1514,8 @@ drawMapsTable <- function (maps_ = NULL, sr = NULL) {
   if(is.null(maps_)) return()
   
   #sr = input$table_maps_rows_selected
+  #browser()
+  dbgmes("sr=",sr)
   maps = matrix(,nrow = length(maps_), ncol = 4)
   for( row in 1:length(maps_)) {
     map = maps_[[row]]

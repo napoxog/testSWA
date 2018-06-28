@@ -377,12 +377,12 @@ ui <- fluidPage(
               plotOutput(
                 "glmPlot",
                 height = modPlot_wid
-              ),
+              )
               # plotOutput(
               #   "glmXPlot",
               #   height = modPlot_wid
               # ),
-               verbatimTextOutput("glmXText")
+              #verbatimTextOutput("glmXText")
             )
           )
         )
@@ -711,6 +711,9 @@ addWellCP <- function (wells = NULL, cpdata = NULL, replace = TRUE, cpname = "Va
 
   wls[[cpname]] = c(1:length(wells[,1]))
   wls[[cpname]] = NA
+  if(length(cpdata$X3)>length(wls[closest$nn.idx,cpname])) {
+    return(wells)
+  }
   wls[closest$nn.idx,cpname] = cpdata$X3
   coordinates(wls) = ~X_LOCATION+Y_LOCATION
   return(wls)
@@ -958,22 +961,26 @@ buildNNET <- function(wells = NULL, rows = NULL, sel_maps = NULL, test_ratio = 0
     #colnames(data) = c("WELL","Values",names(wells@data[2+sel_maps]))
   }
   ddd = list()
+  if(!is.null(rows)) {
+    data[rows,] = NA
+  }
   for(i in 1:length(data[,1]))
   {
     if(all(!is.na(data[i,2:length(data[1,])])))
+    {  
       ddd = rbind(ddd,data[i,])
+      rownames(ddd)[length(ddd[,1])] = data$WELL[i]
+    }
   }
   #browser()
   #data = data[,!is.na(data)]
   data = ddd
   
   #row.names(data) = wells$WELL
-  # if(!is.null(rows)) {
-  #   data[rows,] = NA
-  # }
-  # for (i in 1:length(data[1,])){
-  #   data = data[!is.na(data[,i]),]
-  # }
+  for (i in 1:length(data[1,])){
+   data = data[!is.na(data[,i]),]
+  }
+  
   size = max(1,ceiling(sqrt(length(data[,1]))*nnet_complex*5*2))
   layers = max(1,ceiling(log(base = 5, size)))
   
@@ -994,44 +1001,85 @@ buildNNET <- function(wells = NULL, rows = NULL, sel_maps = NULL, test_ratio = 0
              learnFuncParams = c(0.5),maxit = max_iter,
              inputsTest = dset$inputsTest, targetsTest = dset$targetsTest,
              linOut = T)
-  # nnet = mlp(y = as.matrix(data$Values), 
-  #            x = as.matrix(data[,3:length(data[1,])]), 
-  #            size = c(sqrt(length(data$Values))),
-  #            learnFuncParams=c(0.1))
   #browser()
   rownames(dset0$inputsTrain) = (data$WELL)
   colnames(dset0$inputsTrain) = colnames(data[,3:length(data[1,])])
   nnout = predict( nnet, newdata = dset0$inputsTrain)  
   nnout = denormalizeData(nnout,getNormParameters(dset0$targetsTrain))
+  #dbgmes(message = "res=",cbind(data$Values,nnout[,1]))
   return(list(net = nnet,dset = dset0, out = nnout[,1], inp = data$Values))
 }
 
+drawGLMmap <- function (data = NULL ,sr = NULL, glm = NULL,zoom = NULL) {
+  if(is.null(data) || is.null(glm)) return(NULL)
+
+  #browser()
+  dset = data[,2:length(data)]
+  if(is.null(sr)) {
+    names(dset) = c(paste0("Map",1:length(dset)))
+  } else {
+    names(dset) = c(paste0("Map",sr[1:length(dset)]))
+  }
+  res = predict.glm(object = glm,newdata = dset)
+  
+  lividx = data[,1]
+  if(!is.null(sr) && length(sr)>1) 
+    datplot = myReactives$maps[[sr[1]]]$rstr
+  else
+    datplot = myReactives$maps[[1]]$rstr
+  title = ""
+  names(datplot) = title
+  datplot@data@values = NA
+  datplot@data@values[lividx] <- res
+  datplot@data@values[datplot@data@values==0] <- NA
+  
+  colors = mapPalette(128)
+  #browser()
+  colors = setPaletteTransp(colors,0.5)
+  
+  if(is.null(zoom))
+    plot(datplot,
+         main = title,
+         col = colors ,interpolate=T)
+  else
+    plot(datplot,
+         main = title,
+         xlim = zoom[1,], ylim = zoom[2,],
+         col = colors,interpolate=T)
+  
+  return (datplot)
+}  
+
 buildGLM <- function(wells = NULL, rows = NULL, sel_maps = NULL, lmfunc = glm, family = gaussian){
   if(is.null(wells) || length(wells@data[1,])<4) return(NULL)
-  
   if(is.null(sel_maps) || length(sel_maps)<1)
     data = wells@data
   else {
-    data = data.frame(wells@data[,2],wells@data[,2+sel_maps])
-    colnames(data) = c("Values",names(wells@data[2+sel_maps]))
+    #data = cbind(wells@data[!is.na(wells@data),1:2],wells@data[!is.na(wells@data),2+sel_maps])
+    data = data.frame(wells@data[,1:2],wells@data[,2+sel_maps])
+    #colnames(data) = c("WELL","Values",names(wells@data[2+sel_maps]))
+  }
+  ddd = list()
+  if(!is.null(rows)) {
+    data[rows,] = NA
+  }
+  for(i in 1:length(data[,1]))
+  {
+    if(all(!is.na(data[i,2:length(data[1,])])))
+      ddd = rbind(ddd,data[i,])
   }
   #browser()
-  for (par in  1:length(data) ) {
-    if (length(data[!is.na(data[[par]]),par]) <1) return(NULL)
+  #data = data[,!is.na(data)]
+  data = ddd
+  
+  for (i in 1:length(data[1,])){
+    data = data[!is.na(data[,i]),]
   }
   
-  row.names(data) = wells$WELL
+  rownames(data) = data$WELL
   parnames = colnames(data)[2:length(data)]
   frml = as.formula(paste("Values~", paste(parnames,collapse = "+")))
-  if(is.null(rows)) fit = lmfunc(formula = frml, data, family = family)
-  else {
-    sel = rep( TRUE, times = length(wells$WELL))
-    sel[rows] = FALSE
-    fit = lmfunc(formula = frml, data[sel,], family = family)
-    #names(fit$residuals) = data$WELL[sel]
-  }
-  #cost <- function(r, pi = 0) mean((r-pi)^2)
-  #K-fold Cross-Validation estimate
+  fit = lmfunc(formula = frml, data, family = family)
   #browser()
   #fit$cvDelta = cv.glm(data = fit$data[!is.na(fit$data)],glmfit = fit,cost = cost,K=7)[3]
   return(fit)
@@ -1051,9 +1099,11 @@ drawModelXplot <- function(data = NULL, lmfit = NULL, srows = NULL) {
   #sel[srows] = NA
   #sel = sel[!is.na(data$Values)]
   #sel = sel[!is.na(sel)]
-  predicted = predict.lm(lmfit)
+  predicted = predict(lmfit)
+  #browser()
   #measured = data$Values[sel]
   measured = data$Values[data$WELL %in% names(predicted)]
+  #dbgmes(message = "res=",cbind(measured,predicted))
   abl = lm(predicted~measured)
   #sel[input$table_wells_rows_selected] = FALSE
   #sel <- sel[!is.na(myReactives$wells@data$Values)]
@@ -1377,7 +1427,7 @@ getModelXplotText <- function(data = NULL, lmfit = NULL, srows = NULL) {
                 prettyNum(abl$coefficients[2]),"+",
                 prettyNum(abl$coefficients[1]))
   return(res)
-  #plot(anova(myReactives$fit))
+  #plot(anova(myReactives$glm))
 }
 
 
@@ -1943,36 +1993,37 @@ X_LOCATION  Y_LOCATION  VALUE",
 
   recalcGLM <- reactive({
     showModDial("Создание модели многомерной линейной регрессии...")
-    myReactives$fit <- buildGLM(myReactives$wells, input$table_wells_rows_selected, input$table_maps_rows_selected)
+    myReactives$glm <- buildGLM(myReactives$wells, input$table_wells_rows_selected, input$table_maps_rows_selected)
   })
   #CB: GLM plot model ####
   output$glmPlot <- renderPlot({
     recalcGLM()
     mode = input$glmAuxMode
 
+    #browser()
     if(mode == "mod") {    
       par(mfrow = c(2,2))
-      plot(myReactives$fit)
+      plot(myReactives$glm)
     } else if(mode =="xplot") {
-      drawModelXplot (myReactives$wells@data, myReactives$fit, input$table_wells_rows_selected)
+      drawModelXplot (myReactives$wells@data, myReactives$glm, input$table_wells_rows_selected)
     } else if(mode =="res") {
-      
+      myReactives$glm_map= drawGLMmap(data = myReactives$liveMaps,
+                 sr = input$table_maps_rows_selected,
+                 glm = myReactives$glm)      
+      drawWells(wells = myReactives$wells, 
+                sr = input$table_wells_rows_selected,
+                srmap = input$table_maps_rows_selected)
     }
-#    observe(myReactives$fit <- fit)
+#    observe(myReactives$glm <- fit)
     removeModal()
   })
   output$glmText <- renderText({ #renderPrint
-    frm = getModelText(myReactives$fit)
-    paste(frm)
-  })
-  
-  #CB: GLM plot Xplot ####
-  output$glmXPlot <- renderPlot({
-    drawModelXplot (myReactives$wells@data, myReactives$fit, input$table_wells_rows_selected)
-  })
-  
-  output$glmXText <- renderText({ #renderPrint
-    txt <- getModelXplotText (myReactives$wells@data, myReactives$fit, input$table_wells_rows_selected)
+    mode = mode = input$glmAuxMode
+    if(mode == "mod")
+      txt = getModelText(myReactives$glm)
+    else if( mode == "xplot")
+      txt = getModelXplotText (myReactives$wells@data, myReactives$glm, input$table_wells_rows_selected)    
+    else txt = "todo"
     paste(txt)
   })
   

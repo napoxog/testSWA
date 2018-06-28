@@ -1515,7 +1515,7 @@ drawMapsTable <- function (maps_ = NULL, sr = NULL) {
   
   #sr = input$table_maps_rows_selected
   #browser()
-  dbgmes("sr=",sr)
+  #dbgmes("sr=",sr)
   maps = matrix(,nrow = length(maps_), ncol = 4)
   for( row in 1:length(maps_)) {
     map = maps_[[row]]
@@ -1535,7 +1535,7 @@ drawMapsTable <- function (maps_ = NULL, sr = NULL) {
     rownames = FALSE,
     selection = list (
       mode = 'multiple',
-      selected = sr,
+#      selected = sr,
       target = 'row'
     ),
     options = list(
@@ -1544,6 +1544,7 @@ drawMapsTable <- function (maps_ = NULL, sr = NULL) {
       ColumnRender = prettyNum,
       scrollY = "400px",
       scrollCollapse = TRUE,
+#      stateSave = TRUE,
       pageLength = 10#,
       # columnDefs = list(
       #   list(visible = FALSE, targets = c(2:3)),
@@ -1611,6 +1612,7 @@ server <- function(input, output, session) {
                            title = "Ожидайте...", footer = modalButton("Закрыть")))
   }
   
+  dtMapsProxy = dataTableProxy("table_maps")  
   #CB: Busy Modal diaplay ####
   output$cycle <- renderImage ({
     return(list(
@@ -1712,6 +1714,8 @@ X_LOCATION  Y_LOCATION  VALUE",
   observeEvent(input$Mapsfile , {
     #browser()
     #showModal(modalDialog( "Обработка карт...",title = "Ожидайте...", footer = modalButton("Закрыть")))
+    mapsSelection =  input$table_maps_rows_selected 
+    
     showModDial("Обработка карт...")
     withProgress(message = "обработка карт...", detail = "Ожидайте......", 
                  value =0, {
@@ -1748,6 +1752,7 @@ X_LOCATION  Y_LOCATION  VALUE",
               })
     myReactives$liveMaps <- getLiveMapsData(maps = myReactives$maps, sr = input$table_maps_rows_selected)
     updateMapLists(myReactives$maps,input$table_maps_rows_selected)
+    selectRows(dtMapsProxy,as.numeric(mapsSelection))
     removeModal()
   })
   
@@ -1796,20 +1801,25 @@ X_LOCATION  Y_LOCATION  VALUE",
   #CB: transposing ####
   observeEvent(input$trans1 , {
     if(length(myReactives$maps)>1) {
+      mapsSelection=input$table_maps_rows_selected
       map_idx = selectMap(maps = myReactives$maps, idx = input$selectMap1)
       map_obj = transposeMap(myReactives$maps[[map_idx]])
       myReactives$wells <- extractMap2Well(myReactives$wells,map_obj$rstr, paste0 ("Map",map_idx))
       myReactives$maps[[map_idx]] <- map_obj
       myReactives$liveMaps <- getLiveMapsData(maps = myReactives$maps, sr = input$table_maps_rows_selected)
+      selectRows(dtMapsProxy,as.numeric(mapsSelection))
     }
+    
   })
   observeEvent(input$trans2 , {
     if(length(myReactives$maps)>1) {
+      mapsSelection=input$table_maps_rows_selected
       map_idx = selectMap(maps = myReactives$maps, idx = input$selectMap2)
       map_obj = transposeMap(myReactives$maps[[map_idx]])
       myReactives$wells <- extractMap2Well(myReactives$wells,map_obj$rstr, paste0 ("Map",map_idx))
       myReactives$maps[[map_idx]] <- map_obj
       myReactives$liveMaps <- getLiveMapsData(maps = myReactives$maps, sr = input$table_maps_rows_selected)
+      selectRows(dtMapsProxy,as.numeric(mapsSelection))
     }
   })
   
@@ -1817,6 +1827,7 @@ X_LOCATION  Y_LOCATION  VALUE",
   observeEvent(input$rstr_fact , {
     #showModal(modalDialog( "Обработка карт...",title = "Ожидайте...", footer = modalButton("Закрыть")))
     showModDial("Обработка карт...")
+    mapsSelection=input$table_maps_rows_selected
     withProgress(message = "Обработка карт...", detail = "Ожидайте...",  value =0, {
     for (i in 1:length(myReactives$maps)) {
       map_obj = upscaleMap(myReactives$maps[[i]],input$rstr_fact,func = median)
@@ -1826,6 +1837,7 @@ X_LOCATION  Y_LOCATION  VALUE",
     }
       })
     myReactives$liveMaps <- getLiveMapsData(maps = myReactives$maps, sr = input$table_maps_rows_selected)
+    selectRows(dtMapsProxy,as.numeric(mapsSelection))
     #dbgmes(message = "upscaling=",c(length(myReactives$liveMaps),length(myReactives$maps)))
     removeModal()
   })

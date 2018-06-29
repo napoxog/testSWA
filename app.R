@@ -135,10 +135,10 @@ ui <- fluidPage(theme = shinytheme("simplex"),
   #UI: Sidebar with a slider input for number of bins ####
   sidebarLayout(
     sidebarPanel(
-      tabsetPanel(
+      tabsetPanel( id = "main",
         #UI: Wells inputs and display ####
         tabPanel(
-          "Скважины",
+          "Скважины", value = "wells",
           fileInput(
             "wellsfile1",
             "Загрузить координаты скважин:",
@@ -156,7 +156,7 @@ ui <- fluidPage(theme = shinytheme("simplex"),
         )  ,
         #UI: Maps panels  ####
         tabPanel(
-          "Карты",
+          "Карты", value = 'maps',
           # UI: Class definition ####
           conditionalPanel(
             condition = "input.maps == 'modelKM' || input.maps == 'modelGM' || input.maps == 'modelHC'",
@@ -325,11 +325,11 @@ ui <- fluidPage(theme = shinytheme("simplex"),
           )),
         #UI: models ####
         tabPanel(
-          "Модели",
-          tabsetPanel(
+          "Модели", value = "models",
+          tabsetPanel( id = 'models',
             #UI: model NNET ####
             tabPanel(
-              "NNET",
+              "NNET", value = 'nnet',
               sliderInput(
                 "nnet_complex",
                 "Сложность сети, %:",
@@ -359,17 +359,13 @@ ui <- fluidPage(theme = shinytheme("simplex"),
               ),
               plotOutput(
                 "nnetPlot",
+                click = "plot_zoom",
                 height = modPlot_wid
               )
-              # plotOutput(
-              #   "nnetxPlot",
-              #   height = modPlot_wid
-              # ),
-#              verbatimTextOutput("nnetXText")
             ),
             #UI: model GLM ####
             tabPanel(
-              "GLM",
+              "GLM", value = 'glm',
               verbatimTextOutput("glmText"),
               radioButtons("glmAuxMode",
                            label = "",
@@ -378,15 +374,12 @@ ui <- fluidPage(theme = shinytheme("simplex"),
               ),
               plotOutput(
                 "glmPlot",
+                click = "plot_zoom",
                 height = modPlot_wid
               )
-              # plotOutput(
-              #   "glmXPlot",
-              #   height = modPlot_wid
-              # ),
-              #verbatimTextOutput("glmXText")
             )
-          )
+          ),
+          downloadButton('downloadModMap', 'Сохранить карту')
         )
       )
       
@@ -940,6 +933,8 @@ drawNNETmap <- function (data = NULL ,sr = NULL, nnet = NULL,zoom = NULL) {
   #browser()
   colors = setPaletteTransp(colors,0.5)
   
+  par(new = TRUE)
+  par(mfrow=c(1,1))
   if(is.null(zoom))
     plot(datplot,
          main = title,
@@ -953,6 +948,50 @@ drawNNETmap <- function (data = NULL ,sr = NULL, nnet = NULL,zoom = NULL) {
   return (datplot)
 }  
 
+drawNNETmodel <-function (nnet = NULL, mode = input$nnetAuxMode) {
+  if(mode == "mod")
+  {
+    par(mfrow=c(2,1))
+    #par(new = TRUE)
+    
+    plot(nnet$net$IterativeTestError,col="red", type = "l",
+         xlab = "Iteration",ylab = "Error",
+         ylim=c(0,max(nnet$net$IterativeTestError,nnet$net$IterativeFitError)))
+    lines(nnet$net$IterativeFitError)
+    plot(nnet$net$IterativeFitError,myReactives$nnet$net$IterativeTestError,
+         col = heat.colors(length(nnet$net$IterativeTestError))[1:length(nnet$net$IterativeTestError)],
+         pch = 16,
+         xlab = "Learning Error",ylab = "Test set Error"
+    )
+    #browser()
+    #plotRegressionError(net$net$targetsTrain,nnet$net$fitted.values)
+    #plotROC(fitted.values(nnet$net), nnet$dset$targetsTrain)
+  } else if(mode == "net") {
+    par(new = TRUE)
+    par(mfrow=c(1,1))
+    plot.nnet(myReactives$nnet$net)
+  } else if(mode == "xplot") {
+    par(new = TRUE)
+    par(mfrow=c(1,1))
+    #browser()
+    
+    measured = nnet$inp
+    predicted = nnet$out
+    xccf <- ccf(measured,predicted, lag.max = 0, plot = F)
+    plot(measured,predicted,
+         xlim = bbexpand(c(min(measured),max(measured)),0.1),
+         ylim = bbexpand(c(min(predicted),max(predicted)),0.1),
+         xlab = "measured",ylab = "predicted",
+         main = paste("Корреляция = ", prettyNum(xccf$acf)))
+    lmr = lm(formula = predicted~measured)
+    #browser()
+    abline(lmr)
+    text(measured,predicted, 
+         labels = rownames(nnet$dset$inputsTrain),
+         pos = 1)
+    
+  }
+}
 buildNNET <- function(wells = NULL, rows = NULL, sel_maps = NULL, test_ratio = 0.25, max_iter = 100, nnet_complex = 0.1){
   if(is.null(wells) || length(wells@data[1,])<4) return(NULL)
   if(is.null(sel_maps) || length(sel_maps)<1)
@@ -1222,6 +1261,20 @@ getNewMapFromValues <- function (maps=NULL,sr = NULL,values = NULL) {
   
 }
 
+drawModMap <- function (datplot = NULL, title = NULL , zoom = NULL, colors = mapPalette(128), interpolate = T) {
+  if(is.null(data)) return(NULL)
+  #browser()
+  if(is.null(zoom))
+    plot(datplot,
+         main = title,
+         col = colors ,interpolate=interpolate)
+  else
+    plot(datplot,
+         main = title,
+         xlim = zoom[1,], ylim = zoom[2,],
+         col = colors,interpolate=interpolate)
+}
+
 drawModMapPlot <- function (data = NULL, model = NULL, sr = NULL, zoom = NULL, nClass = 3) {
   if(is.null(data) || is.null(data)|| is.null(model)) return(NULL)
   msize = 1
@@ -1253,6 +1306,8 @@ drawModMapPlot <- function (data = NULL, model = NULL, sr = NULL, zoom = NULL, n
   datplot@data@values = NA
   datplot@data@values[lividx] <- clusters
   datplot@data@values[datplot@data@values==0] <- NA
+  datplot@data@min = min(datplot@data@values,na.rm = T)
+  datplot@data@max = max(datplot@data@values,na.rm = T)
   
   if(msize!=1)
     datplot <- focal(datplot, w = matrix(1,msize,msize), fun = fill.na, 
@@ -1263,15 +1318,8 @@ drawModMapPlot <- function (data = NULL, model = NULL, sr = NULL, zoom = NULL, n
   #browser()
   colors = setPaletteTransp(colors,0.5)
   
-  if(is.null(zoom))
-    plot(datplot,
-         main = title,
-         col = colors ,interpolate=F)
-  else
-    plot(datplot,
-         main = title,
-         xlim = zoom[1,], ylim = zoom[2,],
-         col = colors,interpolate=F)
+  drawModMap(datplot = datplot,title = title,zoom = zoom,colors = colors, interpolate = F)
+  
   return (datplot)
 }
 
@@ -1305,7 +1353,7 @@ drawModBIC <- function(model=NULL,mode = "BIC") {
   
 }
 
-saveModMap <- function (data = NULL, clusters = NULL, sr = NULL, fname = NULL, format = "ESRI ASCII грид") {
+saveModMap_old <- function (data = NULL, clusters = NULL, sr = NULL, fname = NULL, format = "ESRI ASCII грид") {
   if(is.null(data) || is.null(data)|| is.null(clusters)) return(NULL)
   # got live cells
   lividx = data[,1]
@@ -1347,6 +1395,47 @@ saveModMap <- function (data = NULL, clusters = NULL, sr = NULL, fname = NULL, f
   return (spgrid)
 }
 
+saveModMap <- function (datplot = NULL, fname = NULL, format = "ESRI ASCII грид") {
+  if(is.null(datplot) ) return(NULL)
+  # got live cells
+  #lividx = data[,1]
+  #if(!is.null(sr) && length(sr)>1) datplot = myReactives$maps[[sr[1]]]$rstr
+  #else datplot = myReactives$maps[[1]]$rstr
+  #datplot@data@values[lividx] <- clusters
+  datplot_out=datplot
+  dxCellsize=(datplot@extent@xmax-datplot@extent@xmin)/datplot@ncols
+  dyCellsize=(datplot@extent@ymax-datplot@extent@ymin)/datplot@nrows
+  newCellSize = min(dxCellsize,dyCellsize)
+  datplot_out@nrows = as.integer(ceiling((datplot@extent@ymax-datplot@extent@ymin)/newCellSize))
+  datplot_out@ncols = as.integer(ceiling((datplot@extent@xmax-datplot@extent@xmin)/newCellSize))
+  datplot_out = resample(datplot,datplot_out,method = "ngb")
+  spgrid = as(datplot_out,'SpatialGridDataFrame') 
+  spgrid@grid@cellsize = rep(newCellSize,2)
+  #browser()
+  if(!is.null(fname))
+  {
+    wrFunc = mapFormats[[format]]
+    if(format == "ESRI ASCII грид") {
+      exprWr = as.expression({
+        close( file( fname, open="w" ) )
+        wrFunc(spgrid,fname)
+      })
+    } else {
+      q= as.data.frame(datplot_out,xy=T)
+      exprWr = as.expression({
+        close( file( fname, open="w" ) )
+        wrFunc(q,fname)
+      })
+    }
+    save = try( expr = exprWr , FALSE)
+    if(class(save)=="try-error"){
+      showNotification(ui = "Ошибка при сохранении файла",
+                       type = "error")      
+      cat(save)
+    }
+  }
+  return (spgrid)
+}
 
 calcGMM <- function(data = NULL, nclass = 3) {
   if(is.null(data)) return(NULL)
@@ -1939,50 +2028,8 @@ X_LOCATION  Y_LOCATION  VALUE",
       }
     mode = input$nnetAuxMode
     #browser()
-    if(mode == "mod")
-    {
-      par(mfrow=c(2,1))
-      #par(new = TRUE)
-      
-      plot(myReactives$nnet$net$IterativeTestError,col="red", type = "l",
-           xlab = "Iteration",ylab = "Error",
-           ylim=c(0,max(myReactives$nnet$net$IterativeTestError,myReactives$nnet$net$IterativeFitError)))
-      lines(myReactives$nnet$net$IterativeFitError)
-      plot(myReactives$nnet$net$IterativeFitError,myReactives$nnet$net$IterativeTestError,
-        col = heat.colors(length(myReactives$nnet$net$IterativeTestError))[1:length(myReactives$nnet$net$IterativeTestError)],
-        pch = 16,
-        xlab = "Learning Error",ylab = "Test set Error"
-      )
-      #browser()
-      #plotRegressionError(myReactives$nnet$net$targetsTrain,myReactives$nnet$net$fitted.values)
-      #plotROC(fitted.values(myReactives$nnet$net), myReactives$nnet$dset$targetsTrain)
-    } else if(mode == "net") {
-      par(new = TRUE)
-      par(mfrow=c(1,1))
-      plot.nnet(myReactives$nnet$net)
-    } else if(mode == "xplot") {
-      par(new = TRUE)
-      par(mfrow=c(1,1))
-      #browser()
-      
-      measured = myReactives$nnet$inp
-      predicted = myReactives$nnet$out
-      xccf <- ccf(measured,predicted, lag.max = 0, plot = F)
-      plot(measured,predicted,
-           xlim = bbexpand(c(min(measured),max(measured)),0.1),
-           ylim = bbexpand(c(min(predicted),max(predicted)),0.1),
-           xlab = "measured",ylab = "predicted",
-           main = paste("Корреляция = ", prettyNum(xccf$acf)))
-      lmr = lm(formula = predicted~measured)
-      #browser()
-      abline(lmr)
-      text(measured,predicted, 
-           labels = rownames(myReactives$nnet$dset$inputsTrain),
-           pos = 1)
-      
-    } else if(mode == "res") {
-      par(new = TRUE)
-      par(mfrow=c(1,1))
+    
+    if(mode == "res"){
       myReactives$nnet_map = drawNNETmap(data = myReactives$liveMaps,
                                          sr = input$table_maps_rows_selected,
                                          nnet = myReactives$nnet)
@@ -1990,6 +2037,8 @@ X_LOCATION  Y_LOCATION  VALUE",
       drawWells(wells = myReactives$wells, 
                 sr = input$table_wells_rows_selected,
                 srmap = input$table_maps_rows_selected)
+    } else {
+      drawNNETmodel(nnet = myReactives$nnet, mode = input$nnetAuxMode)
     }
   })
   output$nnetText <- renderText({ #renderPrint
@@ -2076,19 +2125,9 @@ X_LOCATION  Y_LOCATION  VALUE",
   
   #CB: KM download  ####
   output$downloadKMMap <- downloadHandler(
-    filename = function() {
-      paste0('KMeans_Ncls',input$numClasses,'_',Sys.Date(), '.asc')
-    },
+    filename = getMapSaveFilename,
     contentType = '.asc',
-    content = function (fname) {
-      #browser()
-      outgrid = saveModMap(myReactives$liveMaps,
-                           myReactives$km$cluster,
-                           sr = input$table_maps_rows_selected,
-                           fname = fname,
-                           format = input$mapFormatSel)
-      
-    }
+    content = getMapSaveContent
   )
   #CB: GMM model ####    
   recalcGMM <- reactive ({
@@ -2133,23 +2172,72 @@ X_LOCATION  Y_LOCATION  VALUE",
     drawModBIC(model = myReactives$gmm,mode = input$gmmAuxMode)
   })
   
+  #CB: Map download ####
+  getCurrentModel <- function () {
+    main = input$main
+    model = NULL
+    mode = NULL
+    mode_aux = NULL
+    resmap = NULL
+    title = ""
+    if(main == 'maps') {
+      if(input$maps == 'modelKM') {
+        #recalcGMM()
+        model = myReactives$km
+        mode = input$modelKM
+        resmap = myReactives$km_map
+        title = (capture.output(model))[1]
+      } else if (input$maps == 'modelGM') {
+        model = myReactives$gmm
+        mode = input$modelGM
+        mode_aux = input$gmmAuxMode
+        resmap = myReactives$gmm_map
+        title = (capture.output(summary(model)))[2]
+      } else if (input$maps == 'modelHC') {
+        model = myReactives$hcm
+        mode = input$modelHC
+        resmap = myReactives$hcm_map
+        title = (capture.output(model))[1]
+      }
+    } else if (main == 'models') {
+      if(input$models == 'nnet') {
+        model = myReactives$nnet
+        mode = mode_aux = input$nnetAuxMode
+        resmap = myReactives$nnet_map
+        title = class(model)
+      } else if(input$models == 'glm') {
+        model = myReactives$glm
+        mode = mode_aux = input$glmAuxMode
+        resmap = myReactives$glm_map
+        title = class(model)
+      }
+    }
+    #browser()
+    return(list(map = resmap,model = model, title = title,
+                mode = mode,mode_aux = mode_aux))
+  }
+  #CB: Map download ####
+  getMapSaveFilename <- function() {
+    model = getCurrentModel()$model
+    paste0(class(model),'_',Sys.Date(), '.asc')
+  }
+  getMapSaveContent <- function(fname) {
+    map = getCurrentModel()$map
+    outgrid = saveModMap(map,
+                         fname = fname,
+                         format = input$mapFormatSel)
+  }
+  
+  output$downloadModMap <- downloadHandler(
+    filename = getMapSaveFilename,
+    contentType = '.asc',
+    content = getMapSaveContent
+  )
   #CB: GMM download  ####
   output$downloadGMMap <- downloadHandler(
-    filename = function() {
-      paste0('GMM_Ncls',input$numClasses,'_',Sys.Date(), '.asc')
-    },
+    filename = getMapSaveFilename,
     contentType = '.asc',
-    content = function (fname) {
-      outgrid = saveModMap(myReactives$liveMaps,
-                           myReactives$gmm$classification,
-                           sr = input$table_maps_rows_selected,
-                           fname = fname,
-                           format = input$mapFormatSel)
-      #save = try( expr = write.asciigrid(outgrid,fname) , TRUE)
-      #if(class(save)=="try-error")
-        #showNotification(ui = "Ошибка при сохранении файла",
-      #                   type = "error")      
-    }
+    content = getMapSaveContent
   )
 
   #CB: HC model ####    
@@ -2249,13 +2337,8 @@ X_LOCATION  Y_LOCATION  VALUE",
     else 
     {
       coordinates(xy) = ~x+y
-      
-      if(input$maps =='modelKM' && input$modelKM == 'res') 
-        xy$z = extract(myReactives$km_map,xy)
-      else if (input$maps =='modelGM' && input$modelGM == 'res')
-        xy$z = extract(myReactives$gmm_map,xy)
-      else if (input$maps =='modelHC' && input$modelHC == 'res')
-        xy$z = extract(myReactives$hcm_map,xy)
+      map = getCurrentModel()$map
+      if(!is.null(map))  xy$z = extract(map,xy)
       else xy$z = 0
       #browser()
       lab=paste0('[',prettyNum(xy@coords[1]),':',prettyNum(xy@coords[2]),'] = ',prettyNum(xy$z))
@@ -2281,46 +2364,54 @@ X_LOCATION  Y_LOCATION  VALUE",
     showModal(zoomPlotCall(""))
   })
   
+  # CB: Zoom Plot draw ####
   output$zoomPlot <- renderPlot({
-    if(input$maps == 'modelKM') {
-      #recalcGMM()
-      if(input$modelKM == 'mod')
-        drawModel(myReactives$liveMaps,myReactives$km)
-      else if (input$modelKM == 'res'){
-        drawModMapPlot(myReactives$liveMaps,
-                       myReactives$km,
-                       sr = input$table_maps_rows_selected,
-                       zoom = myReactives$plot_zoom)
+    main = input$main
+    mod = getCurrentModel()
+    model=mod$model
+    mode = mod$mode
+    mode_aux = mod$mode_aux
+    resmap = mod$map
+    title = mod$title
+    
+    #browser()
+    
+    if(main == 'maps') {
+    if (!is.null(model)) {
+      if(mode == 'res'){
+        colors = mclust.options("classPlotColors")[1:resmap@data@max]
+        colors = setPaletteTransp(colors,0.5)
+        drawModMap(datplot = resmap,title = title,
+                   colors = colors,
+                   zoom = myReactives$plot_zoom,interpolate = F)
         par(new = TRUE)
         drawWells(wells = myReactives$wells, 
                   sr = input$table_wells_rows_selected,
                   srmap = input$table_maps_rows_selected)
+      } else if(mode == 'mod') {
+        drawModel(myReactives$liveMaps,model)
+      } else if(mode == 'aux') {
+        drawModBIC(model,mode = mode_aux)
       }
-    } else if (input$maps == 'modelGM') {
-      if(input$modelGM == 'mod') 
-        drawModel(myReactives$liveMaps,myReactives$gmm)
-      else if (input$modelGM == 'aux'){
-          drawModBIC(myReactives$gmm,mode = input$gmmAuxMode)
-        } else {
-        drawModMapPlot(myReactives$liveMaps,
-                       myReactives$gmm,
-                       sr = input$table_maps_rows_selected,
-                       zoom = myReactives$plot_zoom)
-        par(new = TRUE)
-        drawWells(wells = myReactives$wells, 
-                  sr = input$table_wells_rows_selected,
-                  srmap = input$table_maps_rows_selected)
+    }
+    } else if (main == 'models') {
+      if(input$models == 'nnet') {
+        if( mode_aux != 'res')
+          drawNNETmodel(nnet = model , mode = mode)
+      } else if(input$models == 'glm') {
+        if(mode == 'mod'){
+          par(mfrow = c(2,2))
+          plot(model)
+        } else if (mode == 'xplot') {
+          drawModelXplot (myReactives$wells@data, model, input$table_wells_rows_selected)
+        }
       }
-    } else if (input$maps == 'modelHC') {
-      if(input$modelHC == 'mod') 
-        drawModel(myReactives$liveMaps,myReactives$hcm)
-      else if (input$modelHC == 'res'){
-        drawModMapPlot(myReactives$liveMaps,
-                       myReactives$hcm,
-                       sr = input$table_maps_rows_selected,
-                       zoom = myReactives$plot_zoom,
-                       nClass = input$numClasses)
-        par(new = TRUE)
+      if( mode == 'res'){
+        colors = mapPalette(128)
+        colors = setPaletteTransp(colors,0.5)
+        drawModMap(datplot = resmap,title = title,
+                    colors = colors,
+                    zoom = myReactives$plot_zoom,interpolate = T)
         drawWells(wells = myReactives$wells, 
                   sr = input$table_wells_rows_selected,
                   srmap = input$table_maps_rows_selected)

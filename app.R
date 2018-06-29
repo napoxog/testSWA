@@ -160,40 +160,42 @@ ui <- fluidPage(theme = shinytheme("simplex"),
           # UI: Class definition ####
           conditionalPanel(
             condition = "input.maps == 'modelKM' || input.maps == 'modelGM' || input.maps == 'modelHC'",
-            sliderInput(
+            div(style="display: inline-block;vertical-align:top; width: 350px;",sliderInput(
               "numClasses",
               "Число классов:",
               min = min(classRange),
               max = max(classRange),
               step = 1,
               value = 3
-            ),
-            checkboxInput(
+            )),
+            div(style="display: inline-block;vertical-align:top; width: 50px;",HTML("<br>")),
+            div(style="display: inline-block;vertical-align:top; width: 150px;",checkboxInput(
               "numClassUD",
               "Автоматически",
               FALSE
-            )
+            ))
           ),
           tabsetPanel( id = "maps",
                        #UI: Maps input  ####
                        tabPanel( "Данные", value = "input",
-                                 sliderInput(
+                                 div(style="display: inline-block;vertical-align:top; width: 250px;",sliderInput(
                                    "bins",
                                    "Бины гистограммы:",
                                    min = 1,
                                    max = 100,
-                                   value = 30
-                                 ),
-                                 sliderInput(
+                                   value = 30,
+                                   step = 10
+                                 )),
+                                 div(style="display: inline-block;vertical-align:top; width: 50px;",HTML("<br>")),
+                                 div(style="display: inline-block;vertical-align:top; width: 250px;",sliderInput(
                                    "rstr_fact",
                                    "Разрешение грида:",
                                    min = 0.1,
                                    max = 1,
-                                   value = 0.5
-                                 ),
-                                 selectInput("mapFormatSel", "Формат файлов загрузки/выгрузки"
-                                             ,choices = names(mapFormats)),
-                                 fileInput(
+                                   value = 0.5,
+                                   step = 0.1
+                                 )),
+                                 div(style="display: inline-block;vertical-align:top; width: 250px;",fileInput(
                                    "Mapsfile",
                                    "Открыть/Заменить карту:",
                                    accept = '.asc',#c("text/plain",
@@ -201,7 +203,11 @@ ui <- fluidPage(theme = shinytheme("simplex"),
                                    #"*.asc"),
                                    buttonLabel = "Открыть...",
                                    multiple = TRUE
-                                 ),
+                                 )),
+                                 div(style="display: inline-block;vertical-align:top; width: 50px;",HTML("<br>")),
+                                 div(style="display: inline-block;vertical-align:top; width: 250px;",selectInput("mapFormatSel", "Формат файлов загрузки/выгрузки"
+                                             ,choices = names(mapFormats)
+                                 )),
                                  dataTableOutput('table_maps'),
                                  actionButton("delmap"   , "Удалить выбранные", width = butt_wid)
                        ),
@@ -330,27 +336,32 @@ ui <- fluidPage(theme = shinytheme("simplex"),
             #UI: model NNET ####
             tabPanel(
               "NNET", value = 'nnet',
-              sliderInput(
+              div(style="display: inline-block;vertical-align:top; width: 150px;",sliderInput(
                 "nnet_complex",
                 "Сложность сети, %:",
                 min = 10,
                 max = 90,
-                value = 10
-              ),
-              sliderInput(
+                value = 10,
+                step = 10
+              )),
+              div(style="display: inline-block;vertical-align:top; width: 50px;",HTML("<br>")),
+              div(style="display: inline-block;vertical-align:top; width: 150px;",sliderInput(
                 "test_ratio",
-                "Размер тестовой выборки, %:",
+                "Тестовая выборка, %:",
                 min = 10,
                 max = 90,
-                value = 30
-              ),
-              sliderInput(
+                value = 30,
+                step = 5
+              )),
+              div(style="display: inline-block;vertical-align:top; width: 50px;",HTML("<br>")),
+              div(style="display: inline-block;vertical-align:top; width: 150px;",sliderInput(
                 "max_iter",
                 "Число итераций:",
                 min = 10,
                 max = 500,
-                value = 50
-              ),
+                value = 50,
+                step =10
+              )),
               verbatimTextOutput("nnetText"),
               radioButtons("nnetAuxMode",
                            label = "",
@@ -571,6 +582,7 @@ deleteMaps <- function (maps = NULL, wells = NULL, sr = NULL) {
   if(is.null(sr) || length(sr)<1) return(maps)
   
   i=length(sr)
+  
   while (i) {
     maps[[sr[i]]] = NULL
     i=i-1
@@ -933,18 +945,10 @@ drawNNETmap <- function (data = NULL ,sr = NULL, nnet = NULL,zoom = NULL) {
   #browser()
   colors = setPaletteTransp(colors,0.5)
   
-  par(new = TRUE)
-  par(mfrow=c(1,1))
-  if(is.null(zoom))
-    plot(datplot,
-         main = title,
-         col = colors ,interpolate=T)
-  else
-    plot(datplot,
-         main = title,
-         xlim = zoom[1,], ylim = zoom[2,],
-         col = colors,interpolate=T)
-  
+  # drawModMap(datplot = datplot,title = title,
+  #            zoom = zoom,
+  #            colors = colors, interpolate = T)
+
   return (datplot)
 }  
 
@@ -1264,6 +1268,8 @@ getNewMapFromValues <- function (maps=NULL,sr = NULL,values = NULL) {
 drawModMap <- function (datplot = NULL, title = NULL , zoom = NULL, colors = mapPalette(128), interpolate = T) {
   if(is.null(data)) return(NULL)
   #browser()
+  par(new = TRUE)
+  par(mfrow=c(1,1))
   if(is.null(zoom))
     plot(datplot,
          main = title,
@@ -1318,7 +1324,9 @@ drawModMapPlot <- function (data = NULL, model = NULL, sr = NULL, zoom = NULL, n
   #browser()
   colors = setPaletteTransp(colors,0.5)
   
-  drawModMap(datplot = datplot,title = title,zoom = zoom,colors = colors, interpolate = F)
+  drawModMap(datplot = datplot,title = title,
+             zoom = zoom,
+             colors = colors, interpolate = F)
   
   return (datplot)
 }
@@ -2017,29 +2025,43 @@ X_LOCATION  Y_LOCATION  VALUE",
                                   test_ratio = input$test_ratio/100.,
                                   max_iter = input$max_iter,
                                   nnet_complex = input$nnet_complex/100.)
+    myReactives$nnet_map = drawNNETmap(data = myReactives$liveMaps,
+                                        sr = input$table_maps_rows_selected,
+                                        nnet = myReactives$nnet)
     removeModal()
   })
   #CB: NNET plot model ####
   output$nnetPlot <- renderPlot({
     recalcNNET()
-    if(is.null(myReactives$nnet)) {
-      removeModal()
-      return(NULL)
-      }
-    mode = input$nnetAuxMode
+    main = input$main
+    mod = getCurrentModel()
+    model=mod$model
+    mode = mod$mode
+    mode_aux = mod$mode_aux
+    resmap = mod$map
+    title = mod$title
+    
+    if(is.null(model)) return(NULL)
+    
     #browser()
     
     if(mode == "res"){
-      myReactives$nnet_map = drawNNETmap(data = myReactives$liveMaps,
-                                         sr = input$table_maps_rows_selected,
-                                         nnet = myReactives$nnet)
-      par(new = TRUE)
+      
+      colors = mapPalette(128)
+      colors = setPaletteTransp(colors,0.5)
+      drawModMap(datplot = resmap,title = unlist(title),
+                 colors = colors,
+                 zoom = myReactives$zoom,interpolate = T)
+      # myReactives$nnet_map = drawNNETmap(data = myReactives$liveMaps,
+      #                                    sr = input$table_maps_rows_selected,
+      #                                    nnet = myReactives$nnet)
       drawWells(wells = myReactives$wells, 
                 sr = input$table_wells_rows_selected,
                 srmap = input$table_maps_rows_selected)
     } else {
       drawNNETmodel(nnet = myReactives$nnet, mode = input$nnetAuxMode)
     }
+    removeModal()
   })
   output$nnetText <- renderText({ #renderPrint
     #frm = getModelText(myReactives$nnet)
@@ -2059,12 +2081,23 @@ X_LOCATION  Y_LOCATION  VALUE",
   recalcGLM <- reactive({
     showModDial("Создание модели многомерной линейной регрессии...")
     myReactives$glm <- buildGLM(myReactives$wells, input$table_wells_rows_selected, input$table_maps_rows_selected)
+    myReactives$glm_map= drawGLMmap(data = myReactives$liveMaps,
+                                    sr = input$table_maps_rows_selected,
+                                    glm = myReactives$glm)      
   })
   #CB: GLM plot model ####
   output$glmPlot <- renderPlot({
     recalcGLM()
-    mode = input$glmAuxMode
-
+    main = input$main
+    mod = getCurrentModel()
+    model=mod$model
+    mode = mod$mode
+    mode_aux = mod$mode_aux
+    resmap = mod$map
+    title = mod$title
+    
+    #browser()
+    
     #browser()
     if(mode == "mod") {    
       par(mfrow = c(2,2))
@@ -2072,9 +2105,11 @@ X_LOCATION  Y_LOCATION  VALUE",
     } else if(mode =="xplot") {
       drawModelXplot (myReactives$wells@data, myReactives$glm, input$table_wells_rows_selected)
     } else if(mode =="res") {
-      myReactives$glm_map= drawGLMmap(data = myReactives$liveMaps,
-                 sr = input$table_maps_rows_selected,
-                 glm = myReactives$glm)      
+      colors = mapPalette(128)
+      colors = setPaletteTransp(colors,0.5)
+      drawModMap(datplot = resmap,title = unlist(title),
+                 colors = colors,
+                 zoom = myReactives$zoom,interpolate = T)
       drawWells(wells = myReactives$wells, 
                 sr = input$table_wells_rows_selected,
                 srmap = input$table_maps_rows_selected)

@@ -17,7 +17,7 @@ require(readr)
 require(raster)
 #require(miniUI)
 
-#detach(package)
+# NOTE: detach(package)
 
 #library(spatial)
 require(sp)
@@ -117,13 +117,16 @@ classRange = 2:16
 classPalette = mclust.options("classPlotColors")
 mapPalette = terrain.colors
 
+# INIT: width definition ####
 map_hei = "900px"
 map_wid = "900px" #"900px"
 hist_hei = "200px"
 hist_wid = "200px"
 butt_wid = "200px"
-modPlot_wid = "500px"
+#modPlot_wid = "500px"
+modPlot_wid = 500
 busy_size = "50px"
+spacer_wid = 20
 
 # Define UI for application that draws a histogram
 ui <- fluidPage(theme = shinytheme("simplex"),
@@ -160,7 +163,7 @@ ui <- fluidPage(theme = shinytheme("simplex"),
           # UI: Class definition ####
           conditionalPanel(
             condition = "input.maps == 'modelKM' || input.maps == 'modelGM' || input.maps == 'modelHC'",
-            div(style="display: inline-block;vertical-align:top; width: 350px;",sliderInput(
+            div(style=paste0("display: inline-block;vertical-align:top; width: ", as.integer(modPlot_wid/3*2),"px;"),sliderInput(
               "numClasses",
               "Число классов:",
               min = min(classRange),
@@ -168,8 +171,8 @@ ui <- fluidPage(theme = shinytheme("simplex"),
               step = 1,
               value = 3
             )),
-            div(style="display: inline-block;vertical-align:top; width: 50px;",HTML("<br>")),
-            div(style="display: inline-block;vertical-align:top; width: 150px;",checkboxInput(
+            div(style=paste0("display: inline-block;vertical-align:top; width: ", spacer_wid,"px;"),HTML("<br>")),
+            div(style=paste0("display: inline-block;vertical-align:top; width: ", as.integer(modPlot_wid/3),"px;"),checkboxInput(
               "numClassUD",
               "Автоматически",
               FALSE
@@ -178,7 +181,7 @@ ui <- fluidPage(theme = shinytheme("simplex"),
           tabsetPanel( id = "maps",
                        #UI: Maps input  ####
                        tabPanel( "Данные", value = "input",
-                                 div(style="display: inline-block;vertical-align:top; width: 250px;",sliderInput(
+                                 div(style=paste0("display: inline-block;vertical-align:top; width: ", as.integer(modPlot_wid/2),"px;"),sliderInput(
                                    "bins",
                                    "Бины гистограммы:",
                                    min = 1,
@@ -186,8 +189,8 @@ ui <- fluidPage(theme = shinytheme("simplex"),
                                    value = 30,
                                    step = 10
                                  )),
-                                 div(style="display: inline-block;vertical-align:top; width: 50px;",HTML("<br>")),
-                                 div(style="display: inline-block;vertical-align:top; width: 250px;",sliderInput(
+                                 div(style=paste0("display: inline-block;vertical-align:top; width: ", spacer_wid,"px;"),HTML("<br>")),
+                                 div(style=paste0("display: inline-block;vertical-align:top; width: ", as.integer(modPlot_wid/2),"px;"),sliderInput(
                                    "rstr_fact",
                                    "Разрешение грида:",
                                    min = 0.1,
@@ -195,7 +198,7 @@ ui <- fluidPage(theme = shinytheme("simplex"),
                                    value = 0.5,
                                    step = 0.1
                                  )),
-                                 div(style="display: inline-block;vertical-align:top; width: 250px;",fileInput(
+                                 div(style=paste0("display: inline-block;vertical-align:top; width: ", as.integer(modPlot_wid/2),"px;"),fileInput(
                                    "Mapsfile",
                                    "Открыть/Заменить карту:",
                                    accept = '.asc',#c("text/plain",
@@ -204,8 +207,8 @@ ui <- fluidPage(theme = shinytheme("simplex"),
                                    buttonLabel = "Открыть...",
                                    multiple = TRUE
                                  )),
-                                 div(style="display: inline-block;vertical-align:top; width: 50px;",HTML("<br>")),
-                                 div(style="display: inline-block;vertical-align:top; width: 250px;",selectInput("mapFormatSel", "Формат файлов загрузки/выгрузки"
+                                 div(style=paste0("display: inline-block;vertical-align:top; width: ", spacer_wid,"px;"),HTML("<br>")),
+                                 div(style=paste0("display: inline-block;vertical-align:top; width: ", as.integer(modPlot_wid/2),"px;"),selectInput("mapFormatSel", "Формат файлов загрузки/выгрузки"
                                              ,choices = names(mapFormats)
                                  )),
                                  dataTableOutput('table_maps'),
@@ -336,16 +339,16 @@ ui <- fluidPage(theme = shinytheme("simplex"),
             #UI: model NNET ####
             tabPanel(
               "NNET", value = 'nnet',
-              div(style="display: inline-block;vertical-align:top; width: 150px;",sliderInput(
+              div(style=paste0("display: inline-block;vertical-align:top; width: ", as.integer(modPlot_wid/3),"px;"),sliderInput(
                 "nnet_complex",
                 "Сложность сети, %:",
                 min = 10,
                 max = 90,
                 value = 10,
-                step = 10
+                step = 5
               )),
-              div(style="display: inline-block;vertical-align:top; width: 50px;",HTML("<br>")),
-              div(style="display: inline-block;vertical-align:top; width: 150px;",sliderInput(
+              div(style=paste0("display: inline-block;vertical-align:top; width: ",spacer_wid,"px;"),HTML("<br>")),
+              div(style=paste0("display: inline-block;vertical-align:top; width: ", as.integer(modPlot_wid/3),"px;"),sliderInput(
                 "test_ratio",
                 "Тестовая выборка, %:",
                 min = 10,
@@ -353,8 +356,8 @@ ui <- fluidPage(theme = shinytheme("simplex"),
                 value = 30,
                 step = 5
               )),
-              div(style="display: inline-block;vertical-align:top; width: 50px;",HTML("<br>")),
-              div(style="display: inline-block;vertical-align:top; width: 150px;",sliderInput(
+              div(style=paste0("display: inline-block;vertical-align:top; width: ",spacer_wid,"px;"),HTML("<br>")),
+              div(style=paste0("display: inline-block;vertical-align:top; width: ", as.integer(modPlot_wid/3),"px;"),sliderInput(
                 "max_iter",
                 "Число итераций:",
                 min = 10,

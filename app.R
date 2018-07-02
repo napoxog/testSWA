@@ -98,7 +98,7 @@ names(hcmDistModes) <- c("pearson","euclidean", "maximum", "manhattan", "canberr
                          "spearman" , "kendall")
 
 mapPalList <- list (terrain.colors, heat.colors, topo.colors, 
-                    rainbow, bpy.colors, gray.colors)
+                    rainbow,bpy.colors, gray.colors)
 names(mapPalList) <- c("Покров", "Тепло", "Рельеф", 
                        "Радуга", "ЧРЖ", "Монохром")
 
@@ -121,7 +121,7 @@ mapPalette = terrain.colors
 map_hei = "900px"
 map_wid = "900px" #"900px"
 hist_hei = "200px"
-hist_wid = "200px"
+hist_wid = "250px"
 butt_wid = "200px"
 #modPlot_wid = "500px"
 modPlot_wid = 500
@@ -172,7 +172,7 @@ ui <- fluidPage(theme = shinytheme("simplex"),
               value = 3
             )),
             div(style=paste0("display: inline-block;vertical-align:top; width: ", spacer_wid,"px;"),HTML("<br>")),
-            div(style=paste0("display: inline-block;vertical-align:top; width: ", as.integer(modPlot_wid/3),"px;"),checkboxInput(
+            div(style=paste0("display: inline-block;vertical-align:top; margin-top: ", spacer_wid,"px; width: ", as.integer(modPlot_wid/3),"px;"),checkboxInput(
               "numClassUD",
               "Автоматически",
               FALSE
@@ -268,7 +268,7 @@ ui <- fluidPage(theme = shinytheme("simplex"),
                                                         downloadButton('downloadKMMap', 'Сохранить карту'),
                                                         verbatimTextOutput("kmXText")
                                               )
-                                 )#,                                 verbatimTextOutput("kmXText")
+                                 )
                        ),
                        #UI: model GMM ####
                        tabPanel(  "GMM", value = "modelGM",
@@ -402,7 +402,7 @@ ui <- fluidPage(theme = shinytheme("simplex"),
     #), width = 3 ), #
     mainPanel(
       
-      tabsetPanel(
+      tabsetPanel( id = "mapsTabs",
         # UI: Tabs with Maps and related ####
         #tabPanel(
         #  "Скважины",
@@ -410,7 +410,7 @@ ui <- fluidPage(theme = shinytheme("simplex"),
         #),
         tabPanel(
           #UI: Tab1 ####
-          uiOutput("tab1"),
+          uiOutput("tab1"), value = "mapTab1",
           flowLayout(
             flowLayout(
               verticalLayout(
@@ -421,13 +421,13 @@ ui <- fluidPage(theme = shinytheme("simplex"),
                 ),
                 flowLayout(
                   actionButton("unzoom1"   , "Сброс масштаба  ", width = butt_wid),
-                  actionButton("trans1"    , "Транспонировать ", width = butt_wid),
+                  actionButton("transpose1"    , "Транспонировать ", width = butt_wid),
                   checkboxInput("showContours1","Контуры", width = butt_wid),
                   checkboxInput("interpMap1","Интерполяция", width = butt_wid),
                   selectInput("mapPalSelect1", "Палитра"
                               ,choices = names(mapPalList), width = butt_wid),
                   sliderInput(
-                    "mapPalTransp1",
+                    "mapPalAlpha1",
                     "Прозрачность:",
                     min = 0.0,
                     max = 1,
@@ -456,7 +456,7 @@ ui <- fluidPage(theme = shinytheme("simplex"),
         ),
         tabPanel(
           #UI: Tab2 ####
-          uiOutput("tab2"),
+          uiOutput("tab2"), value = "mapTab2", 
           flowLayout(
             flowLayout(
               verticalLayout(
@@ -467,13 +467,13 @@ ui <- fluidPage(theme = shinytheme("simplex"),
                 ),
                 flowLayout(
                   actionButton("unzoom2"   , "Сброс масштаба  ", width = butt_wid),
-                  actionButton("trans2"    , "Транспонировать ", width = butt_wid),
+                  actionButton("transpose2"    , "Транспонировать ", width = butt_wid),
                   checkboxInput("showContours2","Контуры", width = butt_wid),
                   checkboxInput("interpMap2","Интерполяция", width = butt_wid),
                   selectInput("mapPalSelect2", "Палитра"
                               ,choices = names(mapPalList), width = butt_wid),
                   sliderInput(
-                    "mapPalTransp2",
+                    "mapPalAlpha2",
                     "Прозрачность:",
                     min = 0.0,
                     max = 1,
@@ -889,18 +889,26 @@ drawWells <- function(wells = NULL, rstr = NULL, sr = NULL, srmap = NULL) {
 }
 
 
-drawHist <- function (map_m, nbins) {
+drawHist <- function (map, nbins) {
+  map_m = map$mat
   x <- map_m[!is.na(map_m)]
   bins <- seq(min(x), max(x), length.out = nbins + 1)
   # draw the histogram with the specified number of bins
+  ddd=density(map$rstr)
+  par("mar" = c(2.0,2.0,2.0,2.0) )
   hist(
     x,
     breaks = bins,
     col = 'darkgray',
     border = 'darkgray',
-    xlab = paste(length(x),"samples"),
-    main = paste("Гистограмма ",names(map_m))
-  )
+    xlab = "",#paste(length(x),"samples"),
+    ylab = "",
+    main = paste("Гистограмма ",names(map_m)),
+    plot = T,
+    prob=T
+  ) 
+  lines(ddd$x,ddd$y,lwd = 1)
+
 }
 
 drawHex <- function (xy = NULL, cells = 30) {
@@ -944,14 +952,6 @@ drawNNETmap <- function (data = NULL ,sr = NULL, nnet = NULL,zoom = NULL) {
   datplot@data@values[lividx] <- res
   datplot@data@values[datplot@data@values==0] <- NA
   
-  colors = mapPalette(128)
-  #browser()
-  colors = setPaletteTransp(colors,0.5)
-  
-  # drawModMap(datplot = datplot,title = title,
-  #            zoom = zoom,
-  #            colors = colors, interpolate = T)
-
   return (datplot)
 }  
 
@@ -1022,8 +1022,11 @@ buildNNET <- function(wells = NULL, rows = NULL, sel_maps = NULL, test_ratio = 0
   }
   #browser()
   #data = data[,!is.na(data)]
+  #dbgmes(message = "data=",data)
+  #dbgmes(message = "ddd=",ddd)
   data = ddd
   
+  if(length(data) <2) return (NULL)
   #row.names(data) = wells$WELL
   for (i in 1:length(data[1,])){
    data = data[!is.na(data[,i]),]
@@ -1043,6 +1046,7 @@ buildNNET <- function(wells = NULL, rows = NULL, sel_maps = NULL, test_ratio = 0
   dset = splitForTrainingAndTest(
     x = dset0$inputsTrain,
     y = dset0$targetsTrain, ratio = test_ratio)
+  #dbgmes(message = "dset=",dset)
   #dset = normTrainingAndTestSet(dset0,dontNormTargets = FALSE,type = getNormParameters(dset0$inputsTrain))
   nnet = mlp(dset$inputsTrain, dset$targetsTrain, 
              size = ceiling(seq.int(size/2,3, length.out = layers)), 
@@ -1058,7 +1062,11 @@ buildNNET <- function(wells = NULL, rows = NULL, sel_maps = NULL, test_ratio = 0
   return(list(net = nnet,dset = dset0, out = nnout[,1], inp = data$Values))
 }
 
-drawGLMmap <- function (data = NULL ,sr = NULL, glm = NULL,zoom = NULL) {
+plotError <- function (message = "Error!!!") {
+  plot(0,0,t="l");text(0,0,paste("ОШИБКА:",message),col = "red")
+}
+
+drawGLMmap <- function (data = NULL ,sr = NULL, glm = NULL,zoom = NULL, colors = rainbow(128)) {
   if(is.null(data) || is.null(glm)) return(NULL)
 
   #browser()
@@ -1081,19 +1089,19 @@ drawGLMmap <- function (data = NULL ,sr = NULL, glm = NULL,zoom = NULL) {
   datplot@data@values[lividx] <- res
   datplot@data@values[datplot@data@values==0] <- NA
   
-  colors = mapPalette(128)
   #browser()
-  colors = setPaletteTransp(colors,0.5)
-  
-  if(is.null(zoom))
-    plot(datplot,
-         main = title,
-         col = colors ,interpolate=T)
-  else
-    plot(datplot,
-         main = title,
-         xlim = zoom[1,], ylim = zoom[2,],
-         col = colors,interpolate=T)
+  #colors = mapPalList[["Радуга"]](128)
+  # colors = setPaletteTransp(colors,0.5)
+  # 
+  # if(is.null(zoom))
+  #   plot(datplot,
+  #        main = title,
+  #        col = colors ,interpolate=T)
+  # else
+  #   plot(datplot,
+  #        main = title,
+  #        xlim = zoom[1,], ylim = zoom[2,],
+  #        col = colors,interpolate=T)
   
   return (datplot)
 }  
@@ -1119,6 +1127,7 @@ buildGLM <- function(wells = NULL, rows = NULL, sel_maps = NULL, lmfunc = glm, f
   #browser()
   #data = data[,!is.na(data)]
   data = ddd
+  if(length(data) <2) return (NULL)
   
   for (i in 1:length(data[1,])){
     data = data[!is.na(data[,i]),]
@@ -1222,6 +1231,10 @@ getLiveMapsData <- function (maps = NULL, sr = NULL) {
 
 drawModel <- function(data,model) {
   #browser()
+  #dbgmes(message = "model=",model)
+  if(is.null(model)) {
+    plotError("Модель не рассчитана.\n проверьте входные данные")
+  }
   if(class(model) == 'Mclust') 
     plot(model, 
          #main = (capture.output(summary(model)))[2], 
@@ -1899,7 +1912,7 @@ X_LOCATION  Y_LOCATION  VALUE",
   })
 
   #CB: transposing ####
-  observeEvent(input$trans1 , {
+  observeEvent(input$transpose1 , {
     if(length(myReactives$maps)>1) {
       mapsSelection=input$table_maps_rows_selected
       map_idx = selectMap(maps = myReactives$maps, idx = input$selectMap1)
@@ -1911,7 +1924,7 @@ X_LOCATION  Y_LOCATION  VALUE",
     }
     
   })
-  observeEvent(input$trans2 , {
+  observeEvent(input$transpose2 , {
     if(length(myReactives$maps)>1) {
       mapsSelection=input$table_maps_rows_selected
       map_idx = selectMap(maps = myReactives$maps, idx = input$selectMap2)
@@ -1962,7 +1975,7 @@ X_LOCATION  Y_LOCATION  VALUE",
     #browser()
     drawRstr(map = myReactives$maps[[map_idx]]$rstr,zoom = myReactives$zoom, 
              pal = mapPalList[[input$mapPalSelect1]],
-             alpha = input$mapPalTransp1,
+             alpha = input$mapPalAlpha1,
              contours = input$showContours1,
              interpolate = input$interpMap1)
     drawWells(myReactives$wells, myReactives$maps[[map_idx]]$rstr, sr = input$table_wells_rows_selected,srmap = input$table_maps_rows_selected)
@@ -1973,7 +1986,7 @@ X_LOCATION  Y_LOCATION  VALUE",
       map_idx = selectMap(maps = myReactives$maps, idx = input$selectMap2)
       drawRstr(myReactives$maps[[map_idx]]$rstr,myReactives$zoom, 
                pal = mapPalList[[input$mapPalSelect2]],
-               alpha = input$mapPalTransp2,
+               alpha = input$mapPalAlpha2,
                contours = input$showContours2,
                interpolate = input$interpMap2)
       drawWells(myReactives$wells, myReactives$maps[[map_idx]]$rstr, sr = input$table_wells_rows_selected,srmap = input$table_maps_rows_selected)
@@ -2001,11 +2014,11 @@ X_LOCATION  Y_LOCATION  VALUE",
   #CB: histogram plot  ####
   output$histPlot1 <- renderPlot({
     map_idx = selectMap(maps = myReactives$maps, idx = input$selectMap1)
-    drawHist(myReactives$maps[[map_idx]]$mat, input$bins)
+    drawHist(myReactives$maps[[map_idx]], input$bins)
   })
   output$histPlot2 <- renderPlot({
     map_idx = selectMap(maps = myReactives$maps, idx = input$selectMap2)
-    drawHist(myReactives$maps[[map_idx]]$mat, input$bins)
+    drawHist(myReactives$maps[[map_idx]], input$bins)
   })
   
   #CB: hexbin plot xplot ####
@@ -2031,7 +2044,7 @@ X_LOCATION  Y_LOCATION  VALUE",
     myReactives$nnet_map = drawNNETmap(data = myReactives$liveMaps,
                                         sr = input$table_maps_rows_selected,
                                         nnet = myReactives$nnet)
-    removeModal()
+    
   })
   #CB: NNET plot model ####
   output$nnetPlot <- renderPlot({
@@ -2044,20 +2057,20 @@ X_LOCATION  Y_LOCATION  VALUE",
     resmap = mod$map
     title = mod$title
     
-    if(is.null(model)) return(NULL)
+    if(is.null(model))
+    {
+      removeModal()
+      plotError("Пустая выборка.\n Проверьте согласованность координат скважин и карт")
+      return(NULL)
+    }
     
     #browser()
     
     if(mode == "res"){
-      
-      colors = mapPalette(128)
-      colors = setPaletteTransp(colors,0.5)
+      mapPar=getMapPar()
       drawModMap(datplot = resmap,title = unlist(title),
-                 colors = colors,
-                 zoom = myReactives$zoom,interpolate = T)
-      # myReactives$nnet_map = drawNNETmap(data = myReactives$liveMaps,
-      #                                    sr = input$table_maps_rows_selected,
-      #                                    nnet = myReactives$nnet)
+                 colors = mapPar$col,
+                 zoom = myReactives$zoom,interpolate = mapPar$interp)
       drawWells(wells = myReactives$wells, 
                 sr = input$table_wells_rows_selected,
                 srmap = input$table_maps_rows_selected)
@@ -2076,17 +2089,15 @@ X_LOCATION  Y_LOCATION  VALUE",
     paste(frm)
   })
   
-  output$nnetXText <- renderText({ #renderPrint
-    #txt <- getModelXplotText (myReactives$wells@data, myReactives$nnet, input$table_wells_rows_selected)
-    #paste(txt)
-  })
-
   recalcGLM <- reactive({
     showModDial("Создание модели многомерной линейной регрессии...")
     myReactives$glm <- buildGLM(myReactives$wells, input$table_wells_rows_selected, input$table_maps_rows_selected)
+    mapPar = getMapPar()
+
     myReactives$glm_map= drawGLMmap(data = myReactives$liveMaps,
                                     sr = input$table_maps_rows_selected,
-                                    glm = myReactives$glm)      
+                                    glm = myReactives$glm,
+                                    colors = mapPar$col)      
   })
   #CB: GLM plot model ####
   output$glmPlot <- renderPlot({
@@ -2100,19 +2111,24 @@ X_LOCATION  Y_LOCATION  VALUE",
     title = mod$title
     
     #browser()
+    if(is.null(model)) {
+      removeModal()
+      plotError("Пустая выборка.\n Проверьте согласованность координат скважин и карт")
+      return(NULL)
+    }
     
-    #browser()
     if(mode == "mod") {    
       par(mfrow = c(2,2))
       plot(myReactives$glm)
     } else if(mode =="xplot") {
       drawModelXplot (myReactives$wells@data, myReactives$glm, input$table_wells_rows_selected)
     } else if(mode =="res") {
-      colors = mapPalette(128)
-      colors = setPaletteTransp(colors,0.5)
+      #colors = mapPalList[["Радуга"]](128)
+      mapPar = getMapPar()
+
       drawModMap(datplot = resmap,title = unlist(title),
-                 colors = colors,
-                 zoom = myReactives$zoom,interpolate = T)
+                 colors = mapPar$col,
+                 zoom = myReactives$zoom,interpolate = mapPar$interp)
       drawWells(wells = myReactives$wells, 
                 sr = input$table_wells_rows_selected,
                 srmap = input$table_maps_rows_selected)
@@ -2134,14 +2150,13 @@ X_LOCATION  Y_LOCATION  VALUE",
     #dbgmes(message = "maps=",myReactives$liveMaps)
     showModDial("Кластеризация K-means...")
     myReactives$km <- calcKMeans(myReactives$liveMaps,input$numClasses)#,sr = input$table_maps_rows_selected)
-    removeModal()
-    return(myReactives$hcm)
   })
   
   #CB: KM plot model ####
   output$kmPlot <- renderPlot({
     recalcKMeans()
     drawModel(myReactives$liveMaps,myReactives$km)
+    removeModal()
   })
 
   output$kmText <- renderText({ #renderPrint renderText
@@ -2155,6 +2170,7 @@ X_LOCATION  Y_LOCATION  VALUE",
     drawWells(wells = myReactives$wells, 
               sr = input$table_wells_rows_selected,
               srmap = input$table_maps_rows_selected)
+    removeModal()
   })
 
   output$kmXText <- renderText({ #renderPrint renderText
@@ -2174,7 +2190,6 @@ X_LOCATION  Y_LOCATION  VALUE",
     showModDial("Кластеризация Gaussian Mixture - EM...")
     myReactives$gmm <- calcGMM(myReactives$liveMaps,nClasses)
     #myReactives$gmm <- calcGMM(myReactives$liveMaps,nClasses)
-    removeModal() 
     if(input$numClassUD)
       updateSliderInput(session,"numClasses",value = myReactives$gmm$G)
     return(myReactives$gmm)
@@ -2184,6 +2199,7 @@ X_LOCATION  Y_LOCATION  VALUE",
   output$gmmPlot <- renderPlot({
     recalcGMM()
     drawModel(myReactives$liveMaps,myReactives$gmm)
+    removeModal() 
   })
 
   output$gmmText <- renderText({ #renderPrint renderText
@@ -2203,13 +2219,37 @@ X_LOCATION  Y_LOCATION  VALUE",
     drawWells(wells = myReactives$wells, 
               sr = input$table_wells_rows_selected,
               srmap = input$table_maps_rows_selected)
+    removeModal() 
   })
   
   output$gmAuxPlot <- renderPlot({
     recalcGMM()
     drawModBIC(model = myReactives$gmm,mode = input$gmmAuxMode)
+    removeModal() 
   })
   
+  getMapPar <- function()
+  {
+    if(input$mapsTabs == "mapTab1") 
+    {
+      interp = input$interpMap1
+      colors = mapPalList[[input$mapPalSelect1]](128)
+      alpha = input$mapPalAlpha1
+    }
+    else if (input$mapsTabs == "mapTab2") 
+    {
+      interp = input$interpMap2
+      colors = mapPalList[[input$mapPalSelect2]](128)
+      alpha = input$mapPalAlpha2
+    }
+    else {
+      colors = rainbow(128)
+      interp = T
+      alpha = 0.5
+    }
+    colors = setPaletteTransp(colors,1-alpha)
+    return(list(col = colors,interp = interp))
+  }
   #CB: Map download ####
   getCurrentModel <- function () {
     main = input$main
@@ -2242,12 +2282,12 @@ X_LOCATION  Y_LOCATION  VALUE",
         model = myReactives$nnet
         mode = mode_aux = input$nnetAuxMode
         resmap = myReactives$nnet_map
-        title = class(model)
+        title = capture.output(summary(model$net))[1]
       } else if(input$models == 'glm') {
         model = myReactives$glm
         mode = mode_aux = input$glmAuxMode
         resmap = myReactives$glm_map
-        title = class(model)
+        title = "Generalized multiple linear regression"
       }
     }
     #browser()
@@ -2445,11 +2485,10 @@ X_LOCATION  Y_LOCATION  VALUE",
         }
       }
       if( mode == 'res'){
-        colors = mapPalette(128)
-        colors = setPaletteTransp(colors,0.5)
+        mapPar = getMapPar()
         drawModMap(datplot = resmap,title = title,
-                    colors = colors,
-                    zoom = myReactives$plot_zoom,interpolate = T)
+                    colors = mapPar$col,
+                    zoom = myReactives$plot_zoom,interpolate = mapPar$interp)
         drawWells(wells = myReactives$wells, 
                   sr = input$table_wells_rows_selected,
                   srmap = input$table_maps_rows_selected)

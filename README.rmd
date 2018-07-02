@@ -12,23 +12,32 @@ This is the README file for the pilot Shiny app for the map-well and clustering 
  
 # TODO: 
 ###   DONE: 1. Control Point loading
+Control Points are used along with the wells coordinates and contain a property values which we want to predict using the maps. The file should be of form X Y value.
 ###   DONE: 2. Add CP managing
+When the control points file is loaded, each CP is assigned to closest well location so youdon't have to have well id in the file.
 ###   DONE: 3. linear models evaluation
 ###   DONE: 4. Linear models results presentation
 ###   DONE: 5. Multiple (more than 2) maps loading 
+There is no limit defined for the number of loaded maps you can use.
 ###   DONE: 6. Maps Management
+After you loaded maps, you can select replace and delete maps in the list. 
 ###   INPROGRESS: 7. provide different Prediction types 
+Currently for prediction you can use 2 methods: 
+* MLP neural network
+* Generalized multiple regression
+
 ####  INPROGRESS: 7.1. classification tools
-##### FIXME: 7.1.1 Check the training - the xplot looks strange of the given NNET complexity
+##### FIXED: 7.1.1 Check the training - the xplot looks strange of the given NNET complexity
 ####  INPROGRESS: 7.2. Neural networks tools
 ####  DONE: 7.2.1 Add NNET maps prediction
-####  TODO: 7.2.2 Add saving of the prediction result
+####  DONE: 7.2.2 Add saving of the prediction result
 ####  DONE: 7.2.3 Add NNET QC tools
-####  DONE: 7.3. Linear Models types selection
-####  TODO: 7.3.1. Add prediction map dispay with wells
-####  TODO: 7.3.2. Group the QC plots as for other methods
+####  TODO: 7.2.4 FIX - transfer the Min and Max from the maps to the scaling/normalizing to preserve prediction range.
+####  TODO:?7.3. Linear Models types selection 
+####  DONE: 7.3.1. Add prediction map dispay with wells
+####  DONE: 7.3.2. Group the QC plots as for other methods
 ####  DONE: 7.4. Gaussian Mixture model clastering
-##### DONE: 7.4.1 GMM automatic classes number diable chec
+##### DONE: 7.4.1 GMM automatic classes number diable check
 ##### DONE: 7.4.2 Add BIC plot to GMM
 ##### DONE: 7.5 Add Hclust to clusterization methods
 ##### FIXME: 7.5.1 Fix Hclust Model and result Labeling
@@ -44,22 +53,23 @@ This is the README file for the pilot Shiny app for the map-well and clustering 
 ###   DONE: 12. Add modal messages during long-term calculations/loading
 ####  DONE: 12.1 Add progress idication to the Modal Panels
 ###   DONE: 13. Move Maps-only classification tabs from Models to Maps Tab
-###   TODO: 14. Apply Upscaling only to selected maps, if any, to reduce processing time. (manage upscaling parameter?)
-###   TODO:?15. Transform the Model/Reslut tabs into radio group and reduce the plot+text to one per model type
+###   DFRD: 14. Apply Upscaling only to selected maps, if any, to reduce processing time. (manage upscaling parameter?)
+###   DONE:?15. Transform the Model/Reslut tabs into radio group and reduce the plot+text to one per model type
 ###   DONE:?16. Add palette selection for the maps
-###   TODO: 17. Add maps averaging
+###   TODO:!17. Add maps averaging
 ###   DONE: 18. Add bilinear smoothing for Rasters DIsplay plots
 ###   DONE: 19. Add maps selection for the Map display tabs
 ###   DONE: 20. Add KM and GMM classes id remapping after calculation according to the Wells' CPs
-####  TODO:?20.1 Add classes remapping for classes not covered by wells through the classes covered by wells' CP
+####  DFRD:?20.1 Add classes remapping for classes not covered by wells through the classes covered by wells' CP
 ###   DONE: 21. Add Results Zoom option modal popup
 ###   DONE: 23. Add Brush zoom in the Results Modal popups.
 ###   DONE: 24. Add Hover text with X.Y.Z on the Results zoom modal popup
 ###   DONE: 26. Added the 0.5 transparency in Classification results plot
-###   TODO:?27. Make use of raster Layers instead of separate rasters !!!
+###   TODO:?27. Make use of raster Layers instead of separate rasters
 ###   DONE: 28. Add input Maps transparency setting
 ###   DONE: 29. Add optional Contours display for input maps
-###   TODO: 30. Tune the hover delay in zoom modal plots
+###   DONE: 30. Tune the hover delay in zoom modal plots
 ###   TODO: 31. Estimate and print the StD of wells' CP for each class
-###   TODO: 32. Add Export format Selection (XYZ/ESRI/ZAMP)
+###   DONE: 32. Add Export format Selection (XYZ/ESRI/ZAMP?)
+###   DONE: 33. Refine the Histogram display with density plots overlay and maybe some additional statistics (mean,median,std)
 

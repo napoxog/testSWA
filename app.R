@@ -550,7 +550,7 @@ upscaleMap <- function(map_obj = NULL, fact = 1.0, func = mean, focalSize = 0) {
     msize = floor(focalSize*1000/max(stepx,stepy)/2)*2+1
     if( msize < rstr@nrows && msize < rstr@ncols && msize > 1 )
     rstr = focal(rstr, w = matrix(1,msize,msize), fun = func, 
-                 pad = TRUE, na.rm = T , NAonly = F)
+                 pad = F, na.rm = T , NAonly = F)
   }
   map_obj$rstr = rstr
   map_obj$mat = as.vector(rstr)
@@ -1738,6 +1738,8 @@ server <- function(input, output, session) {
   })
   
   recalcMaps <- reactive ({
+    #return()
+    invalidateLater(5000, session)
     if(is.null(myReactives$maps) || length(myReactives$maps) == 0 ) {
       myReactives$maps <- append(myReactives$maps,list(def_map))
       myReactives$maps <- append(myReactives$maps,list(def_map))

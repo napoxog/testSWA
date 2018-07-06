@@ -198,6 +198,18 @@ ui <- fluidPage(theme = shinytheme("simplex"),
                                    value = 0.5,
                                    step = 0.1
                                  )),
+                                 div(style=paste0("display: inline-block;vertical-align:top; width: ", spacer_wid,"px;"),HTML("<br>")),
+                                 div(style=paste0("display: inline-block;vertical-align:top; width: ", as.integer(modPlot_wid/2),"px;"),sliderInput(
+                                   "rstr_focal",
+                                   "Окно осреднения:",
+                                   min = 0,
+                                   max = 5,
+                                   value = 0,
+                                   step = 0.2
+                                 )),
+                                 div(style=paste0("display: inline-block;vertical-align:top; width: ", spacer_wid,"px;"),HTML("<br>")),
+                                 div(style=paste0("display: inline-block;vertical-align:top; width: ", as.integer(modPlot_wid/2),"px;"),selectInput("focalMethod", "Метод:"
+                                             ,choices = names(flist), width = butt_wid)),
                                  div(style=paste0("display: inline-block;vertical-align:top; width: ", as.integer(modPlot_wid/2),"px;"),fileInput(
                                    "Mapsfile",
                                    "Открыть/Заменить карту:",
@@ -361,9 +373,9 @@ ui <- fluidPage(theme = shinytheme("simplex"),
                 "max_iter",
                 "Число итераций:",
                 min = 10,
-                max = 500,
+                max = 200,
                 value = 50,
-                step =10
+                step =5
               )),
               verbatimTextOutput("nnetText"),
               radioButtons("nnetAuxMode",
@@ -404,10 +416,6 @@ ui <- fluidPage(theme = shinytheme("simplex"),
       
       tabsetPanel( id = "mapsTabs",
         # UI: Tabs with Maps and related ####
-        #tabPanel(
-        #  "Скважины",
-        #   dataTableOutput('table_wells')
-        #),
         tabPanel(
           #UI: Tab1 ####
           uiOutput("tab1"), value = "mapTab1",
@@ -416,7 +424,7 @@ ui <- fluidPage(theme = shinytheme("simplex"),
               verticalLayout(
                 flowLayout(
                   selectInput("selectMap1", "Карта"
-                              ,choices = NULL, width = butt_wid, 
+                              ,choices = NULL, width = butt_wid 
                   )
                 ),
                 flowLayout(
@@ -523,15 +531,27 @@ transposeMap <- function(map_obj = NULL) {
   return(map_obj)
 }
 
+
 ## upscale/dense the map to defined fraction with defined aggregation method
-upscaleMap <- function(map_obj = NULL, fact = 1.0, func = mean) {
+upscaleMap <- function(map_obj = NULL, fact = 1.0, func = mean, focalSize = 0) {
   if(is.null(map_obj)) return(NULL)
 
   rstr = raster(map_obj$map)
   if (fact > 1.0) 
     rstr = disaggregate(rstr,fact = fact, method = 'bilinear')
   else if (fact < 1.0) 
-    rstr = aggregate(rstr,fact = ceiling(1.0/fact), expand = TRUE, fun = func)
+    rstr = aggregate(rstr,fact = ceiling(1.0/fact), expand = TRUE, fun = mean)
+  
+  if(focalSize>0)
+  {
+    #browser()
+    stepx=(rstr@extent@xmax-rstr@extent@xmin)/rstr@ncols
+    stepy=(rstr@extent@ymax-rstr@extent@ymin)/rstr@nrows
+    msize = floor(focalSize*1000/max(stepx,stepy)/2)*2+1
+    if( msize < rstr@nrows && msize < rstr@ncols && msize > 1 )
+    rstr = focal(rstr, w = matrix(1,msize,msize), fun = func, 
+                 pad = TRUE, na.rm = T , NAonly = F)
+  }
   map_obj$rstr = rstr
   map_obj$mat = as.vector(rstr)
   
@@ -635,6 +655,7 @@ loadWells <- function(file_obj = NULL) {
   return(wells_)
 }
 
+# Debug information print with call info
 dbgmes <- function (message = "message", expr = NULL) {
   #browser()
   funame = unlist(strsplit(x = as.character(sys.calls()[length(sys.calls())-1]),split = "\\("))
@@ -1089,20 +1110,6 @@ drawGLMmap <- function (data = NULL ,sr = NULL, glm = NULL,zoom = NULL, colors =
   datplot@data@values[lividx] <- res
   datplot@data@values[datplot@data@values==0] <- NA
   
-  #browser()
-  #colors = mapPalList[["Радуга"]](128)
-  # colors = setPaletteTransp(colors,0.5)
-  # 
-  # if(is.null(zoom))
-  #   plot(datplot,
-  #        main = title,
-  #        col = colors ,interpolate=T)
-  # else
-  #   plot(datplot,
-  #        main = title,
-  #        xlim = zoom[1,], ylim = zoom[2,],
-  #        col = colors,interpolate=T)
-  
   return (datplot)
 }  
 
@@ -1152,19 +1159,12 @@ drawModelQC <- function(fit = NULL){
 }
 
 drawModelXplot <- function(data = NULL, lmfit = NULL, srows = NULL) {
-  #sel = c( 1:length(data$WELL))
-  #sel[srows] = NA
-  #sel = sel[!is.na(data$Values)]
-  #sel = sel[!is.na(sel)]
+
   predicted = predict(lmfit)
-  #browser()
-  #measured = data$Values[sel]
   measured = data$Values[data$WELL %in% names(predicted)]
   #dbgmes(message = "res=",cbind(measured,predicted))
   abl = lm(predicted~measured)
-  #sel[input$table_wells_rows_selected] = FALSE
-  #sel <- sel[!is.na(myReactives$wells@data$Values)]
-  
+
   xccf = ccf(measured, predicted, lag.max = 0, plot = F)
   tit = sprintf("Кроссплот CC=%5.2f Rsq=%5.2f", xccf$acf, as.numeric(xccf$acf) ^ 2)
   
@@ -1172,12 +1172,7 @@ drawModelXplot <- function(data = NULL, lmfit = NULL, srows = NULL) {
        xlim = bbexpand(c(min(measured),max(measured)),0.1),
        ylim = bbexpand(c(min(predicted),max(predicted)),0.1))
   abline(abl)
-  #text(mean(measured),min(predicted) + (max(predicted)-min(predicted))*1.1,
-  #     paste(abl$call$formula[2]," = ", 
-  #           abl$call$formula[3]," * ",prettyNum(abl$coefficients[2]),"+",
-  #           prettyNum(abl$coefficients[1])))
-  #text(measured,predicted, labels = data$WELL[sel], pos = 1)
-  #glm
+
   text(measured,predicted, labels = names(predicted), pos = 1)
   
 
@@ -1330,7 +1325,7 @@ drawModMapPlot <- function (data = NULL, model = NULL, sr = NULL, zoom = NULL, n
   datplot@data@values[datplot@data@values==0] <- NA
   datplot@data@min = min(datplot@data@values,na.rm = T)
   datplot@data@max = max(datplot@data@values,na.rm = T)
-  
+# focal processing  ####
   if(msize!=1)
     datplot <- focal(datplot, w = matrix(1,msize,msize), fun = fill.na, 
                 pad = TRUE, na.rm = FALSE , NAonly = T)
@@ -1742,15 +1737,37 @@ server <- function(input, output, session) {
                               c(input$plot_brush$ymin,input$plot_brush$ymax))
   })
   
-
-  #CB: update upscalingmethid ####
-  observeEvent(input$funcSelect1, {
-    map_obj = upscaleMap(myReactives$map1,input$rstr_fact,func = flist[[input$funcSelect1]])
-    observe(myReactives$map1 <- map_obj)
+  recalcMaps <- reactive ({
+    if(is.null(myReactives$maps) || length(myReactives$maps) == 0 ) {
+      myReactives$maps <- append(myReactives$maps,list(def_map))
+      myReactives$maps <- append(myReactives$maps,list(def_map))
+      myReactives$liveMaps <- getLiveMapsData(maps = myReactives$maps, sr = input$table_maps_rows_selected)
+      updateMapLists(myReactives$maps,input$table_maps_rows_selected)
+    }
+    showModDial("Обработка карт...")
+    mapsSelection =  input$table_maps_rows_selected 
+    withProgress(message = "Обработка карт...", detail = "Ожидайте...",  value =0, {
+      for (i in 1:length(myReactives$maps)) {
+        map_obj = upscaleMap(myReactives$maps[[i]],input$rstr_fact,func = flist[[input$focalMethod]],focalSize = input$rstr_focal)
+        incProgress(detail = paste0('"',map_obj$fn,'"'), amount = 1./length(myReactives$maps))
+        myReactives$wells <- extractMap2Well(myReactives$wells,map_obj$rstr, paste0 ("Map",i))
+        myReactives$maps[[i]] <- map_obj
+      }
+    })
+    myReactives$liveMaps <- getLiveMapsData(maps = myReactives$maps, sr = input$table_maps_rows_selected)
+    myReactives$liveMaps <- getLiveMapsData(maps = myReactives$maps, sr = input$table_maps_rows_selected)
+    #updateMapLists(myReactives$maps,input$table_maps_rows_selected)
+    selectRows(dtMapsProxy,as.numeric(mapsSelection))
+    #dbgmes(message = "upscaling=",c(length(myReactives$liveMaps),length(myReactives$maps)))
+    removeModal()
   })
-  observeEvent(input$funcSelect2, {
-    map_obj = upscaleMap(myReactives$map2,input$rstr_fact,func = flist[[input$funcSelect2]])
-    observe(myReactives$map2 <- map_obj)
+
+  #CB: set focal ####
+  observeEvent(input$focalMethod, {
+    recalcMaps()
+  })
+  observeEvent(input$rstr_focal, {
+    recalcMaps()
   })
   
   #CB: load Wells ####
@@ -1836,7 +1853,7 @@ X_LOCATION  Y_LOCATION  VALUE",
                    
                 for(i in 1:length(input$Mapsfile[,1])) {
                   map_obj = loadMapFile(input$Mapsfile[i,], loadFunc = input$mapFormatSel)
-                  map_obj = upscaleMap(map_obj,input$rstr_fact,func = mean)
+                  map_obj = upscaleMap(map_obj,input$rstr_fact,func = flist[[input$focalMethod]],focalSize = input$rstr_focal)
                   
                   if (is.null(map_obj)) 
                      showNotification(ui = "Ошибка при загрузке. Ожидаемый формат - ESRI ASCIIgrid.",
@@ -1875,9 +1892,10 @@ X_LOCATION  Y_LOCATION  VALUE",
     #browser()
     
     res = deleteMaps(myReactives$maps,myReactives$wells,sr = input$table_maps_rows_selected)
+    #browser()
     myReactives$wells <- res$wells
     myReactives$maps <- res$maps
-    myReactives$liveMaps <- getLiveMapsData(maps = myReactives$maps, sr = input$table_maps_rows_selected)
+    myReactives$liveMaps <- getLiveMapsData(maps = myReactives$maps)
     updateMapLists(myReactives$maps)
   })
   
@@ -1891,11 +1909,6 @@ X_LOCATION  Y_LOCATION  VALUE",
     for(im in 1:nsr)  
       names(sr)[im]=maps[[sr[im]]]$fn
     
-    #sel1=as.integer(input$selectMap1)
-    #sel2=as.integer(input$selectMap2)
-    #dbgmes(message = "selected_in = ",c(sel1,sel2))
-    #if(is.null(sel1) || is.na(sel1)|| sel1 == "") sel1 = NULL
-    #if(is.null(sel2) || is.na(sel2)|| sel2 == "") sel2 = NULL
     updateSelectInput(session,"selectMap1",choices = c(sr))#,selected = sel1)
     updateSelectInput(session,"selectMap2",choices = c(sr))#,selected = sel2)
     #dbgmes(message = "choices = ",sr)
@@ -1938,18 +1951,22 @@ X_LOCATION  Y_LOCATION  VALUE",
   
   #CB: upscaling  ####
   observeEvent(input$rstr_fact , {
+    recalcMaps()
+    return()
     #showModal(modalDialog( "Обработка карт...",title = "Ожидайте...", footer = modalButton("Закрыть")))
     showModDial("Обработка карт...")
     mapsSelection=input$table_maps_rows_selected
+    
     withProgress(message = "Обработка карт...", detail = "Ожидайте...",  value =0, {
-    for (i in 1:length(myReactives$maps)) {
-      map_obj = upscaleMap(myReactives$maps[[i]],input$rstr_fact,func = median)
-      incProgress(detail = paste0('"',map_obj$fn,'"'), amount = 1./length(myReactives$maps))
-      myReactives$wells <- extractMap2Well(myReactives$wells,map_obj$rstr, paste0 ("Map",i))
-      myReactives$maps[[i]] <- map_obj
-    }
+      recalcMaps()
+    #   for (i in 1:length(myReactives$maps)) {
+    #   map_obj = upscaleMap(myReactives$maps[[i]],input$rstr_fact,func = flist[[input$focalMethod]],focalSize = input$rstr_focal)
+    #   incProgress(detail = paste0('"',map_obj$fn,'"'), amount = 1./length(myReactives$maps))
+    #   myReactives$wells <- extractMap2Well(myReactives$wells,map_obj$rstr, paste0 ("Map",i))
+    #   myReactives$maps[[i]] <- map_obj
+    # }
       })
-    myReactives$liveMaps <- getLiveMapsData(maps = myReactives$maps, sr = input$table_maps_rows_selected)
+    #myReactives$liveMaps <- getLiveMapsData(maps = myReactives$maps, sr = input$table_maps_rows_selected)
     selectRows(dtMapsProxy,as.numeric(mapsSelection))
     #dbgmes(message = "upscaling=",c(length(myReactives$liveMaps),length(myReactives$maps)))
     removeModal()
@@ -1961,13 +1978,6 @@ X_LOCATION  Y_LOCATION  VALUE",
       myReactives$wells <- wells0
       for (i in 1:length(myReactives$maps)) 
         myReactives$wells <- extractMap2Well(myReactives$wells,myReactives$maps[[i]]$rstr, paste0 ("Map",i))
-    }
-    if(is.null(myReactives$maps) || length(myReactives$maps) == 0 ) {
-      map_obj <- upscaleMap(def_map,input$rstr_fact,func = median)
-      myReactives$maps <- append(myReactives$maps,list(map_obj))
-      myReactives$maps <- append(myReactives$maps,list(map_obj))
-      myReactives$liveMaps <- getLiveMapsData(maps = myReactives$maps, sr = input$table_maps_rows_selected)
-      updateMapLists(myReactives$maps,input$table_maps_rows_selected)
     }
     map_idx = selectMap(maps = myReactives$maps, idx = input$selectMap1)
     #dbgmes(message = "map_idx=",map_idx)
@@ -2023,11 +2033,6 @@ X_LOCATION  Y_LOCATION  VALUE",
   
   #CB: hexbin plot xplot ####
   output$xPlot_hex <- renderPlot({
-    if(is.null(myReactives$maps) || length(myReactives$maps) == 0 ) {
-      map_obj <- upscaleMap(def_map,input$rstr_fact,func = median)
-      myReactives$maps <- append(myReactives$maps,list(map_obj))
-      myReactives$maps <- append(myReactives$maps,list(map_obj))
-    }
     map_idx1 = selectMap(maps = myReactives$maps, idx = input$selectMap1)
     map_idx2 = selectMap(maps = myReactives$maps, idx = input$selectMap2)
     drawHex(getXYvectors(myReactives$maps[[map_idx1]], myReactives$maps[[map_idx2]]), input$cells)

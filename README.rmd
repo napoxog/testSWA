@@ -32,7 +32,8 @@ Currently for prediction you can use 2 methods:
 ####  DONE: 7.2.1 Add NNET maps prediction
 ####  DONE: 7.2.2 Add saving of the prediction result
 ####  DONE: 7.2.3 Add NNET QC tools
-####  TODO: 7.2.4 FIX - transfer the Min and Max from the maps to the scaling/normalizing to preserve prediction range.
+####  TODO: 7.2.4 Add transfer function selection
+####  TODO: 7.2. FIX - transfer the Min and Max from the maps to the scaling/normalizing to preserve prediction range.
 ####  TODO:?7.3. Linear Models types selection 
 ####  DONE: 7.3.1. Add prediction map dispay with wells
 ####  DONE: 7.3.2. Group the QC plots as for other methods
@@ -42,6 +43,7 @@ Currently for prediction you can use 2 methods:
 ##### DONE: 7.5 Add Hclust to clusterization methods
 ##### FIXME: 7.5.1 Fix Hclust Model and result Labeling
 ###   FIXED: WA the Hclust limitation due to memory consumption. (propagate the lmited product)
+####  TODO: 7.6 Add (support vector machines)SVM clustering and prediction
 ###   TODO: 8. Add cross-validation analysis (if not included in LM)
 ###   DONE: 9. Provide batch maps loading (by path and extension)
 ##    DONE: FIX Well labeling order issue

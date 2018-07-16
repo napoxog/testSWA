@@ -32,7 +32,7 @@ Currently for prediction you can use 2 methods:
 ####  DONE: 7.2.1 Add NNET maps prediction
 ####  DONE: 7.2.2 Add saving of the prediction result
 ####  DONE: 7.2.3 Add NNET QC tools
-####  TODO: 7.2.4 Add transfer function selection
+####  DONE: 7.2.4 Add transfer function selection
 ####  TODO: 7.2. FIX - transfer the Min and Max from the maps to the scaling/normalizing to preserve prediction range.
 ####  TODO:?7.3. Linear Models types selection 
 ####  DONE: 7.3.1. Add prediction map dispay with wells

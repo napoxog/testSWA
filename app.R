@@ -97,6 +97,9 @@ names(hcmDistModes) <- c("pearson","euclidean", "maximum", "manhattan", "canberr
                           "abspearson", "correlation", "abscorrelation", 
                          "spearman" , "kendall")
 
+mlpActFuns <- list (1,2,3,4)
+names(mlpActFuns) <- c("Logistic", "Hyperbolic tangent", "Gauss","Identical function")
+
 mapPalList <- list (terrain.colors, heat.colors, topo.colors, 
                     rainbow,bpy.colors, gray.colors)
 names(mapPalList) <- c("Покров", "Тепло", "Рельеф", 
@@ -351,7 +354,7 @@ ui <- fluidPage(theme = shinytheme("simplex"),
             #UI: model NNET ####
             tabPanel(
               "NNET", value = 'nnet',
-              div(style=paste0("display: inline-block;vertical-align:top; width: ", as.integer(modPlot_wid/3),"px;"),sliderInput(
+              div(style=paste0("display: inline-block;vertical-align:top; width: ", as.integer(modPlot_wid/2),"px;"),sliderInput(
                 "nnet_complex",
                 "Сложность сети, %:",
                 min = 10,
@@ -360,7 +363,7 @@ ui <- fluidPage(theme = shinytheme("simplex"),
                 step = 5
               )),
               div(style=paste0("display: inline-block;vertical-align:top; width: ",spacer_wid,"px;"),HTML("<br>")),
-              div(style=paste0("display: inline-block;vertical-align:top; width: ", as.integer(modPlot_wid/3),"px;"),sliderInput(
+              div(style=paste0("display: inline-block;vertical-align:top; width: ", as.integer(modPlot_wid/2),"px;"),sliderInput(
                 "test_ratio",
                 "Тестовая выборка, %:",
                 min = 10,
@@ -369,7 +372,7 @@ ui <- fluidPage(theme = shinytheme("simplex"),
                 step = 5
               )),
               div(style=paste0("display: inline-block;vertical-align:top; width: ",spacer_wid,"px;"),HTML("<br>")),
-              div(style=paste0("display: inline-block;vertical-align:top; width: ", as.integer(modPlot_wid/3),"px;"),sliderInput(
+              div(style=paste0("display: inline-block;vertical-align:top; width: ", as.integer(modPlot_wid/2),"px;"),sliderInput(
                 "max_iter",
                 "Число итераций:",
                 min = 10,
@@ -377,6 +380,9 @@ ui <- fluidPage(theme = shinytheme("simplex"),
                 value = 50,
                 step =5
               )),
+              div(style=paste0("display: inline-block;vertical-align:top; width: ", spacer_wid,"px;"),HTML("<br>")),
+              div(style=paste0("display: inline-block;vertical-align:top; width: ", as.integer(modPlot_wid/2),"px;"),selectInput("nnetActFunc", "Функция передачи:"
+                    ,choices = names(mlpActFuns), width = butt_wid)),
               verbatimTextOutput("nnetText"),
               radioButtons("nnetAuxMode",
                            label = "",
@@ -956,7 +962,7 @@ drawHex <- function (xy = NULL, cells = 30) {
 }
 
 drawNNETmap <- function (data = NULL ,sr = NULL, nnet = NULL,zoom = NULL) {
-  if(is.null(data) || is.null(nnet)) return(NULL)
+  if(is.null(data) || is.null(nnet) || is.null(nnet$net)) return(NULL)
   dset = normalizeData(data[,2:length(data)],getNormParameters(nnet$dset$inputsTrain))
   res = predict(nnet$net,dset)
   res = denormalizeData(res,getNormParameters(nnet$dset$targetsTrain))
@@ -1020,7 +1026,7 @@ drawNNETmodel <-function (nnet = NULL, mode = input$nnetAuxMode) {
     
   }
 }
-buildNNET <- function(wells = NULL, rows = NULL, sel_maps = NULL, test_ratio = 0.25, max_iter = 100, nnet_complex = 0.1){
+buildNNET <- function(wells = NULL, rows = NULL, sel_maps = NULL, test_ratio = 0.25, max_iter = 100, nnet_complex = 0.1, actFunc=1){
   if(is.null(wells) || length(wells@data[1,])<4) return(NULL)
   if(is.null(sel_maps) || length(sel_maps)<1)
     data = wells@data
@@ -1047,7 +1053,7 @@ buildNNET <- function(wells = NULL, rows = NULL, sel_maps = NULL, test_ratio = 0
   #dbgmes(message = "ddd=",ddd)
   data = ddd
   
-  if(length(data) <2) return (NULL)
+  if(length(data) <1) return (NULL)
   #row.names(data) = wells$WELL
   for (i in 1:length(data[1,])){
    data = data[!is.na(data[,i]),]
@@ -1069,12 +1075,14 @@ buildNNET <- function(wells = NULL, rows = NULL, sel_maps = NULL, test_ratio = 0
     y = dset0$targetsTrain, ratio = test_ratio)
   #dbgmes(message = "dset=",dset)
   #dset = normTrainingAndTestSet(dset0,dontNormTargets = FALSE,type = getNormParameters(dset0$inputsTrain))
+  neurons = ceiling(seq.int(size/2,3, length.out = layers))
+  #browser()
+  setACtType <- function (x) {return(actFunc)} 
   nnet = mlp(dset$inputsTrain, dset$targetsTrain, 
-             size = ceiling(seq.int(size/2,3, length.out = layers)), 
+             size = neurons, 
              learnFuncParams = c(0.5),maxit = max_iter,
              inputsTest = dset$inputsTest, targetsTest = dset$targetsTest,
-             linOut = T)
-  #browser()
+             linOut = T,actfns=setACtType)
   rownames(dset0$inputsTrain) = (data$WELL)
   colnames(dset0$inputsTrain) = colnames(data[,3:length(data[1,])])
   nnout = predict( nnet, newdata = dset0$inputsTrain)  
@@ -1090,13 +1098,19 @@ plotError <- function (message = "Error!!!") {
 drawGLMmap <- function (data = NULL ,sr = NULL, glm = NULL,zoom = NULL, colors = rainbow(128)) {
   if(is.null(data) || is.null(glm)) return(NULL)
 
-  #browser()
-  dset = data[,2:length(data)]
+  #dset = data[,2:length(data)]
+  dset = data.frame(data[,2:length(data)])
+  #rownames(dset) = 
   if(is.null(sr)) {
-    names(dset) = c(paste0("Map",1:length(dset)))
+    #names(dset) = c(paste0("Map",1:length(dset)))
+    colnames(dset) = c(paste0("Map",1:length(dset[1,])))
   } else {
-    names(dset) = c(paste0("Map",sr[1:length(dset)]))
+    #names(dset) = c(paste0("Map",sr[1:length(dset)]))
+    colnames(dset) = c(paste0("Map",sr[1:length(dset[1,])]))
   }
+  #dbgmes("dset=",dset)
+  #browser()
+  
   res = predict.glm(object = glm,newdata = dset)
   
   lividx = data[,1]
@@ -1120,7 +1134,7 @@ buildGLM <- function(wells = NULL, rows = NULL, sel_maps = NULL, lmfunc = glm, f
   else {
     #data = cbind(wells@data[!is.na(wells@data),1:2],wells@data[!is.na(wells@data),2+sel_maps])
     data = data.frame(wells@data[,1:2],wells@data[,2+sel_maps])
-    #colnames(data) = c("WELL","Values",names(wells@data[2+sel_maps]))
+    colnames(data) = c("WELL","Values",names(wells@data[2+sel_maps]))
   }
   ddd = list()
   if(!is.null(rows)) {
@@ -1133,13 +1147,15 @@ buildGLM <- function(wells = NULL, rows = NULL, sel_maps = NULL, lmfunc = glm, f
   }
   #browser()
   #data = data[,!is.na(data)]
+  
   data = ddd
-  if(length(data) <2) return (NULL)
+  if(length(data) <1) return (NULL)
   
   for (i in 1:length(data[1,])){
     data = data[!is.na(data[,i]),]
   }
   
+  #dbgmes("dset=",data)
   rownames(data) = data$WELL
   parnames = colnames(data)[2:length(data)]
   frml = as.formula(paste("Values~", paste(parnames,collapse = "+")))
@@ -1204,7 +1220,7 @@ getLiveMapsIds <- function (maps = NULL, sr = NULL) {
 getLiveMapsData <- function (maps = NULL, sr = NULL) {
   if(is.null(maps)) return(NULL)
   #browser()
-  if(is.null(sr) || length(sr)<2) {
+  if(is.null(sr) || length(sr)<1) {
     sr=c(1:length(maps)) 
   } 
   #browser()
@@ -2043,11 +2059,15 @@ X_LOCATION  Y_LOCATION  VALUE",
   #CB: NNET calc model ####
   recalcNNET <- reactive ({
     showModDial("Обучение нейронной сети MLP...")
+    actFuncType <- mlpActFuns[[input$nnetActFunc]]
     myReactives$nnet <- buildNNET(myReactives$wells,
                                   input$table_wells_rows_selected, input$table_maps_rows_selected,
                                   test_ratio = input$test_ratio/100.,
                                   max_iter = input$max_iter,
-                                  nnet_complex = input$nnet_complex/100.)
+                                  nnet_complex = input$nnet_complex/100.,
+                                  actFunc = actFuncType)
+    #dbgmes("sel=",input$nnetActFunc)
+    #dbgmes("res=",mlpActFuns[[input$nnetActFunc]])
     myReactives$nnet_map = drawNNETmap(data = myReactives$liveMaps,
                                         sr = input$table_maps_rows_selected,
                                         nnet = myReactives$nnet)

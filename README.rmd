@@ -43,7 +43,7 @@ Currently for prediction you can use 2 methods:
 ##### DONE: 7.5 Add Hclust to clusterization methods
 ##### FIXME: 7.5.1 Fix Hclust Model and result Labeling
 ###   FIXED: WA the Hclust limitation due to memory consumption. (propagate the lmited product)
-####  TODO: 7.6 Add (support vector machines)SVM clustering and prediction
+####  DONE: 7.6 Add (support vector machines)SVM clustering and prediction
 ####  TODO: 7.7 Add parameters tuning analysis to model/result plots/panels
 ###   TODO: 8. Add cross-validation analysis (if not included in LM)
 ###   DONE: 9. Provide batch maps loading (by path and extension)
@@ -59,7 +59,7 @@ Currently for prediction you can use 2 methods:
 ###   DFRD: 14. Apply Upscaling only to selected maps, if any, to reduce processing time. (manage upscaling parameter?)
 ###   DONE:?15. Transform the Model/Reslut tabs into radio group and reduce the plot+text to one per model type
 ###   DONE:?16. Add palette selection for the maps
-###   TODO:!17. Add maps averaging
+###   DONE:!17. Add maps averaging
 ###   DONE: 18. Add bilinear smoothing for Rasters DIsplay plots
 ###   DONE: 19. Add maps selection for the Map display tabs
 ###   DONE: 20. Add KM and GMM classes id remapping after calculation according to the Wells' CPs
@@ -75,6 +75,7 @@ Currently for prediction you can use 2 methods:
 ###   TODO: 31. Estimate and print the StD of wells' CP for each class
 ###   DONE: 32. Add Export format Selection (XYZ/ESRI/ZAMP?)
 ###   DONE: 33. Refine the Histogram display with density plots overlay and maybe some additional statistics (mean,median,std)
-###   TODO: 34. Add option to add Classification/prediction results directly to input MapsList
+###   DONE: 34. Add option to add Classification/prediction results directly to input MapsList
 ###   FIXME: Mpas selection with 1 additional map works oddly
+###   TODO: 35. Make the maps min and max to be used in the training datasets (in normalization)
 

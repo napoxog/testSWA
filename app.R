@@ -23,7 +23,7 @@ require(raster)
 require(sp)
 require(RANN)
 require(RSNNS)
-#require(ClusterR)
+require(e1071)
 require(mclust)
 require(amap)
 require(hexbin)
@@ -66,6 +66,16 @@ names(nnetDispMode) <- c("Модель","Сеть","Кроссплот","Про�
 
 glmDispMode <- list("mod","xplot","res")
 names(glmDispMode) <- c("Модель","Кроссплот","Прогноз")
+
+svmDispMode <- list("mod","xplot","res")
+names(svmDispMode) <- c("Модель","Кроссплот","Прогноз")
+
+svmModels <- list("nu-regression",
+                  "eps-regression",
+                  "C-classification",
+                  "nu-classification",
+                  "one-classification"
+                  )
 
 hcmModes_hclust <- list("ward.D", "ward.D2", "single", "complete", "average" , 
                  "mcquitty" , "median" , "centroid")
@@ -201,7 +211,7 @@ ui <- fluidPage(theme = shinytheme("simplex"),
                                    value = 0.5,
                                    step = 0.1
                                  )),
-                                 div(style=paste0("display: inline-block;vertical-align:top; width: ", spacer_wid,"px;"),HTML("<br>")),
+                                 #div(style=paste0("display: inline-block;vertical-align:top; width: ", spacer_wid,"px;"),HTML("<br>")),
                                  div(style=paste0("display: inline-block;vertical-align:top; width: ", as.integer(modPlot_wid/2),"px;"),sliderInput(
                                    "rstr_focal",
                                    "Окно осреднения:",
@@ -281,6 +291,7 @@ ui <- fluidPage(theme = shinytheme("simplex"),
                                                           height = modPlot_wid
                                                         ),
                                                         downloadButton('downloadKMMap', 'Сохранить карту'),
+                                                        actionButton('addKMMap2inp', 'Поместить во входные'),
                                                         verbatimTextOutput("kmXText")
                                               )
                                  )
@@ -303,6 +314,7 @@ ui <- fluidPage(theme = shinytheme("simplex"),
                                                            height = modPlot_wid
                                                          ),
                                                          downloadButton('downloadGMMap', 'Сохранить карту'),
+                                                         actionButton('addGMMap2inp', 'Поместить во входные'),
                                                          verbatimTextOutput("gmmXText")
                                                ),
                                                tabPanel( "Дополнительно", value = "aux",
@@ -342,6 +354,7 @@ ui <- fluidPage(theme = shinytheme("simplex"),
                                                            height = modPlot_wid
                                                          ),
                                                          downloadButton('downloadHCmap', 'Сохранить карту'),
+                                                         actionButton('addHCMap2inp', 'Поместить во входные'),
                                                          verbatimTextOutput("hcXText")
                                                )
                                   )#,                                  verbatimTextOutput("hcXText")
@@ -354,6 +367,14 @@ ui <- fluidPage(theme = shinytheme("simplex"),
             #UI: model NNET ####
             tabPanel(
               "NNET", value = 'nnet',
+              verbatimTextOutput("nnetText"),
+              radioButtons("nnetAuxMode",
+                           label = "",
+                           choices = nnetDispMode,
+                           inline=T
+              ),
+              conditionalPanel(
+                condition = "input.models == 'nnet' && input.nnetAuxMode == 'mod' || input.models == 'modelHC'",
               div(style=paste0("display: inline-block;vertical-align:top; width: ", as.integer(modPlot_wid/2),"px;"),sliderInput(
                 "nnet_complex",
                 "Сложность сети, %:",
@@ -371,7 +392,7 @@ ui <- fluidPage(theme = shinytheme("simplex"),
                 value = 30,
                 step = 5
               )),
-              div(style=paste0("display: inline-block;vertical-align:top; width: ",spacer_wid,"px;"),HTML("<br>")),
+              #div(style=paste0("display: inline-block;vertical-align:top; width: ",spacer_wid,"px;"),HTML("<br>")),
               div(style=paste0("display: inline-block;vertical-align:top; width: ", as.integer(modPlot_wid/2),"px;"),sliderInput(
                 "max_iter",
                 "Число итераций:",
@@ -382,13 +403,7 @@ ui <- fluidPage(theme = shinytheme("simplex"),
               )),
               div(style=paste0("display: inline-block;vertical-align:top; width: ", spacer_wid,"px;"),HTML("<br>")),
               div(style=paste0("display: inline-block;vertical-align:top; width: ", as.integer(modPlot_wid/2),"px;"),selectInput("nnetActFunc", "Функция передачи:"
-                    ,choices = names(mlpActFuns), width = butt_wid)),
-              verbatimTextOutput("nnetText"),
-              radioButtons("nnetAuxMode",
-                           label = "",
-                           choices = nnetDispMode,
-                           inline=T
-              ),
+                    ,choices = names(mlpActFuns), width = butt_wid))),
               plotOutput(
                 "nnetPlot",
                 click = "plot_zoom",
@@ -409,9 +424,28 @@ ui <- fluidPage(theme = shinytheme("simplex"),
                 click = "plot_zoom",
                 height = modPlot_wid
               )
+            ),
+            #UI: model SVM ####
+            tabPanel(
+              "SVM", value = 'svm',
+              verbatimTextOutput("svmText"),
+              radioButtons("svmAuxMode",
+                           label = "",
+                           choices = svmDispMode,
+                           inline=T
+              ),
+              plotOutput(
+                "svmPlot",
+                click = "plot_zoom",
+                height = modPlot_wid
+              ),
+              selectInput("svmModelType","Тип модели", 
+                          choices = svmModels)
             )
+            
           ),
-          downloadButton('downloadModMap', 'Сохранить карту')
+          downloadButton('downloadModMap', 'Сохранить карту'),
+          actionButton('addModMap2inp', 'Поместить во входные')
         )
       )
       
@@ -565,28 +599,34 @@ upscaleMap <- function(map_obj = NULL, fact = 1.0, func = mean, focalSize = 0) {
 }
 
 ## load map file in ESRI ascii grid format, with optional transposing of the matrix ##
-loadMapFile <- function (file_obj = NULL, transpose = FALSE, loadFunction = "ESRI ASCII грид") {
+loadMapFile <- function (file_obj = NULL, transpose = FALSE, loadFunction = "ESRI ASCII грид", spgid = NULL) {
   #cat(capture.output(loadFunc))
-  loadFunc = mapFormatsRead[[loadFunction]]
-  if (is.null(file_obj)) {
-    map = try( expr = loadFunc("../Data/Maps/default.asc") , TRUE)
-    if(class(map)=="try-error"){
-      return(NULL)
+  if(is.null(spgid)) {
+    loadFunc = mapFormatsRead[[loadFunction]]
+    if (is.null(file_obj)) {
+      map = try( expr = loadFunc("../Data/Maps/default.asc") , TRUE)
+      if(class(map)=="try-error"){
+        return(NULL)
+      }
+      fn = "default.asc"
+    } else {
+      map = try( expr = loadFunc(file_obj$datapath), TRUE)
+      if(class(map)=="try-error"){
+        return(NULL)
+      }
+      fn = file_obj$name
     }
-    fn = "default.asc"
-  } else {
-    map = try( expr = loadFunc(file_obj$datapath), TRUE)
-    if(class(map)=="try-error"){
-      return(NULL)
+    if(loadFunction != "ESRI ASCII грид") {
+      browser()
+      rstr = rasterFromXYZ(map)
+      map = as(rstr,'SpatialGridDataFrame')
+    } else {
+      rstr = raster(map)
     }
-    fn = file_obj$name
-  }
-  if(loadFunction != "ESRI ASCII грид") {
-    browser()
-    rstr = rasterFromXYZ(map)
-    map = as(rstr,'SpatialGridDataFrame')
   } else {
-    rstr = raster(map)
+    fn = basename(names(spgid@data))
+    map = spgid
+    rstr = raster(spgid)
   }
   
   names(map@data) = fn
@@ -662,9 +702,12 @@ loadWells <- function(file_obj = NULL) {
 }
 
 # Debug information print with call info
-dbgmes <- function (message = "message", expr = NULL) {
+dbgmes <- function (message = "message", expr = NULL, depth = 1) {
   #browser()
-  funame = unlist(strsplit(x = as.character(sys.calls()[length(sys.calls())-1]),split = "\\("))
+  calls = sys.calls()
+  depth=min(depth,length(calls))
+  range = c(length(calls)-depth:length(calls))
+  funame = unlist(strsplit(x = as.character(calls[range]),split = "\\("))
   cat(paste0('==>',funame[1],':\n'))
   cat(paste0(message,':',capture.output(expr),'\n'))
 }
@@ -921,6 +964,8 @@ drawHist <- function (map, nbins) {
   x <- map_m[!is.na(map_m)]
   bins <- seq(min(x), max(x), length.out = nbins + 1)
   # draw the histogram with the specified number of bins
+  #browser()
+  #dbgmes("name=",names(map_m))
   ddd=density(map$rstr)
   par("mar" = c(2.0,2.0,2.0,2.0) )
   hist(
@@ -930,7 +975,7 @@ drawHist <- function (map, nbins) {
     border = 'darkgray',
     xlab = "",#paste(length(x),"samples"),
     ylab = "",
-    main = paste("Гистограмма ",names(map_m)),
+    main = paste("Гистограмма "),
     plot = T,
     prob=T
   ) 
@@ -960,6 +1005,27 @@ drawHex <- function (xy = NULL, cells = 30) {
   )
   #text(c(1,1),labels = basename(myReactives$map1$fn))
 }
+
+drawSVMmap2 <- function (data = NULL ,sr = NULL, svmod = NULL,zoom = NULL) {
+  if(is.null(data) || is.null(svmod) || is.null(svmod$mod)) return(NULL)
+  dset =data[,2:length(data)]
+  res = predict(svmod$mod,dset)
+  #res = denormalizeData(res,getNormParameters(nnet$dset$targetsTrain))
+  
+  #browser()
+  lividx = data[,1]
+  if(!is.null(sr) && length(sr)>1) 
+    datplot = myReactives$maps[[sr[1]]]$rstr
+  else
+    datplot = myReactives$maps[[1]]$rstr
+  title = ""
+  names(datplot) = title
+  datplot@data@values = NA
+  datplot@data@values[lividx] <- res
+  datplot@data@values[datplot@data@values==0] <- NA
+  
+  return (datplot)
+}  
 
 drawNNETmap <- function (data = NULL ,sr = NULL, nnet = NULL,zoom = NULL) {
   if(is.null(data) || is.null(nnet) || is.null(nnet$net)) return(NULL)
@@ -1026,13 +1092,16 @@ drawNNETmodel <-function (nnet = NULL, mode = input$nnetAuxMode) {
     
   }
 }
-buildNNET <- function(wells = NULL, rows = NULL, sel_maps = NULL, test_ratio = 0.25, max_iter = 100, nnet_complex = 0.1, actFunc=1){
-  if(is.null(wells) || length(wells@data[1,])<4) return(NULL)
+
+prepDataSet <- function (wells = NULL, rows = NULL, sel_maps = NULL) {
+  #browser()
+  if(is.null(wells) || length(wells[1,])<4) return(NULL)
   if(is.null(sel_maps) || length(sel_maps)<1)
-    data = wells@data
+    data = wells
   else {
     #data = cbind(wells@data[!is.na(wells@data),1:2],wells@data[!is.na(wells@data),2+sel_maps])
-    data = data.frame(wells@data[,1:2],wells@data[,2+sel_maps])
+    #dbgmes(message = "data=",wells)
+    data = data.frame(wells[,1:2],wells[,2+sel_maps])
     #colnames(data) = c("WELL","Values",names(wells@data[2+sel_maps]))
   }
   ddd = list()
@@ -1051,13 +1120,21 @@ buildNNET <- function(wells = NULL, rows = NULL, sel_maps = NULL, test_ratio = 0
   #data = data[,!is.na(data)]
   #dbgmes(message = "data=",data)
   #dbgmes(message = "ddd=",ddd)
-  data = ddd
-  
-  if(length(data) <1) return (NULL)
+  if(length(ddd) <1) return (NULL)
   #row.names(data) = wells$WELL
-  for (i in 1:length(data[1,])){
-   data = data[!is.na(data[,i]),]
+  for (i in 1:length(ddd[1,])){
+    ddd = ddd[!is.na(ddd[,i]),]
   }
+  dbgmes(message = "ddd=",ddd, depth = 2)
+  return(ddd)
+}
+
+#buildNNET <- function(wells = NULL, rows = NULL, sel_maps = NULL, test_ratio = 0.25, max_iter = 100, nnet_complex = 0.1, actFunc=1){
+buildNNET <- function(wells = NULL, test_ratio = 0.25, max_iter = 100, nnet_complex = 0.1, actFunc=1){
+  if(is.null(wells)) return(NULL)
+  #data = prepDataSet(wells = wells@data,rows = rows,sel_maps = sel_maps)
+  data = wells
+  if(is.null(data)) return(NULL)
   
   size = max(1,ceiling(sqrt(length(data[,1]))*nnet_complex*5*2))
   layers = max(1,ceiling(log(base = 5, size)))
@@ -1073,7 +1150,7 @@ buildNNET <- function(wells = NULL, rows = NULL, sel_maps = NULL, test_ratio = 0
   dset = splitForTrainingAndTest(
     x = dset0$inputsTrain,
     y = dset0$targetsTrain, ratio = test_ratio)
-  #dbgmes(message = "dset=",dset)
+  dbgmes(message = "dset=",dset)
   #dset = normTrainingAndTestSet(dset0,dontNormTargets = FALSE,type = getNormParameters(dset0$inputsTrain))
   neurons = ceiling(seq.int(size/2,3, length.out = layers))
   #browser()
@@ -1100,6 +1177,7 @@ drawGLMmap <- function (data = NULL ,sr = NULL, glm = NULL,zoom = NULL, colors =
 
   #dset = data[,2:length(data)]
   dset = data.frame(data[,2:length(data)])
+  #dbgmes("dset=",dset)
   #rownames(dset) = 
   if(is.null(sr)) {
     #names(dset) = c(paste0("Map",1:length(dset)))
@@ -1127,33 +1205,9 @@ drawGLMmap <- function (data = NULL ,sr = NULL, glm = NULL,zoom = NULL, colors =
   return (datplot)
 }  
 
-buildGLM <- function(wells = NULL, rows = NULL, sel_maps = NULL, lmfunc = glm, family = gaussian){
-  if(is.null(wells) || length(wells@data[1,])<4) return(NULL)
-  if(is.null(sel_maps) || length(sel_maps)<1)
-    data = wells@data
-  else {
-    #data = cbind(wells@data[!is.na(wells@data),1:2],wells@data[!is.na(wells@data),2+sel_maps])
-    data = data.frame(wells@data[,1:2],wells@data[,2+sel_maps])
-    colnames(data) = c("WELL","Values",names(wells@data[2+sel_maps]))
-  }
-  ddd = list()
-  if(!is.null(rows)) {
-    data[rows,] = NA
-  }
-  for(i in 1:length(data[,1]))
-  {
-    if(all(!is.na(data[i,2:length(data[1,])])))
-      ddd = rbind(ddd,data[i,])
-  }
-  #browser()
-  #data = data[,!is.na(data)]
-  
-  data = ddd
-  if(length(data) <1) return (NULL)
-  
-  for (i in 1:length(data[1,])){
-    data = data[!is.na(data[,i]),]
-  }
+buildGLM <- function(data = NULL, lmfunc = glm, family = gaussian){
+
+  if(is.null(data)) return(NULL)
   
   #dbgmes("dset=",data)
   rownames(data) = data$WELL
@@ -1165,6 +1219,68 @@ buildGLM <- function(wells = NULL, rows = NULL, sel_maps = NULL, lmfunc = glm, f
   return(fit)
 }
 
+drawSVMmap <- function (data = NULL ,sr = NULL, svmod = NULL,zoom = NULL, colors = rainbow(128)) {
+  if(is.null(data) || is.null(svmod) || is.null(svmod$mod)) return(NULL)
+  
+  #dset = data[,2:length(data)]
+  dset = data.frame(data[,2:length(data)])
+  #rownames(dset) = 
+  if(is.null(sr)) {
+    #names(dset) = c(paste0("Map",1:length(dset)))
+    colnames(dset) = c(paste0("Map",1:length(dset[1,])))
+  } else {
+    #names(dset) = c(paste0("Map",sr[1:length(dset)]))
+    colnames(dset) = c(paste0("Map",sr[1:length(dset[1,])]))
+  }
+  #dbgmes("dset=",dset)
+  #browser()
+  
+  res = predict(svmod$mod,newdata = dset)
+  
+  #dbgmes("res=",as.data.frame(res))
+  
+  lividx = data[,1]
+  if(!is.null(sr) && length(sr)>1) 
+    datplot = myReactives$maps[[sr[1]]]$rstr
+  else
+    datplot = myReactives$maps[[1]]$rstr
+  title = ""
+  names(datplot) = title
+  datplot@data@values = NA
+  datplot@data@values[lividx] <- res
+  datplot@data@values[datplot@data@values==0] <- NA
+  
+  return (datplot)
+}  
+
+buildSVM <- function(data = NULL, test_ratio = 0.25, type = svmModels[1]) {
+#  if(is.null(wells)) return(NULL)
+#  data = wells #prepDataSet(wells = wells@data,rows = rows,sel_maps = sel_maps)
+  if(is.null(data)) return(NULL)
+  svm_tune=NULL
+  dbgmes("type=", type)
+  #browser()
+  dset = splitForTrainingAndTest(
+    x = data[,3:length(data[1,])],
+    y = as.matrix(data$Values), ratio = 0)
+  rownames(data) = (data$WELL)
+  #colnames(dset$inputsTrain) = colnames(data[,3:length(data[1,])])
+  svmod = svm(Values~., data = data[,2:length(data[1,])], 
+             type = type,
+             decision.values = TRUE,
+             probability = TRUE)
+  dbgmes("svmod=", svmod)
+   # FROM INET:
+   # svmod = svm(abc$a,abc$b)
+   # abcres = data.frame(cbind(abc$a,predict(svmod,abc$a)))
+   # lm(data = abcres,formula = b~a)
+   # plot(abcres)
+   # abline(lm(data = abcres,formula = b~a))
+   # svm_tune <- tune(svm, a ~ b , data = abc,
+   #                  ranges = list(epsilon = seq(0,1,0.01), cost = 2^(2:9))
+   # )
+  return(list(mod=svmod,tune=svm_tune))
+}
 
 drawModelQC <- function(fit = NULL){
   if(is.null(fit)) return()
@@ -1176,8 +1292,12 @@ drawModelQC <- function(fit = NULL){
 
 drawModelXplot <- function(data = NULL, lmfit = NULL, srows = NULL) {
 
+  #dbgmes(message = "data=",data)
+  #data = prepDataSet(data)
   predicted = predict(lmfit)
+  #browser()
   measured = data$Values[data$WELL %in% names(predicted)]
+  #measured = data$Values[rownames(data) %in% names(predicted)]
   #dbgmes(message = "res=",cbind(measured,predicted))
   abl = lm(predicted~measured)
 
@@ -1211,7 +1331,17 @@ getLiveMapsIds <- function (maps = NULL, sr = NULL) {
   #browser()
   if(is.null(sr) || nsr<1) {
     sr=c(1:length(maps)) 
-  } 
+  } else {
+    for(i in 1:length(sr)) {
+      if(sr[i] > length(maps)) {
+        sr = sr[-i]
+        i=i-1
+      }
+    }
+    if(is.null(sr) || length(sr)<1) {
+      sr=c(1:length(maps)) 
+    } 
+  }
   if(nsr == 1) sr = c(sr,sr)
   #dbgmes(message = "\tsr=",sr)
   return(sr)
@@ -1222,14 +1352,27 @@ getLiveMapsData <- function (maps = NULL, sr = NULL) {
   #browser()
   if(is.null(sr) || length(sr)<1) {
     sr=c(1:length(maps)) 
-  } 
+  } else {
+    for(i in 1:length(sr)) {
+      if(sr[i] > length(maps)) {
+        sr = sr[-i]
+        i=i-1
+      }
+    }
+    if(is.null(sr) || length(sr)<1) {
+      sr=c(1:length(maps)) 
+    } 
+  }
   #browser()
+  #dbgmes("delSel=",sr)
   data = c(1:length(as.vector(maps[[sr[1]]]$rstr@data@values)))
   for(i in 1:length(sr)) {
     if(length(as.vector(maps[[sr[1]]]$rstr@data@values)) != length(as.vector(maps[[sr[i]]]$rstr@data@values)))
       return(NULL)
-    data = data.frame(data,as.vector(maps[[sr[i]]]$rstr@data@values))
-    colnames(data)[i+1] = maps[[sr[i]]]$fn
+    if(sr[[i]] <= length(maps)) {
+      data = data.frame(data,as.vector(maps[[sr[i]]]$rstr@data@values))
+      colnames(data)[i+1] = maps[[sr[i]]]$fn
+    }
   }
   #browser()
   for (i in 1:length(data[1,])){
@@ -1295,6 +1438,7 @@ getNewMapFromValues <- function (maps=NULL,sr = NULL,values = NULL) {
 drawModMap <- function (datplot = NULL, title = NULL , zoom = NULL, colors = mapPalette(128), interpolate = T) {
   if(is.null(data)) return(NULL)
   #browser()
+  dbgmes("plot=",datplot,depth = 2)
   par(new = TRUE)
   par(mfrow=c(1,1))
   if(is.null(zoom))
@@ -1430,7 +1574,7 @@ saveModMap_old <- function (data = NULL, clusters = NULL, sr = NULL, fname = NUL
   return (spgrid)
 }
 
-saveModMap <- function (datplot = NULL, fname = NULL, format = "ESRI ASCII грид") {
+rstr2spgrid <- function (datplot = NULL) {
   if(is.null(datplot) ) return(NULL)
   # got live cells
   #lividx = data[,1]
@@ -1446,6 +1590,28 @@ saveModMap <- function (datplot = NULL, fname = NULL, format = "ESRI ASCII гр�
   datplot_out = resample(datplot,datplot_out,method = "ngb")
   spgrid = as(datplot_out,'SpatialGridDataFrame') 
   spgrid@grid@cellsize = rep(newCellSize,2)
+  
+  return(spgrid)
+}
+
+saveModMap <- function (datplot = NULL, fname = NULL, format = "ESRI ASCII грид") {
+  if(is.null(datplot) ) return(NULL)
+  # got live cells
+  #lividx = data[,1]
+  #if(!is.null(sr) && length(sr)>1) datplot = myReactives$maps[[sr[1]]]$rstr
+  #else datplot = myReactives$maps[[1]]$rstr
+  #datplot@data@values[lividx] <- clusters
+  # datplot_out=datplot
+  # dxCellsize=(datplot@extent@xmax-datplot@extent@xmin)/datplot@ncols
+  # dyCellsize=(datplot@extent@ymax-datplot@extent@ymin)/datplot@nrows
+  # newCellSize = min(dxCellsize,dyCellsize)
+  # datplot_out@nrows = as.integer(ceiling((datplot@extent@ymax-datplot@extent@ymin)/newCellSize))
+  # datplot_out@ncols = as.integer(ceiling((datplot@extent@xmax-datplot@extent@xmin)/newCellSize))
+  # datplot_out = resample(datplot,datplot_out,method = "ngb")
+  # spgrid = as(datplot_out,'SpatialGridDataFrame') 
+  # spgrid@grid@cellsize = rep(newCellSize,2)
+  
+  spgrid = rstr2spgrid(datplot)
   #browser()
   if(!is.null(fname))
   {
@@ -1637,16 +1803,14 @@ drawWellsTable <- function (wells_ = NULL) {
 drawMapsTable <- function (maps_ = NULL, sr = NULL) {
   if(is.null(maps_)) return()
   
-  #sr = input$table_maps_rows_selected
-  #browser()
-  #dbgmes("sr=",sr)
   maps = matrix(,nrow = length(maps_), ncol = 4)
   for( row in 1:length(maps_)) {
     map = maps_[[row]]
-    maps[row,] <- c(paste0("Map",row),Name = map$fn, Min = map$rstr@data@min, Max = map$rstr@data@max)
+    maps[row,] <- c(paste0("Map",row),Name = map$fn, 
+                    Min = map$rstr@data@min, Max = map$rstr@data@max)
   }
   #names(maps) <- ' '
-  
+  #dbgmes("sel=",sr)
   colnames(maps) <- c("Ref","Name","Min","Max")
 
   datatable(
@@ -1659,7 +1823,7 @@ drawMapsTable <- function (maps_ = NULL, sr = NULL) {
     rownames = FALSE,
     selection = list (
       mode = 'multiple',
-#      selected = sr,
+#      selection  = sr,
       target = 'row'
     ),
     options = list(
@@ -1760,6 +1924,7 @@ server <- function(input, output, session) {
       myReactives$maps <- append(myReactives$maps,list(def_map))
       myReactives$maps <- append(myReactives$maps,list(def_map))
       myReactives$liveMaps <- getLiveMapsData(maps = myReactives$maps, sr = input$table_maps_rows_selected)
+      myReactives$liveWells <- prepDataSet(wells = myReactives$wells@data, rows =input$table_wells_rows_selected  ,sel_maps =  input$table_maps_rows_selected)
       updateMapLists(myReactives$maps,input$table_maps_rows_selected)
     }
     showModDial("Обработка карт...")
@@ -1773,7 +1938,8 @@ server <- function(input, output, session) {
       }
     })
     myReactives$liveMaps <- getLiveMapsData(maps = myReactives$maps, sr = input$table_maps_rows_selected)
-    myReactives$liveMaps <- getLiveMapsData(maps = myReactives$maps, sr = input$table_maps_rows_selected)
+    myReactives$liveWells <- prepDataSet(wells = myReactives$wells@data, rows =input$table_wells_rows_selected  ,sel_maps =  input$table_maps_rows_selected)
+    #myReactives$liveMaps <- getLiveMapsData(maps = myReactives$maps, sr = input$table_maps_rows_selected)
     #updateMapLists(myReactives$maps,input$table_maps_rows_selected)
     selectRows(dtMapsProxy,as.numeric(mapsSelection))
     #dbgmes(message = "upscaling=",c(length(myReactives$liveMaps),length(myReactives$maps)))
@@ -1792,12 +1958,12 @@ server <- function(input, output, session) {
   observeEvent(input$wellsfile1, {
     wls <- loadWells(input$wellsfile1)
     if (is.null(wls)) 
-      showNotification(ui = "Error loading Well file.
-Assume the Column-based Format:
+      showNotification(ui = "Ошибка при загрузке скважин.
+Предполагается следующий формат:
 WELL  X_LOCATION  Y_LOCATION",
                        type = "error")
     else {
-      showNotification(ui = paste(length(wls[,1])," wells loaded"),
+      showNotification(ui = paste(length(wls[,1])," скважин загружено"),
                        type = "default")
       for( i in 1:length(myReactives$maps))  {
         wls <- extractMap2Well(wls,myReactives$maps[[i]]$rstr, paste0("Map",i))
@@ -1810,12 +1976,12 @@ WELL  X_LOCATION  Y_LOCATION",
   observeEvent(input$cpfile1, {
     wls <- loadCP(myReactives$wells,input$cpfile1,cpname = "Values")
     if (is.null(wls)) 
-      showNotification(ui = "Error loading CP file. Load Wells first.
-Assume the Column-based Format:
+      showNotification(ui = "Ошибка загрузки контрольных точек. Возможно не загружены скважины.
+Предполагается следующий формат:
 X_LOCATION  Y_LOCATION  VALUE",
                        type = "error")
     else {
-      showNotification(ui = paste(length(wls@data$Values[!is.na(wls@data$Values)])," of ",length(wls[,1])," wells updated"),
+      showNotification(ui = paste(length(wls@data$Values[!is.na(wls@data$Values)])," из ",length(wls[,1])," скважин обновлено"),
                        type = "default")
       myReactives$wells <- wls
     }
@@ -1899,8 +2065,9 @@ X_LOCATION  Y_LOCATION  VALUE",
                 }
               })
     myReactives$liveMaps <- getLiveMapsData(maps = myReactives$maps, sr = input$table_maps_rows_selected)
-    updateMapLists(myReactives$maps,input$table_maps_rows_selected)
+    myReactives$liveWells <- prepDataSet(wells = myReactives$wells@data, rows =input$table_wells_rows_selected  ,sel_maps =  input$table_maps_rows_selected)
     selectRows(dtMapsProxy,as.numeric(mapsSelection))
+    updateMapLists(myReactives$maps,input$table_maps_rows_selected)
     removeModal()
   })
   
@@ -1913,7 +2080,22 @@ X_LOCATION  Y_LOCATION  VALUE",
     #browser()
     myReactives$wells <- res$wells
     myReactives$maps <- res$maps
+    if(!is.null(input$table_maps_rows_selected)) {
+      #dbgmes("sel0=",input$table_maps_rows_selected)
+      #dbgmes("nmap=",length(myReactives$maps))
+      sel = input$table_maps_rows_selected
+      sel = sel [! sel %in% length(myReactives$maps)]
+      if(length(sel<1)) sel = NULL
+      # for(sr in 1:length(sel)) {
+      #   if(sel[sr]>length(myReactives$maps)) 
+      #     sel[sr] = NULL
+      # }
+      #dbgmes("sel=",sel)
+      selectRows(proxy = dtMapsProxy,selected = sel)
+      #dbgmes("sel1=",input$table_maps_rows_selected)
+    }
     myReactives$liveMaps <- getLiveMapsData(maps = myReactives$maps)
+    myReactives$liveWells <- prepDataSet(wells = myReactives$wells@data, rows =input$table_wells_rows_selected  ,sel_maps =  input$table_maps_rows_selected)
     updateMapLists(myReactives$maps)
   })
   
@@ -1934,14 +2116,33 @@ X_LOCATION  Y_LOCATION  VALUE",
   }
   
   #CB: MapTable select ####
-  observeEvent(input$table_maps_rows_selected, {
-    #browser()
+  #observe({
+  #   dbgmes(message = "MapTable sel = ",input$table_maps_rows_selected)
+  #   myReactives$liveMaps <- getLiveMapsData(maps = myReactives$maps ,sr = input$table_maps_rows_selected)
+  #   updateMapLists(maps = myReactives$maps,sr = input$table_maps_rows_selected)
+  #   selectRows(proxy = dtMapsProxy,selected = input$table_maps_rows_selected)
+  # }, label = "MapTable_select")
+  observeEvent(eventExpr = input$table_maps_rows_selected, handlerExpr = {
+  #   #browser()
     #dbgmes(message = "selected = ",input$table_maps_rows_selected)
-    myReactives$liveMaps <- getLiveMapsData(maps = myReactives$maps, sr = input$table_maps_rows_selected)
-    updateMapLists(maps = myReactives$maps,sr = input$table_maps_rows_selected)
+     myReactives$liveMaps <- getLiveMapsData(maps = myReactives$maps, sr = input$table_maps_rows_selected)
+     myReactives$liveWells <- prepDataSet(wells = myReactives$wells@data, rows =input$table_wells_rows_selected  ,sel_maps =  input$table_maps_rows_selected)
+   #selectRows(proxy = dtMapsProxy,selected = input$table_maps_rows_selected)
+     updateMapLists(maps = myReactives$maps,sr = input$table_maps_rows_selected)
+
+  })
+  
+  #CB: WellTable select ####
+  observeEvent(eventExpr = input$table_wells_rows_selected, handlerExpr = {
+    #   #browser()
+    #dbgmes(message = "selected = ",input$table_maps_rows_selected)
+    #myReactives$liveMaps <- getLiveMapsData(maps = myReactives$maps, sr = input$table_maps_rows_selected)
+    myReactives$liveWells <- prepDataSet(wells = myReactives$wells@data, rows =input$table_wells_rows_selected  ,sel_maps =  input$table_maps_rows_selected)
+    #selectRows(proxy = dtMapsProxy,selected = input$table_maps_rows_selected)
+    #updateMapLists(maps = myReactives$maps,sr = input$table_maps_rows_selected)
     
   })
-
+  
   #CB: transposing ####
   observeEvent(input$transpose1 , {
     if(length(myReactives$maps)>1) {
@@ -1951,7 +2152,9 @@ X_LOCATION  Y_LOCATION  VALUE",
       myReactives$wells <- extractMap2Well(myReactives$wells,map_obj$rstr, paste0 ("Map",map_idx))
       myReactives$maps[[map_idx]] <- map_obj
       myReactives$liveMaps <- getLiveMapsData(maps = myReactives$maps, sr = input$table_maps_rows_selected)
-      selectRows(dtMapsProxy,as.numeric(mapsSelection))
+      myReactives$liveWells <- prepDataSet(wells = myReactives$wells@data, rows =input$table_wells_rows_selected  ,sel_maps =  input$table_maps_rows_selected)
+      selectRows(dtMapsProxy,mapsSelection)
+      #selectRows(dtMapsProxy,as.numeric(getLiveMapsIds(maps = myReactives$maps, sr = input$table_maps_rows_selected)))
     }
     
   })
@@ -1963,6 +2166,7 @@ X_LOCATION  Y_LOCATION  VALUE",
       myReactives$wells <- extractMap2Well(myReactives$wells,map_obj$rstr, paste0 ("Map",map_idx))
       myReactives$maps[[map_idx]] <- map_obj
       myReactives$liveMaps <- getLiveMapsData(maps = myReactives$maps, sr = input$table_maps_rows_selected)
+      myReactives$liveWells <- prepDataSet(wells = myReactives$wells@data, rows =input$table_wells_rows_selected  ,sel_maps =  input$table_maps_rows_selected)
       selectRows(dtMapsProxy,as.numeric(mapsSelection))
     }
   })
@@ -2060,13 +2264,17 @@ X_LOCATION  Y_LOCATION  VALUE",
   recalcNNET <- reactive ({
     showModDial("Обучение нейронной сети MLP...")
     actFuncType <- mlpActFuns[[input$nnetActFunc]]
-    myReactives$nnet <- buildNNET(myReactives$wells,
-                                  input$table_wells_rows_selected, input$table_maps_rows_selected,
+    #     myReactives$liveWells <- prepDataSet(wells = myReactives$wells, rows =input$table_wells_rows_selected  ,sel_maps =  input$table_maps_rows_selected)
+    dbgmes("liveWells=",myReactives$liveWells)
+    myReactives$nnet <- buildNNET(myReactives$liveWells,#myReactives$wells,
+                                  #input$table_wells_rows_selected, input$table_maps_rows_selected,
                                   test_ratio = input$test_ratio/100.,
                                   max_iter = input$max_iter,
                                   nnet_complex = input$nnet_complex/100.,
                                   actFunc = actFuncType)
-    #dbgmes("sel=",input$nnetActFunc)
+#  })
+#  remapNNET <- reactive ({
+      #dbgmes("sel=",input$nnetActFunc)
     #dbgmes("res=",mlpActFuns[[input$nnetActFunc]])
     myReactives$nnet_map = drawNNETmap(data = myReactives$liveMaps,
                                         sr = input$table_maps_rows_selected,
@@ -2084,7 +2292,7 @@ X_LOCATION  Y_LOCATION  VALUE",
     resmap = mod$map
     title = mod$title
     
-    if(is.null(model))
+    if(is.null(model) && is.null(resmap))
     {
       removeModal()
       plotError("Пустая выборка.\n Проверьте согласованность координат скважин и карт")
@@ -2115,10 +2323,102 @@ X_LOCATION  Y_LOCATION  VALUE",
     frm = getModelXplotText(lmfit = lmr)
     paste(frm)
   })
+
+  putMap2inp <- function() {
+    mod = getCurrentModel()
+    #browser()
+    map_obj = loadMapFile(spgid = rstr2spgrid(mod$map))
+    #isolate({
+    map_obj$fn = mod$title
+    if(is.null(map_obj)) {
+      showNotification(ui = paste(map_obj$fn," не удалось добавить карту во входные."),
+                       type = "error")
+    } else {
+      mapsSelection =  input$table_maps_rows_selected 
+      if(is.null(mapsSelection))
+        mapsSelection = getLiveMapsIds(maps = myReactives$maps, sr = input$table_maps_rows_selected)
+      #dbgmes("sel=",mapsSelection)
+      myReactives$maps <- append(myReactives$maps,list(map_obj))
+      #isolate({myReactives$wells <- extractMap2Well(myReactives$wells,map_obj$rstr, paste0 ("Map",length(myReactives$maps)))})
+      selectRows(dtMapsProxy,as.numeric(mapsSelection))
+      updateMapLists(myReactives$maps,mapsSelection)#input$table_maps_rows_selected)
+      myReactives$liveMaps <- getLiveMapsData(maps = myReactives$maps, sr = mapsSelection)#input$table_maps_rows_selected)
+      myReactives$liveWells <- prepDataSet(wells = myReactives$wells, rows =input$table_wells_rows_selected  ,sel_maps =  input$table_maps_rows_selected)
+      showNotification(ui = paste("Карта",map_obj$fn," добавлена во входные."),
+                       type = "default")
+    }
+    #})
+  }
   
+  observeEvent(input$addModMap2inp , {
+    putMap2inp()
+  })
+  
+  #CB: SVM calc model ####
+  recalcSVM <- reactive ({
+    showModDial("Построение модели SVM...")
+    svmType <- input$svmModelType
+    myReactives$svm <- buildSVM(myReactives$liveWells,
+                                  test_ratio = input$test_ratio/100.,
+                                  type = svmType)
+    #dbgmes("sel=",input$nnetActFunc)
+    #dbgmes("res=",mlpActFuns[[input$nnetActFunc]])
+    myReactives$svm_map = drawSVMmap(data = myReactives$liveMaps,
+                                       sr = input$table_maps_rows_selected,
+                                       svm = myReactives$svm)
+    
+  })
+  #CB: SVM plot model ####
+  output$svmPlot <- renderPlot({
+    recalcSVM()
+    main = input$main
+    mod = getCurrentModel()
+    model=mod$model
+    mode = mod$mode
+    mode_aux = mod$mode_aux
+    resmap = mod$map
+    title = mod$title
+    
+    if(is.null(model))
+    {
+      removeModal()
+      plotError("Пустая выборка.\n Проверьте согласованность координат скважин и карт")
+      return(NULL)
+    }
+    
+    #browser()
+    
+    if(mode == "res"){
+      mapPar=getMapPar()
+      drawModMap(datplot = resmap,title = unlist(title),
+                 colors = mapPar$col,
+                 zoom = myReactives$zoom,interpolate = mapPar$interp)
+      drawWells(wells = myReactives$wells, 
+                sr = input$table_wells_rows_selected,
+                srmap = input$table_maps_rows_selected)
+    } else if(mode == "xplot") {
+      drawModelXplot (myReactives$wells@data, model, input$table_wells_rows_selected)
+    } else {
+      #drawSVMmodel(model = myReactives$svm, mode = input$nnetAuxMode)
+      plot(myReactives$svm$mod)
+    }
+    removeModal()
+  })
+  output$svmText <- renderText({ #renderPrint
+    #frm = getModelText(myReactives$nnet)
+    if(is.null(myReactives$nnet)) return(NULL)
+    measured = myReactives$nnet$inp
+    predicted = myReactives$nnet$out
+    lmr = lm(formula = predicted~measured)
+    frm = getModelXplotText(lmfit = lmr)
+    paste(frm)
+  })
+  #CB: GLM calc model ####
   recalcGLM <- reactive({
     showModDial("Создание модели многомерной линейной регрессии...")
-    myReactives$glm <- buildGLM(myReactives$wells, input$table_wells_rows_selected, input$table_maps_rows_selected)
+    myReactives$glm <- buildGLM(myReactives$liveWells 
+                                #input$table_wells_rows_selected, input$table_maps_rows_selected
+                                )
     mapPar = getMapPar()
 
     myReactives$glm_map= drawGLMmap(data = myReactives$liveMaps,
@@ -2146,8 +2446,9 @@ X_LOCATION  Y_LOCATION  VALUE",
     
     if(mode == "mod") {    
       par(mfrow = c(2,2))
-      plot(myReactives$glm)
+      plot(model)
     } else if(mode =="xplot") {
+      dbgmes("class=",class(model))
       drawModelXplot (myReactives$wells@data, myReactives$glm, input$table_wells_rows_selected)
     } else if(mode =="res") {
       #colors = mapPalList[["Радуга"]](128)
@@ -2210,6 +2511,10 @@ X_LOCATION  Y_LOCATION  VALUE",
     contentType = '.asc',
     content = getMapSaveContent
   )
+  observeEvent(input$addKMMap2inp , {
+    putMap2inp()
+  })
+
   #CB: GMM model ####    
   recalcGMM <- reactive ({
     if(input$numClassUD) nClasses = 0
@@ -2315,6 +2620,11 @@ X_LOCATION  Y_LOCATION  VALUE",
         mode = mode_aux = input$glmAuxMode
         resmap = myReactives$glm_map
         title = "Generalized multiple linear regression"
+      } else if(input$models == 'svm') {
+        model = myReactives$svm$mod
+        mode = mode_aux = input$svmAuxMode
+        resmap = myReactives$svm_map
+        title = "Support Vector Machine model"
       }
     }
     #browser()
@@ -2344,7 +2654,10 @@ X_LOCATION  Y_LOCATION  VALUE",
     contentType = '.asc',
     content = getMapSaveContent
   )
-
+  observeEvent(input$addGMMap2inp , {
+    putMap2inp()
+  })
+  
   #CB: HC model ####    
   recalcHCM <- reactive ({
     showModDial("Иерархическая кластеризация...")
@@ -2407,6 +2720,9 @@ X_LOCATION  Y_LOCATION  VALUE",
       #                   type = "error")      
     }
   )
+  observeEvent(input$addHCMap2inp , {
+    putMap2inp()
+  })
   
   # CB: Zoom maps on Click ####
   zoomPlotCall <- function (name, data) {

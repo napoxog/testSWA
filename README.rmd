@@ -79,4 +79,4 @@ Currently for prediction you can use 2 methods:
 ###   FIXME: Mpas selection with 1 additional map works oddly
 ###   TODO: 35. Make the maps min and max to be used in the training datasets (in normalization)
 ###   TODO: 36. Automate the averaging influence estimation
-###   TODO: 37. 
+###   TODO: 37. Create a batch mode for all tools depending on: averaging, inputs maps sub set, wells subset

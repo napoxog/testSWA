@@ -68,7 +68,7 @@ Currently for prediction you can use 2 methods:
 ###   DONE: 23. Add Brush zoom in the Results Modal popups.
 ###   DONE: 24. Add Hover text with X.Y.Z on the Results zoom modal popup
 ###   DONE: 26. Added the 0.5 transparency in Classification results plot
-###   TODO:?27. Make use of raster Layers instead of separate rasters
+###   DFRD:?27. Make use of raster Layers instead of separate rasters
 ###   DONE: 28. Add input Maps transparency setting
 ###   DONE: 29. Add optional Contours display for input maps
 ###   DONE: 30. Tune the hover delay in zoom modal plots
@@ -78,4 +78,5 @@ Currently for prediction you can use 2 methods:
 ###   DONE: 34. Add option to add Classification/prediction results directly to input MapsList
 ###   FIXME: Mpas selection with 1 additional map works oddly
 ###   TODO: 35. Make the maps min and max to be used in the training datasets (in normalization)
-
+###   TODO: 36. Automate the averaging influence estimation
+###   TODO: 37. 

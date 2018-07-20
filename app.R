@@ -1104,6 +1104,9 @@ prepDataSet <- function (wells = NULL, rows = NULL, sel_maps = NULL) {
     #dbgmes(message = "data=",wells)
     #dbgmes("sel=",sel_maps)
     #browser()
+    
+    # FIXME: check and fix the 'sel_maps' contents by the size of maps array (issue after map deletion)
+    
     data = data.frame(wells[,c(1:2,2+sel_maps)])
     #colnames(data) = c("WELL","Values",names(wells@data[2+sel_maps]))
   }

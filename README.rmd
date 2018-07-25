@@ -72,7 +72,7 @@ Currently for prediction you can use 2 methods:
 ###   DONE: 28. Add input Maps transparency setting
 ###   DONE: 29. Add optional Contours display for input maps
 ###   DONE: 30. Tune the hover delay in zoom modal plots
-###   TODO: 31. Estimate and print the StD of wells' CP for each class
+###   TODO: 31. Estimate and print the StD of wells' CP for each class after sortClasses func.
 ###   DONE: 32. Add Export format Selection (XYZ/ESRI/ZAMP?)
 ###   DONE: 33. Refine the Histogram display with density plots overlay and maybe some additional statistics (mean,median,std)
 ###   DONE: 34. Add option to add Classification/prediction results directly to input MapsList
@@ -80,3 +80,4 @@ Currently for prediction you can use 2 methods:
 ###   TODO: 35. Make the maps min and max to be used in the training datasets (in normalization)
 ###   TODO: 36. Automate the averaging influence estimation
 ###   TODO: 37. Create a batch mode for all tools depending on: averaging, inputs maps sub set, wells subset
+###   TODO: 38. Add flag (add model copy fieled? ) to the map object to indicate that map is result of local processing and to not apply the upscaling to it in this case - to make it consistent with inputs. (issue: if upscaling chaned, maps hould be recalculated. maybe automatically?)

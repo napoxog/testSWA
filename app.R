@@ -8,6 +8,89 @@
 #
 
 
+### TODO: ####
+###   DONE: 1. Control Point loading
+###   DONE: 2. Add CP managing
+###   DONE: 3. linear models evaluation
+###   DONE: 4. Linear models results presentation
+###   DONE: 5. Multiple (more than 2) maps loading 
+###   DONE: 6. Maps Management
+###   INPROGRESS: 7. provide different Prediction types 
+####  INPROGRESS: 7.1. classification tools
+##### FIXED: 7.1.1 Check the training - the xplot looks strange of the given NNET complexity
+####  INPROGRESS: 7.2. Neural networks tools
+####  DONE: 7.2.1 Add NNET maps prediction
+####  DONE: 7.2.2 Add saving of the prediction result
+####  DONE: 7.2.3 Add NNET QC tools
+####  DONE: 7.2.4 Add transfer function selection
+####  TODO: 7.2. FIX - transfer the Min and Max from the maps to the scaling/normalizing to preserve prediction range.
+####  TODO:?7.3. Linear Models types selection 
+####  DONE: 7.3.1. Add prediction map dispay with wells
+####  DONE: 7.3.2. Group the QC plots as for other methods
+####  DONE: 7.4. Gaussian Mixture model clastering
+##### DONE: 7.4.1 GMM automatic classes number diable check
+##### DONE: 7.4.2 Add BIC plot to GMM
+##### DONE: 7.5 Add Hclust to clusterization methods
+##### FIXED: 7.5.1 Fix Hclust Model and result Labeling
+###   FIXED: WA the Hclust limitation due to memory consumption. (propagate the lmited product)
+####  DONE: 7.6 Add (support vector machines)SVM clustering and prediction
+####  TODO: 7.7 Add parameters tuning analysis to model/result plots/panels
+###   TODO: 8. Add cross-validation analysis (if not included in LM)
+###   DONE: 9. Provide batch maps loading (by path and extension)
+##    DONE: FIX Well labeling order issue
+##    DONE: FIX Maps selection assert for LM
+###   DONE: 10. Add results export/output 
+####  DONE: 10.1 Maps (download + write.ascigrid() )
+####  DONE: 10.2 CP Table with extracted values
+###   DONE: 11. How to remove redunant calls to getLiveMaps()
+###   DONE: 12. Add modal messages during long-term calculations/loading
+####  DONE: 12.1 Add progress idication to the Modal Panels
+###   DONE: 13. Move Maps-only classification tabs from Models to Maps Tab
+###   DFRD: 14. Apply Upscaling only to selected maps, if any, to reduce processing time. (manage upscaling parameter?)
+###   DONE:?15. Transform the Model/Reslut tabs into radio group and reduce the plot+text to one per model type
+###   DONE:?16. Add palette selection for the maps
+###   DONE:!17. Add maps averaging
+###   DONE: 18. Add bilinear smoothing for Rasters DIsplay plots
+###   DONE: 19. Add maps selection for the Map display tabs
+###   DONE: 20. Add KM and GMM classes id remapping after calculation according to the Wells' CPs
+####  DFRD:?20.1 Add classes remapping for classes not covered by wells through the classes covered by wells' CP
+###   DONE: 21. Add Results Zoom option modal popup
+###   DONE: 23. Add Brush zoom in the Results Modal popups.
+###   DONE: 24. Add Hover text with X.Y.Z on the Results zoom modal popup
+###   DONE: 26. Added the 0.5 transparency in Classification results plot
+###   DFRD:?27. Make use of raster Layers instead of separate rasters
+###   DONE: 28. Add input Maps transparency setting
+###   DONE: 29. Add optional Contours display for input maps
+###   DONE: 30. Tune the hover delay in zoom modal plots
+###   TODO: 31. Estimate and print the StD of wells' CP for each class after sortClasses func.
+###   DONE: 32. Add Export format Selection (XYZ/ESRI/ZAMP?)
+###   DONE: 33. Refine the Histogram display with density plots overlay and maybe some additional statistics (mean,median,std)
+###   DONE: 34. Add option to add Classification/prediction results directly to input MapsList
+###   FIXME: Mpas selection with 1 additional map works oddly (select callback issue)
+###   TODO: 35. Make the maps min and max to be used in the training datasets (in normalization)
+###   TODO: 36. Automate the averaging influence estimation
+###   TODO: 37. Create a batch mode for all tools depending on: averaging, inputs maps cycle, wells subset
+###   TODO: 38. Add Supervised classification option
+###   TODO: 38.1 option: Add loading of well CP classes (lithology)
+###   TODO: 38.2 option: Add option to make the Wells CP a Factor to be used for SVCLS
+###   TODO: 39 Add flag (add model copy fieled? ) to the map object to indicate that map is result of local processing and to not apply the upscaling to it in this case - to make it consistent with inputs. (issue: if upscaling chaned, maps hould be recalculated. maybe automatically?)
+
+
+
+#### QC regression model
+# m = m100
+# k = NULL
+# qqq = data.frame(cbind(x = m$V1,y = predict(svm(V1~.,data = m ))))
+# plot(qqq,main = k)
+# abline(lm(y~x,data = qqq))
+
+#### QC unsupervised SVM model
+#m = m100
+#k = NULL
+#qqq = cbind(m,pp = as.numeric(predict(svm(m))))
+#plot(qqq,col = c("red","blue")[qqq$pp+1], pch = 16,main = k)
+
+
 require(shiny)
 require(shinyjs)
 require(DT)
@@ -240,22 +323,22 @@ ui <- fluidPage(theme = shinytheme("simplex"),
                                  actionButton("delmap"   , "Удалить выбранные", width = butt_wid)
                        ),
                        #UI: HexPlot display ####
-                       tabPanel(  value = "xplot",  title = "Гексаплот",
-                                  plotOutput(
-                                    "xPlot_hex",
-                                    click = "plot_zoom",
-                                    dblclick = "plot_dblclick",
-                                    hover = "plot_hover",
-                                    brush = brushOpts( id = "plot_brush", clip = FALSE, resetOnNew = TRUE)
-                                  ),
-                                  sliderInput(
-                                    "cells",
-                                    "размер бина кроссплота:",
-                                    min = 1,
-                                    max = 50,
-                                    value = 30
-                                  )
-                       ),
+                       # tabPanel(  value = "xplot",  title = "Гексаплот",
+                       #            plotOutput(
+                       #              "xPlot_hex",
+                       #              click = "plot_zoom",
+                       #              dblclick = "plot_dblclick",
+                       #              hover = "plot_hover",
+                       #              brush = brushOpts( id = "plot_brush", clip = FALSE, resetOnNew = TRUE)
+                       #            ),
+                       #            sliderInput(
+                       #              "cells",
+                       #              "размер бина кроссплота:",
+                       #              min = 1,
+                       #              max = 50,
+                       #              value = 30
+                       #            )
+                       # ),
                        #UI: Xplot display ####
                        tabPanel(  value = "xplot",  title = "Кроссплот",
                                   plotOutput(
@@ -356,6 +439,29 @@ ui <- fluidPage(theme = shinytheme("simplex"),
                                                          downloadButton('downloadHCmap', 'Сохранить карту'),
                                                          actionButton('addHCMap2inp', 'Поместить во входные'),
                                                          verbatimTextOutput("hcXText")
+                                               )
+                                  )
+                                  ),#,                                  verbatimTextOutput("hcXText")
+                       #UI: model SVMC ####
+                       tabPanel(  "SVM", value = "modelSV",
+                                  tabsetPanel( id = "modelSV",
+                                               tabPanel( "Модель", value = "mod",
+                                                         plotOutput(
+                                                           "svPlot",
+                                                           click = "plot_zoom",
+                                                           height = modPlot_wid
+                                                         ),
+                                                         verbatimTextOutput("svText")
+                                               ),
+                                               tabPanel( "Результат", value = "res",
+                                                         plotOutput(
+                                                           "svXPlot",
+                                                           click = "plot_zoom",
+                                                           height = modPlot_wid
+                                                         ),
+                                                         downloadButton('downloadSVmap', 'Сохранить карту'),
+                                                         actionButton('addSVMap2inp', 'Поместить во входные'),
+                                                         verbatimTextOutput("svXText")
                                                )
                                   )#,                                  verbatimTextOutput("hcXText")
                        )
@@ -1007,27 +1113,448 @@ drawHex <- function (xy = NULL, cells = 30) {
   #text(c(1,1),labels = basename(myReactives$map1$fn))
 }
 
-drawSVMmap2 <- function (data = NULL ,sr = NULL, svmod = NULL,zoom = NULL) {
-  if(is.null(data) || is.null(svmod) || is.null(svmod$mod)) return(NULL)
-  dset =data[,2:length(data)]
-  res = predict(svmod$mod,dset)
-  #res = denormalizeData(res,getNormParameters(nnet$dset$targetsTrain))
+
+
+prepDataSet <- function (wells = NULL, rows = NULL, sel_maps = NULL) {
+  #browser()
+  if(is.null(wells) || length(wells[1,])<4) return(NULL)
+  if(is.null(sel_maps) || length(sel_maps)<1)
+    data = wells
+  else {
+    # FIXED: check and fix the 'sel_maps' contents 
+    #        by the size of maps array (issue after map deletion)
+    #browser()
+    nmap = length(myReactives$maps)
+    sel_maps = sapply(sel_maps,FUN = function(x) {
+      if(x>nmap) return(NA)
+      else return(x)
+    })    
+    sel_maps = sel_maps[!is.na(sel_maps)]
+    data = data.frame(wells[,c(1:2,2+sel_maps)])
+  }
+  
+  ddd = list()
+  if(!is.null(rows)) {
+    data[rows,] = NA
+  }
+  for(i in 1:length(data[,1]))
+  {
+    if(all(!is.na(data[i,2:length(data[1,])])))
+    {  
+      ddd = rbind(ddd,data[i,])
+      rownames(ddd)[length(ddd[,1])] = data$WELL[i]
+    }
+  }
+  #browser()
+  #dbgmes(message = "ddd=",ddd)
+  if(length(ddd) <1) return (NULL)
+  rownames(ddd) = ddd$WELL
+  return(ddd)
+}
+
+plotError <- function (message = "Error!!!") {
+  plot(0,0,t="l");text(0,0,paste("ОШИБКА:",message),col = "red")
+}
+
+drawModelQC <- function(fit = NULL){
+  if(is.null(fit)) return()
+  
+  par(mfrow = c(2,2))
+  plot(fit)
+  return(fit)
+}
+
+drawModelXplot <- function(data = NULL, lmfit = NULL, srows = NULL) {
+  
+  dbgmes(message = "data=",data)
+  #data = prepDataSet(data)
+  predicted = predict(lmfit, newdata = data)
+  #browser()
+  measured = data$Values#[data$WELL %in% names(predicted)]
+  
+  #measured = data$Values[rownames(data) %in% names(predicted)]
+  dbgmes(message = "res=",cbind(measured,predicted))
+  abl = lm(predicted~measured)
+  
+  xccf = ccf(measured, predicted, lag.max = 0, plot = F)
+  tit = sprintf("Кроссплот CC=%5.2f Rsq=%5.2f", xccf$acf, as.numeric(xccf$acf) ^ 2)
+  
+  plot(measured, predicted, main = tit, 
+       xlim = bbexpand(c(min(measured),max(measured)),0.1),
+       ylim = bbexpand(c(min(predicted),max(predicted)),0.1))
+  abline(abl)
+  
+  text(measured,predicted, labels = names(predicted), pos = 1)
+  
+  
+}
+getLiveMapsIds <- function (maps = NULL, sr = NULL) {
+  if(is.null(maps)) return(NULL)
+  nsr = length(sr)
+  #browser()
+  if(is.null(sr) || nsr<1) {
+    sr=c(1:length(maps)) 
+  } else {
+    for(i in 1:length(sr)) {
+      if(sr[i] > length(maps)) {
+        sr = sr[-i]
+        i=i-1
+      }
+    }
+    if(is.null(sr) || length(sr)<1) {
+      sr=c(1:length(maps)) 
+    } 
+  }
+  if(nsr == 1) sr = c(sr,sr)
+  #dbgmes(message = "\tsr=",sr)
+  return(sr)
+}
+
+getLiveMapsData <- function (maps = NULL, sr = NULL) {
+  if(is.null(maps)) return(NULL)
+  #browser()
+  if(is.null(sr) || length(sr)<1) {
+    sr=c(1:length(maps)) 
+  } else {
+    for(i in 1:length(sr)) {
+      if(sr[i] > length(maps)) {
+        sr = sr[-i]
+        i=i-1
+      }
+    }
+    if(is.null(sr) || length(sr)<1) {
+      sr=c(1:length(maps)) 
+    } 
+  }
+  #browser()
+  #dbgmes("delSel=",sr)
+  data = c(1:length(as.vector(maps[[sr[1]]]$rstr@data@values)))
+  for(i in 1:length(sr)) {
+    if(length(as.vector(maps[[sr[1]]]$rstr@data@values)) != length(as.vector(maps[[sr[i]]]$rstr@data@values)))
+      return(NULL)
+    if(sr[[i]] <= length(maps)) {
+      data = data.frame(data,as.vector(maps[[sr[i]]]$rstr@data@values))
+      colnames(data)[i+1] = maps[[sr[i]]]$fn
+    }
+  }
+  #browser()
+  for (i in 1:length(data[1,])){
+    data = data[!is.na(data[,i]),]
+  }
+  #browser()
+  #dbgmes(message = "upscaling=",c(length(maps),length(data)))
+  return(data)
+}
+saveModMap_old <- function (data = NULL, clusters = NULL, sr = NULL, fname = NULL, format = "ESRI ASCII грид") {
+  if(is.null(data) || is.null(data)|| is.null(clusters)) return(NULL)
+  # got live cells
+  lividx = data[,1]
+  if(!is.null(sr) && length(sr)>1) datplot = myReactives$maps[[sr[1]]]$rstr
+  else datplot = myReactives$maps[[1]]$rstr
+  datplot@data@values[lividx] <- clusters
+  datplot_out=datplot
+  dxCellsize=(datplot@extent@xmax-datplot@extent@xmin)/datplot@ncols
+  dyCellsize=(datplot@extent@ymax-datplot@extent@ymin)/datplot@nrows
+  newCellSize = min(dxCellsize,dyCellsize)
+  datplot_out@nrows = as.integer(ceiling((datplot@extent@ymax-datplot@extent@ymin)/newCellSize))
+  datplot_out@ncols = as.integer(ceiling((datplot@extent@xmax-datplot@extent@xmin)/newCellSize))
+  datplot_out = resample(datplot,datplot_out,method = "ngb")
+  spgrid = as(datplot_out,'SpatialGridDataFrame') 
+  spgrid@grid@cellsize = rep(newCellSize,2)
+  #browser()
+  if(!is.null(fname))
+  {
+    wrFunc = mapFormats[[format]]
+    if(format == "ESRI ASCII грид") {
+      exprWr = as.expression({
+        close( file( fname, open="w" ) )
+        wrFunc(spgrid,fname)
+      })
+    } else {
+      q= as.data.frame(datplot_out,xy=T)
+      exprWr = as.expression({
+        close( file( fname, open="w" ) )
+        wrFunc(q,fname)
+      })
+    }
+    save = try( expr = exprWr , FALSE)
+    if(class(save)=="try-error"){
+      showNotification(ui = "Ошибка при сохранении файла",
+                       type = "error")      
+      cat(save)
+    }
+  }
+  return (spgrid)
+}
+saveModMap <- function (datplot = NULL, fname = NULL, format = "ESRI ASCII грид") {
+  if(is.null(datplot) ) return(NULL)
+  # got live cells
+  #lividx = data[,1]
+  #if(!is.null(sr) && length(sr)>1) datplot = myReactives$maps[[sr[1]]]$rstr
+  #else datplot = myReactives$maps[[1]]$rstr
+  #datplot@data@values[lividx] <- clusters
+  # datplot_out=datplot
+  # dxCellsize=(datplot@extent@xmax-datplot@extent@xmin)/datplot@ncols
+  # dyCellsize=(datplot@extent@ymax-datplot@extent@ymin)/datplot@nrows
+  # newCellSize = min(dxCellsize,dyCellsize)
+  # datplot_out@nrows = as.integer(ceiling((datplot@extent@ymax-datplot@extent@ymin)/newCellSize))
+  # datplot_out@ncols = as.integer(ceiling((datplot@extent@xmax-datplot@extent@xmin)/newCellSize))
+  # datplot_out = resample(datplot,datplot_out,method = "ngb")
+  # spgrid = as(datplot_out,'SpatialGridDataFrame') 
+  # spgrid@grid@cellsize = rep(newCellSize,2)
+  
+  spgrid = rstr2spgrid(datplot)
+  #browser()
+  if(!is.null(fname))
+  {
+    wrFunc = mapFormats[[format]]
+    if(format == "ESRI ASCII грид") {
+      exprWr = as.expression({
+        close( file( fname, open="w" ) )
+        wrFunc(spgrid,fname)
+      })
+    } else {
+      q= as.data.frame(datplot_out,xy=T)
+      exprWr = as.expression({
+        close( file( fname, open="w" ) )
+        wrFunc(q,fname)
+      })
+    }
+    save = try( expr = exprWr , FALSE)
+    if(class(save)=="try-error"){
+      showNotification(ui = "Ошибка при сохранении файла",
+                       type = "error")      
+      cat(save)
+    }
+  }
+  return (spgrid)
+}
+
+setPaletteTransp <- function(colors = NULL ,alpha = 0.5) {
+  if(is.null(colors)) return(NULL)
+  
+  colors = apply(sapply(colors, col2rgb)/255, 2, 
+                 function(x) rgb(x[1], x[2], x[3], alpha=alpha)) 
+  #dbgmes("transpal=",colors)
+  return(colors)
+}
+
+getDataTransp <- function (data = NULL) {
+  if(is.null(data))
+    dmax=1
+  else {
+    #dbgmes("data =",data)
+    dmax =  0.002/max(density(x=as.matrix(data), n = 128,na.rm=T)$y)
+    dbgmes("maxdens =",dmax)
+  }
+  return(min(1,dmax))
+}
+
+getNewMapFromValues <- function (maps=NULL,sr = NULL,values = NULL) {
+  if(is.null(maps) || is.null(values)) return(NULL)
+  
+  
+}
+
+rstr2spgrid <- function (datplot = NULL) {
+  if(is.null(datplot) ) return(NULL)
+  # got live cells
+  #lividx = data[,1]
+  #if(!is.null(sr) && length(sr)>1) datplot = myReactives$maps[[sr[1]]]$rstr
+  #else datplot = myReactives$maps[[1]]$rstr
+  #datplot@data@values[lividx] <- clusters
+  datplot_out=datplot
+  dxCellsize=(datplot@extent@xmax-datplot@extent@xmin)/datplot@ncols
+  dyCellsize=(datplot@extent@ymax-datplot@extent@ymin)/datplot@nrows
+  newCellSize = min(dxCellsize,dyCellsize)
+  datplot_out@nrows = as.integer(ceiling((datplot@extent@ymax-datplot@extent@ymin)/newCellSize))
+  datplot_out@ncols = as.integer(ceiling((datplot@extent@xmax-datplot@extent@xmin)/newCellSize))
+  datplot_out = resample(datplot,datplot_out,method = "ngb")
+  spgrid = as(datplot_out,'SpatialGridDataFrame') 
+  spgrid@grid@cellsize = rep(newCellSize,2)
+  
+  return(spgrid)
+}
+drawXYplot <- function (xy = NULL, transp = 1) {
+  if(is.null(xy)) return()
+  xccf <- ccf(xy[[1]], xy[[2]], lag.max = 0, plot = F)
   
   #browser()
-  lividx = data[,1]
-  if(!is.null(sr) && length(sr)>1) 
-    datplot = myReactives$maps[[sr[1]]]$rstr
-  else
-    datplot = myReactives$maps[[1]]$rstr
-  title = ""
-  names(datplot) = title
-  datplot@data@values = NA
-  datplot@data@values[lividx] <- res
-  datplot@data@values[datplot@data@values==0] <- NA
+  transp = 2 - transp
+  mcol = min(1,getDataTransp(data.frame(xy))*transp)
+  plot(
+    xy[[1]],
+    xy[[2]],
+    xlab = names(xy)[1],
+    ylab = names(xy)[2],
+    #xlab = mcol,
+    #ylab = dm,
+    main = sprintf("Кроссплот CC=%5.2f %s=%5.2f", xccf$acf, parse(text = 'R^2'), as.numeric(xccf$acf) ^ 2),
+    col = rgb(0, 0, 1, mcol),#, 1 , maxColorValue = mcol),
+    pch = 16
+  )
   
-  return (datplot)
-}  
+}
 
+drawWellsTable <- function (wells_ = NULL) {
+  if(is.null(wells_)) return()
+  wells = as.data.frame(wells_)
+  datatable(
+    cbind(' ' = '&oplus;', wells ), escape = 0,
+    caption = "Скважины: ",
+    filter = "none",
+    #height = 5,
+    #editable = TRUE,
+    class = "compact",
+    rownames = FALSE,
+    options = list(
+      pagingType = "simple",
+      paging = FALSE,
+      ColumnRender = prettyNum,
+      scrollY = "400px",
+      scrollCollapse = TRUE,
+      pageLength = 10,
+      columnDefs = list(
+        list(visible = FALSE, targets = c(2:3)),
+        list(orderable = FALSE, className = 'details-control', targets = 0)
+      )
+    ),
+    callback = JS("
+                  table.column(1).nodes().to$().css({cursor: 'pointer'});
+                  var format = function(d) {
+                  return '<div style=\"background-color:#eee; padding: .5em;\"> Loc: (X:' +
+                  Math.round(d[2]) + ' Y:' + Math.round(d[3]) + ')</div>';
+                  };
+                  table.on('click', 'td.details-control', function() {
+                  var td = $(this), row = table.row(td.closest('tr'));
+                  if (row.child.isShown()) {
+                  row.child.hide();
+                  td.html('&oplus;');
+                  } else {
+                  row.child(format(row.data())).show();
+                  td.html('&CircleMinus;');
+                  }
+                  });"
+
+    )
+    )
+  
+  }
+
+drawMapsTable <- function (maps_ = NULL, sr = NULL) {
+  if(is.null(maps_)) return()
+  
+  maps = matrix(,nrow = length(maps_), ncol = 4)
+  for( row in 1:length(maps_)) {
+    map = maps_[[row]]
+    maps[row,] <- c(paste0("Map",row),Name = map$fn, 
+                    Min = map$rstr@data@min, Max = map$rstr@data@max)
+  }
+  #names(maps) <- ' '
+  #dbgmes("sel=",sr)
+  colnames(maps) <- c("Ref","Name","Min","Max")
+  
+  datatable(
+    maps, escape = 0,
+    caption = "Доступные карты: ",
+    filter = "none",
+    #height = 5,
+    #editable = TRUE,
+    class = "compact",
+    rownames = FALSE,
+    selection = list (
+      mode = 'multiple',
+      #      selection  = sr,
+      target = 'row'
+    ),
+    options = list(
+      pagingType = "simple",
+      paging = FALSE,
+      ColumnRender = prettyNum,
+      scrollY = "400px",
+      scrollCollapse = TRUE,
+      #      stateSave = TRUE,
+      pageLength = 10#,
+      # columnDefs = list(
+      #   list(visible = FALSE, targets = c(2:3)),
+      #   list(orderable = FALSE, className = 'details-control', targets = 0)
+      # )
+    )#,
+    # callback = JS("
+    #               table.column(1).nodes().to$().css({cursor: 'pointer'});
+    #               var format = function(d) {
+    #               return '<div style=\"background-color:#eee; padding: .5em;\"> Loc: (X:' +
+    #               Math.round(d[2]) + ' Y:' + Math.round(d[3]) + ')</div>';
+    #               };
+    #               table.on('click', 'td.details-control', function() {
+    #               var td = $(this), row = table.row(td.closest('tr'));
+    #               if (row.child.isShown()) {
+    #               row.child.hide();
+    #               td.html('&oplus;');
+    #               } else {
+    #               row.child(format(row.data())).show();
+    #               td.html('&CircleMinus;');
+    #               }
+    #               });"
+    # 
+    # )
+  )
+  
+}
+
+#match and return vectors for CC and xplot calc
+getXYvectors <- function(map1, map2) {
+  if(is.null(map1) || is.null(map2)) return(NULL)
+  mask <- map1$mat + map2$mat
+  mask[!is.na(mask)] <- TRUE
+  mask[is.na(mask)] <- FALSE
+  
+  x1 = map1$mat[as.logical(mask)]
+  x2 = map2$mat[as.logical(mask)]
+  xy = list(x1,x2)
+  names(xy) <- c(map1$fn,map2$fn)
+  return (xy)
+}
+
+# PREDICTION ####
+#buildNNET <- function(wells = NULL, rows = NULL, sel_maps = NULL, test_ratio = 0.25, max_iter = 100, nnet_complex = 0.1, actFunc=1){
+buildNNET <- function(wells = NULL, test_ratio = 0.25, max_iter = 100, nnet_complex = 0.1, actFunc=1){
+  if(is.null(wells)) return(NULL)
+  #data = prepDataSet(wells = wells@data,rows = rows,sel_maps = sel_maps)
+  data = wells
+  if(is.null(data)) return(NULL)
+  
+  size = max(1,ceiling(sqrt(length(data[,1]))*nnet_complex*5*2))
+  layers = max(1,ceiling(log(base = 5, size)))
+  
+  
+  #browser()
+  dset0 = splitForTrainingAndTest(
+    x = data[,3:length(data[1,])],
+    y = as.matrix(data$Values), ratio = 0)
+  #nninp = dset0$targetsTrain
+  dset0 = normTrainingAndTestSet(dset0,dontNormTargets = FALSE)
+
+  dset = splitForTrainingAndTest(
+    x = dset0$inputsTrain,
+    y = dset0$targetsTrain, ratio = test_ratio)
+  dbgmes(message = "dset=",dset)
+  #dset = normTrainingAndTestSet(dset0,dontNormTargets = FALSE,type = getNormParameters(dset0$inputsTrain))
+  neurons = ceiling(seq.int(size/2,3, length.out = layers))
+  #browser()
+  setACtType <- function (x) {return(actFunc)} 
+  nnet = mlp(dset$inputsTrain, dset$targetsTrain, 
+             size = neurons, 
+             learnFuncParams = c(0.5),maxit = max_iter,
+             inputsTest = dset$inputsTest, targetsTest = dset$targetsTest,
+             linOut = T,actfns=setACtType)
+  rownames(dset0$inputsTrain) = (data$WELL)
+  colnames(dset0$inputsTrain) = colnames(data[,3:length(data[1,])])
+  nnout = predict( nnet, newdata = dset0$inputsTrain)  
+  nnout = denormalizeData(nnout,getNormParameters(dset0$targetsTrain))
+  #dbgmes(message = "res=",cbind(data$Values,nnout[,1]))
+  return(list(net = nnet,dset = dset0, out = nnout[,1], inp = data$Values))
+}
 drawNNETmap <- function (data = NULL ,sr = NULL, nnet = NULL,zoom = NULL) {
   if(is.null(data) || is.null(nnet) || is.null(nnet$net)) return(NULL)
   dset = normalizeData(data[,2:length(data)],getNormParameters(nnet$dset$inputsTrain))
@@ -1092,91 +1619,6 @@ drawNNETmodel <-function (nnet = NULL, mode = input$nnetAuxMode) {
          pos = 1)
     
   }
-}
-
-prepDataSet <- function (wells = NULL, rows = NULL, sel_maps = NULL) {
-  #browser()
-  if(is.null(wells) || length(wells[1,])<4) return(NULL)
-  if(is.null(sel_maps) || length(sel_maps)<1)
-    data = wells
-  else {
-    #data = cbind(wells@data[!is.na(wells@data),1:2],wells@data[!is.na(wells@data),2+sel_maps])
-    #dbgmes(message = "data=",wells)
-    #dbgmes("sel=",sel_maps)
-    #browser()
-    
-    # FIXME: check and fix the 'sel_maps' contents by the size of maps array (issue after map deletion)
-    
-    data = data.frame(wells[,c(1:2,2+sel_maps)])
-    #colnames(data) = c("WELL","Values",names(wells@data[2+sel_maps]))
-  }
-  
-  ddd = list()
-  if(!is.null(rows)) {
-    data[rows,] = NA
-  }
-  for(i in 1:length(data[,1]))
-  {
-    if(all(!is.na(data[i,2:length(data[1,])])))
-    {  
-      ddd = rbind(ddd,data[i,])
-      rownames(ddd)[length(ddd[,1])] = data$WELL[i]
-    }
-  }
-  #browser()
-  #data = data[,!is.na(data)]
-  #dbgmes(message = "data=",data)
-  dbgmes(message = "ddd=",ddd)
-  if(length(ddd) <1) return (NULL)
-  rownames(ddd) = ddd$WELL
-  #for (i in 1:length(ddd[1,])){
-  #  ddd = ddd[!is.na(ddd[,i]),]
-  #}
-  #dbgmes(message = "ddd=",ddd, depth = 2)
-  return(ddd)
-}
-
-#buildNNET <- function(wells = NULL, rows = NULL, sel_maps = NULL, test_ratio = 0.25, max_iter = 100, nnet_complex = 0.1, actFunc=1){
-buildNNET <- function(wells = NULL, test_ratio = 0.25, max_iter = 100, nnet_complex = 0.1, actFunc=1){
-  if(is.null(wells)) return(NULL)
-  #data = prepDataSet(wells = wells@data,rows = rows,sel_maps = sel_maps)
-  data = wells
-  if(is.null(data)) return(NULL)
-  
-  size = max(1,ceiling(sqrt(length(data[,1]))*nnet_complex*5*2))
-  layers = max(1,ceiling(log(base = 5, size)))
-  
-  
-  #browser()
-  dset0 = splitForTrainingAndTest(
-    x = data[,3:length(data[1,])],
-    y = as.matrix(data$Values), ratio = 0)
-  #nninp = dset0$targetsTrain
-  dset0 = normTrainingAndTestSet(dset0,dontNormTargets = FALSE)
-
-  dset = splitForTrainingAndTest(
-    x = dset0$inputsTrain,
-    y = dset0$targetsTrain, ratio = test_ratio)
-  dbgmes(message = "dset=",dset)
-  #dset = normTrainingAndTestSet(dset0,dontNormTargets = FALSE,type = getNormParameters(dset0$inputsTrain))
-  neurons = ceiling(seq.int(size/2,3, length.out = layers))
-  #browser()
-  setACtType <- function (x) {return(actFunc)} 
-  nnet = mlp(dset$inputsTrain, dset$targetsTrain, 
-             size = neurons, 
-             learnFuncParams = c(0.5),maxit = max_iter,
-             inputsTest = dset$inputsTest, targetsTest = dset$targetsTest,
-             linOut = T,actfns=setACtType)
-  rownames(dset0$inputsTrain) = (data$WELL)
-  colnames(dset0$inputsTrain) = colnames(data[,3:length(data[1,])])
-  nnout = predict( nnet, newdata = dset0$inputsTrain)  
-  nnout = denormalizeData(nnout,getNormParameters(dset0$targetsTrain))
-  #dbgmes(message = "res=",cbind(data$Values,nnout[,1]))
-  return(list(net = nnet,dset = dset0, out = nnout[,1], inp = data$Values))
-}
-
-plotError <- function (message = "Error!!!") {
-  plot(0,0,t="l");text(0,0,paste("ОШИБКА:",message),col = "red")
 }
 
 drawGLMmap <- function (data = NULL ,sr = NULL, glm = NULL,zoom = NULL, colors = rainbow(128)) {
@@ -1260,6 +1702,27 @@ drawSVMmap <- function (data = NULL ,sr = NULL, svmod = NULL,zoom = NULL, colors
   return (datplot)
 }  
 
+drawSVMmap2 <- function (data = NULL ,sr = NULL, svmod = NULL,zoom = NULL) {
+  if(is.null(data) || is.null(svmod) || is.null(svmod$mod)) return(NULL)
+  dset =data[,2:length(data)]
+  res = predict(svmod$mod,dset)
+  #res = denormalizeData(res,getNormParameters(nnet$dset$targetsTrain))
+  
+  #browser()
+  lividx = data[,1]
+  if(!is.null(sr) && length(sr)>1) 
+    datplot = myReactives$maps[[sr[1]]]$rstr
+  else
+    datplot = myReactives$maps[[1]]$rstr
+  title = ""
+  names(datplot) = title
+  datplot@data@values = NA
+  datplot@data@values[lividx] <- res
+  datplot@data@values[datplot@data@values==0] <- NA
+  
+  return (datplot)
+}  
+
 buildSVM <- function(data = NULL, test_ratio = 0.25, type = svmModels[1]) {
 #  if(is.null(wells)) return(NULL)
 #  data = wells #prepDataSet(wells = wells@data,rows = rows,sel_maps = sel_maps)
@@ -1310,412 +1773,6 @@ buildSVM <- function(data = NULL, test_ratio = 0.25, type = svmModels[1]) {
    # )
   return(list(mod=svmod,tune=svm_tune, class = class))
 }
-
-drawModelQC <- function(fit = NULL){
-  if(is.null(fit)) return()
-
-  par(mfrow = c(2,2))
-  plot(fit)
-  return(fit)
-}
-
-drawModelXplot <- function(data = NULL, lmfit = NULL, srows = NULL) {
-
-  dbgmes(message = "data=",data)
-  #data = prepDataSet(data)
-  predicted = predict(lmfit, newdata = data)
-  #browser()
-  measured = data$Values#[data$WELL %in% names(predicted)]
-  
-  #measured = data$Values[rownames(data) %in% names(predicted)]
-  dbgmes(message = "res=",cbind(measured,predicted))
-  abl = lm(predicted~measured)
-
-  xccf = ccf(measured, predicted, lag.max = 0, plot = F)
-  tit = sprintf("Кроссплот CC=%5.2f Rsq=%5.2f", xccf$acf, as.numeric(xccf$acf) ^ 2)
-  
-  plot(measured, predicted, main = tit, 
-       xlim = bbexpand(c(min(measured),max(measured)),0.1),
-       ylim = bbexpand(c(min(predicted),max(predicted)),0.1))
-  abline(abl)
-
-  text(measured,predicted, labels = names(predicted), pos = 1)
-  
-
-}
-
-calcKMeans <- function(data = NULL, nclass = 3) {
-  if(is.null(data)) return(NULL)
-
-  #data = getLiveMapsData(maps,sr)
-  kmns = kmeans(scale(as.matrix(data[,2:length(data[1,])])),nclass)
-  #kmns = kmeans(data[,2:length(data[1,])],nclass)
-  clr=kmns$cluster
-  #plot(datplot,col = mclust.options("classPlotColors")[1:max(clusters)])
-  return(kmns)
-}
-
-getLiveMapsIds <- function (maps = NULL, sr = NULL) {
-  if(is.null(maps)) return(NULL)
-  nsr = length(sr)
-  #browser()
-  if(is.null(sr) || nsr<1) {
-    sr=c(1:length(maps)) 
-  } else {
-    for(i in 1:length(sr)) {
-      if(sr[i] > length(maps)) {
-        sr = sr[-i]
-        i=i-1
-      }
-    }
-    if(is.null(sr) || length(sr)<1) {
-      sr=c(1:length(maps)) 
-    } 
-  }
-  if(nsr == 1) sr = c(sr,sr)
-  #dbgmes(message = "\tsr=",sr)
-  return(sr)
-}
-
-getLiveMapsData <- function (maps = NULL, sr = NULL) {
-  if(is.null(maps)) return(NULL)
-  #browser()
-  if(is.null(sr) || length(sr)<1) {
-    sr=c(1:length(maps)) 
-  } else {
-    for(i in 1:length(sr)) {
-      if(sr[i] > length(maps)) {
-        sr = sr[-i]
-        i=i-1
-      }
-    }
-    if(is.null(sr) || length(sr)<1) {
-      sr=c(1:length(maps)) 
-    } 
-  }
-  #browser()
-  #dbgmes("delSel=",sr)
-  data = c(1:length(as.vector(maps[[sr[1]]]$rstr@data@values)))
-  for(i in 1:length(sr)) {
-    if(length(as.vector(maps[[sr[1]]]$rstr@data@values)) != length(as.vector(maps[[sr[i]]]$rstr@data@values)))
-      return(NULL)
-    if(sr[[i]] <= length(maps)) {
-      data = data.frame(data,as.vector(maps[[sr[i]]]$rstr@data@values))
-      colnames(data)[i+1] = maps[[sr[i]]]$fn
-    }
-  }
-  #browser()
-  for (i in 1:length(data[1,])){
-    data = data[!is.na(data[,i]),]
-  }
- #browser()
-  #dbgmes(message = "upscaling=",c(length(maps),length(data)))
-  return(data)
-}
-
-drawModel <- function(data,model) {
-  #browser()
-  #dbgmes(message = "model=",model)
-  if(is.null(model)) {
-    plotError("Модель не рассчитана.\n проверьте входные данные")
-  }
-  if(class(model) == 'Mclust') 
-    plot(model, 
-         #main = (capture.output(summary(model)))[2], 
-         what = "classification")
-  else if(class(model) == 'kmeans') {
-    plot(as.data.frame(data[,2:length(data[1,])]),
-         main = (capture.output(model))[1],
-         col = mclust.options("classPlotColors")[model$cluster], pch = 16)
-    #if(class(model) == 'kmeans')
-    #  points(model$centers,pch = 4, cex = 4, lwd = 4)
-  }
-  else if(class(model) == 'hclust') {
-    plot(model)
-  }
-}
-
-dmode <- function(x, ...) {
-  dx <- density(x, ...)
-  dx$x[which.max(dx$y)]
-} 
-
-fill.na <- function(x) {
-  #browser()
-  i= floor(length(x)/2)
-  if( is.na(x)[i] && length(x[!is.na(x)]) > 2 ) {
-    return( round(median(x, na.rm=TRUE),0) )
-  } else {
-    return( round(x[i],0) )
-  }
-}  
-
-setPaletteTransp <- function(colors = NULL ,alpha = 0.5) {
-  if(is.null(colors)) return(NULL)
-  
-  colors = apply(sapply(colors, col2rgb)/255, 2, 
-                 function(x) rgb(x[1], x[2], x[3], alpha=alpha)) 
-  #cat(capture.output(colors))
-  return(colors)
-}
-
-getNewMapFromValues <- function (maps=NULL,sr = NULL,values = NULL) {
-  if(is.null(maps) || is.null(values)) return(NULL)
-  
-  
-}
-
-drawModMap <- function (datplot = NULL, title = NULL , zoom = NULL, colors = mapPalette(128), interpolate = T) {
-  if(is.null(data)) return(NULL)
-  #browser()
-  dbgmes("plot=",datplot,depth = 2)
-  par(new = TRUE)
-  par(mfrow=c(1,1))
-  if(is.null(zoom))
-    plot(datplot,
-         main = title,
-         col = colors ,interpolate=interpolate)
-  else
-    plot(datplot,
-         main = title,
-         xlim = zoom[1,], ylim = zoom[2,],
-         col = colors,interpolate=interpolate)
-}
-
-drawModMapPlot <- function (data = NULL, model = NULL, sr = NULL, zoom = NULL, nClass = 3) {
-  if(is.null(data) || is.null(data)|| is.null(model)) return(NULL)
-  msize = 1
-  if(class(model) == 'Mclust') {
-    title = (capture.output(summary(model)))[2]
-    clusters = model$classification
-  } else if(class(model) == 'kmeans') {
-    title = (capture.output(model))[1]
-    clusters = model$cluster
-  } else if(class(model) == 'hclust') {
-    title = (capture.output(model))[5:6]
-    if(is.null(model$ids))
-      clusters = cutree(model,min(nClass,length(model$height)))
-    else {
-      clusters = rep(0,times = length(data[,1]))
-      clusters[model$ids] = cutree(model,min(nClass,length(model$height)))
-      msize = floor(model$reduceFactor/2)*2+1
-    }
-    title = paste("reduceFactor = ",model$reduceFactor,"msize =", msize)
-    #clusters = model$cluster
-  }
-  
-  lividx = data[,1]
-  if(!is.null(sr) && length(sr)>1) 
-    datplot = myReactives$maps[[sr[1]]]$rstr
-  else
-    datplot = myReactives$maps[[1]]$rstr
-  names(datplot) = title
-  datplot@data@values = NA
-  datplot@data@values[lividx] <- clusters
-  datplot@data@values[datplot@data@values==0] <- NA
-  datplot@data@min = min(datplot@data@values,na.rm = T)
-  datplot@data@max = max(datplot@data@values,na.rm = T)
-# focal processing  ####
-  if(msize!=1)
-    datplot <- focal(datplot, w = matrix(1,msize,msize), fun = fill.na, 
-                pad = TRUE, na.rm = FALSE , NAonly = T)
-  datplot = sortClasses(datplot,myReactives$wells)
-
-  colors = mclust.options("classPlotColors")[1:max(clusters)]
-  #browser()
-  colors = setPaletteTransp(colors,0.5)
-  
-  drawModMap(datplot = datplot,title = title,
-             zoom = zoom,
-             colors = colors, interpolate = F)
-  
-  return (datplot)
-}
-
-getModelMapText <- function (model_map = NULL) {
-  if(is.null(model_map)) return("")
-  cls = attributes(model_map)$cls
-  txt_gen = paste0(capture.output(model_map),"\n")
-  txt_cls =""
-  if(!is.null(cls))
-    txt_cls = paste0(capture.output(cls),"\n")
-  return(c(txt_gen,txt_cls))
-}  
-
-kmeansIC = function(fit){
-  
-  m = ncol(fit$centers)
-  n = length(fit$cluster)
-  k = nrow(fit$centers)
-  D = fit$tot.withinss
-  return(data.frame(AIC = D + 2*m*k,
-                    BIC = D + log(n)*m*k))
-}
-
-drawModBIC <- function(model=NULL,mode = "BIC") {
-  #browser()
-  if(class(model)=='Mclust') 
-    plot(model,what = mode,main = (capture.output(summary(model)))[2])
-  else if( class(model)=='kmeans') {
-    plot(kmeansIC(model))
-  }
-  
-}
-
-saveModMap_old <- function (data = NULL, clusters = NULL, sr = NULL, fname = NULL, format = "ESRI ASCII грид") {
-  if(is.null(data) || is.null(data)|| is.null(clusters)) return(NULL)
-  # got live cells
-  lividx = data[,1]
-  if(!is.null(sr) && length(sr)>1) datplot = myReactives$maps[[sr[1]]]$rstr
-  else datplot = myReactives$maps[[1]]$rstr
-  datplot@data@values[lividx] <- clusters
-  datplot_out=datplot
-  dxCellsize=(datplot@extent@xmax-datplot@extent@xmin)/datplot@ncols
-  dyCellsize=(datplot@extent@ymax-datplot@extent@ymin)/datplot@nrows
-  newCellSize = min(dxCellsize,dyCellsize)
-  datplot_out@nrows = as.integer(ceiling((datplot@extent@ymax-datplot@extent@ymin)/newCellSize))
-  datplot_out@ncols = as.integer(ceiling((datplot@extent@xmax-datplot@extent@xmin)/newCellSize))
-  datplot_out = resample(datplot,datplot_out,method = "ngb")
-  spgrid = as(datplot_out,'SpatialGridDataFrame') 
-  spgrid@grid@cellsize = rep(newCellSize,2)
-  #browser()
-  if(!is.null(fname))
-  {
-    wrFunc = mapFormats[[format]]
-    if(format == "ESRI ASCII грид") {
-      exprWr = as.expression({
-        close( file( fname, open="w" ) )
-        wrFunc(spgrid,fname)
-        })
-    } else {
-      q= as.data.frame(datplot_out,xy=T)
-      exprWr = as.expression({
-        close( file( fname, open="w" ) )
-        wrFunc(q,fname)
-        })
-    }
-    save = try( expr = exprWr , FALSE)
-    if(class(save)=="try-error"){
-      showNotification(ui = "Ошибка при сохранении файла",
-                       type = "error")      
-      cat(save)
-    }
-  }
-  return (spgrid)
-}
-
-rstr2spgrid <- function (datplot = NULL) {
-  if(is.null(datplot) ) return(NULL)
-  # got live cells
-  #lividx = data[,1]
-  #if(!is.null(sr) && length(sr)>1) datplot = myReactives$maps[[sr[1]]]$rstr
-  #else datplot = myReactives$maps[[1]]$rstr
-  #datplot@data@values[lividx] <- clusters
-  datplot_out=datplot
-  dxCellsize=(datplot@extent@xmax-datplot@extent@xmin)/datplot@ncols
-  dyCellsize=(datplot@extent@ymax-datplot@extent@ymin)/datplot@nrows
-  newCellSize = min(dxCellsize,dyCellsize)
-  datplot_out@nrows = as.integer(ceiling((datplot@extent@ymax-datplot@extent@ymin)/newCellSize))
-  datplot_out@ncols = as.integer(ceiling((datplot@extent@xmax-datplot@extent@xmin)/newCellSize))
-  datplot_out = resample(datplot,datplot_out,method = "ngb")
-  spgrid = as(datplot_out,'SpatialGridDataFrame') 
-  spgrid@grid@cellsize = rep(newCellSize,2)
-  
-  return(spgrid)
-}
-
-saveModMap <- function (datplot = NULL, fname = NULL, format = "ESRI ASCII грид") {
-  if(is.null(datplot) ) return(NULL)
-  # got live cells
-  #lividx = data[,1]
-  #if(!is.null(sr) && length(sr)>1) datplot = myReactives$maps[[sr[1]]]$rstr
-  #else datplot = myReactives$maps[[1]]$rstr
-  #datplot@data@values[lividx] <- clusters
-  # datplot_out=datplot
-  # dxCellsize=(datplot@extent@xmax-datplot@extent@xmin)/datplot@ncols
-  # dyCellsize=(datplot@extent@ymax-datplot@extent@ymin)/datplot@nrows
-  # newCellSize = min(dxCellsize,dyCellsize)
-  # datplot_out@nrows = as.integer(ceiling((datplot@extent@ymax-datplot@extent@ymin)/newCellSize))
-  # datplot_out@ncols = as.integer(ceiling((datplot@extent@xmax-datplot@extent@xmin)/newCellSize))
-  # datplot_out = resample(datplot,datplot_out,method = "ngb")
-  # spgrid = as(datplot_out,'SpatialGridDataFrame') 
-  # spgrid@grid@cellsize = rep(newCellSize,2)
-  
-  spgrid = rstr2spgrid(datplot)
-  #browser()
-  if(!is.null(fname))
-  {
-    wrFunc = mapFormats[[format]]
-    if(format == "ESRI ASCII грид") {
-      exprWr = as.expression({
-        close( file( fname, open="w" ) )
-        wrFunc(spgrid,fname)
-      })
-    } else {
-      q= as.data.frame(datplot_out,xy=T)
-      exprWr = as.expression({
-        close( file( fname, open="w" ) )
-        wrFunc(q,fname)
-      })
-    }
-    save = try( expr = exprWr , FALSE)
-    if(class(save)=="try-error"){
-      showNotification(ui = "Ошибка при сохранении файла",
-                       type = "error")      
-      cat(save)
-    }
-  }
-  return (spgrid)
-}
-
-calcGMM <- function(data = NULL, nclass = 3) {
-  if(is.null(data)) return(NULL)
-  itmax = 50
-
-  dat = scale(data[,2:length(data[1,])])
-  #names(dat) = names(data[,2:length(data[1,])])
-  if(nclass > 0) {
-    gmmBIC = mclustBIC(dat,G=nclass, control = emControl(itmax = itmax))
-    gmm <- Mclust(dat,x = gmmBIC,G=nclass)
-  } else {
-    gmmBIC=mclustBIC(dat,G=classRange, control = emControl(itmax = itmax))
-    gmm <- Mclust(dat,x = gmmBIC)
-  }
-
-  return(gmm)
-}
-
-calcHC <- function(data = NULL, nclass = 3, mode = "complete", distMode = "euclidean", maxPairs = 16000) {
-  if(is.null(data)) return(NULL)
-  #browser()
-  dat = data[,2:length(data[1,])]
-  #names(dat) = names(data[,2:length(data[1,])])
-  # usage of hclust require dist matrix which size would exceed the available memory
-  # in most cases
-  # hcluster requires less memory, but still requires the data decimation by reduceFactor.
-  #reduceFactor = as.integer(max(1,length(dat[,1])/65000L^(1/(length(dat[1,])-1))))
-  reduceFactor = ceiling(length(dat[,1])/maxPairs)
-  if(reduceFactor > 1 ) {
-    ids = seq(1,length(dat[,1]),reduceFactor)
-    dat_= dat[ids,]
-    hcm = hcluster(dat_,method = distMode, link = mode)
-    #dat_$class=cutree(hcm,min(nclass,length(hcm$height)))
-    #kmn=kmeans(dat,centers = dat_)
-    #hcm$cluster=kmn$cluster
-    hcm$ids = ids
-    hcm$reduceFactor = reduceFactor
-    #hcm$cluster = rep(0,times = length(dat[,1]))
-    #hcm$cluster[ids] = cutree(hcm,min(nclass,length(hcm$height)))
-    
-  } else {
-    hcm = hcluster(dat,method = distMode, link = mode)
-    hcm$ids = NULL
-    #hcm$cluster = cutree(hcm,min(nclass,length(hcm$height)))
-  }
-  return(hcm)
-}
-
-
 getModelText <- function(fit = NULL) {
   if(is.null(fit)) return("No model provided" )
   names = names(attributes(fit$terms)$dataClasses)
@@ -1745,165 +1802,246 @@ getModelXplotText <- function(data = NULL, lmfit = NULL, srows = NULL) {
   #dbgmes("xplot data = ", c((predicted),(measured)))
   #dbgmes("length = ", c(length(predicted),length(measured)))
   abl = lm(predicted~measured)
-    res = paste(abl$call$formula[2]," = ", abl$call$formula[3]," * ",
-                prettyNum(abl$coefficients[2]),"+",
-                prettyNum(abl$coefficients[1]))
+  res = paste(abl$call$formula[2]," = ", abl$call$formula[3]," * ",
+              prettyNum(abl$coefficients[2]),"+",
+              prettyNum(abl$coefficients[1]))
   return(res)
   #plot(anova(myReactives$glm))
 }
 
 
-drawXYplot <- function (xy = NULL, transp = 1) {
-  if(is.null(xy)) return()
-  xccf <- ccf(xy[[1]], xy[[2]], lag.max = 0, plot = F)
-  
-  #xmean <- mean(xy$x)
-  xstd <- sd(xy[[1]])
-  xdv <- max(xy[[1]])-min(xy[[1]])
-  
-  #ymean <- mean(xy$y)
-  ystd <- sd(xy[[2]])
-  ydv <- max(xy[[2]])-min(xy[[2]])
-  
-  dms <- sqrt((2*xstd)^2+(2*ystd)^2)
-  dmd <- sqrt(xdv^2+ydv^2)
-  dm <- abs(as.numeric(xccf$acf))*(dms/dmd)*0.5
-  #mcol - expected max number of points in a cell
-  #mcol <- length(xy$x)^(dm)
-  mcol <- ceiling((length(xy[[1]])*0.95)^sqrt(dm))*10^(transp)
-  plot(
-    xy[[1]],
-    xy[[2]],
-    xlab = names(xy)[1],
-    ylab = names(xy)[2],
-    #xlab = mcol,
-    #ylab = dm,
-    main = sprintf("Кроссплот CC=%5.2f %s=%5.2f", xccf$acf, parse(text = 'R^2'), as.numeric(xccf$acf) ^ 2),
-    col = rgb(0, 0, mcol, 1 , maxColorValue = mcol),
-    pch = 16
-  )
-  
-}
+# CLASSIFICATION ####
 
-drawWellsTable <- function (wells_ = NULL) {
-  if(is.null(wells_)) return()
-  wells = as.data.frame(wells_)
-  datatable(
-    cbind(' ' = '&oplus;', wells ), escape = 0,
-    caption = "Скважины: ",
-    filter = "none",
-    #height = 5,
-    #editable = TRUE,
-    class = "compact",
-    rownames = FALSE,
-    options = list(
-      pagingType = "simple",
-      paging = FALSE,
-      ColumnRender = prettyNum,
-      scrollY = "400px",
-      scrollCollapse = TRUE,
-      pageLength = 10,
-      columnDefs = list(
-        list(visible = FALSE, targets = c(2:3)),
-        list(orderable = FALSE, className = 'details-control', targets = 0)
-      )
-    ),
-    callback = JS("
-                  table.column(1).nodes().to$().css({cursor: 'pointer'});
-                  var format = function(d) {
-                  return '<div style=\"background-color:#eee; padding: .5em;\"> Loc: (X:' +
-                  Math.round(d[2]) + ' Y:' + Math.round(d[3]) + ')</div>';
-                  };
-                  table.on('click', 'td.details-control', function() {
-                  var td = $(this), row = table.row(td.closest('tr'));
-                  if (row.child.isShown()) {
-                  row.child.hide();
-                  td.html('&oplus;');
-                  } else {
-                  row.child(format(row.data())).show();
-                  td.html('&CircleMinus;');
-                  }
-                  });"
-
-    )
-    )
-
-}
-
-drawMapsTable <- function (maps_ = NULL, sr = NULL) {
-  if(is.null(maps_)) return()
-  
-  maps = matrix(,nrow = length(maps_), ncol = 4)
-  for( row in 1:length(maps_)) {
-    map = maps_[[row]]
-    maps[row,] <- c(paste0("Map",row),Name = map$fn, 
-                    Min = map$rstr@data@min, Max = map$rstr@data@max)
+drawModel <- function(data = NULL,model = NULL, nclass = 3) {
+  #browser()
+  #dbgmes(message = "model=",model)
+  if(is.null(model)) {
+    plotError("Модель не рассчитана.\n проверьте входные данные")
   }
-  #names(maps) <- ' '
-  #dbgmes("sel=",sr)
-  colnames(maps) <- c("Ref","Name","Min","Max")
-
-  datatable(
-    maps, escape = 0,
-    caption = "Доступные карты: ",
-    filter = "none",
-    #height = 5,
-    #editable = TRUE,
-    class = "compact",
-    rownames = FALSE,
-    selection = list (
-      mode = 'multiple',
-#      selection  = sr,
-      target = 'row'
-    ),
-    options = list(
-      pagingType = "simple",
-      paging = FALSE,
-      ColumnRender = prettyNum,
-      scrollY = "400px",
-      scrollCollapse = TRUE,
-#      stateSave = TRUE,
-      pageLength = 10#,
-      # columnDefs = list(
-      #   list(visible = FALSE, targets = c(2:3)),
-      #   list(orderable = FALSE, className = 'details-control', targets = 0)
-      # )
-     )#,
-    # callback = JS("
-    #               table.column(1).nodes().to$().css({cursor: 'pointer'});
-    #               var format = function(d) {
-    #               return '<div style=\"background-color:#eee; padding: .5em;\"> Loc: (X:' +
-    #               Math.round(d[2]) + ' Y:' + Math.round(d[3]) + ')</div>';
-    #               };
-    #               table.on('click', 'td.details-control', function() {
-    #               var td = $(this), row = table.row(td.closest('tr'));
-    #               if (row.child.isShown()) {
-    #               row.child.hide();
-    #               td.html('&oplus;');
-    #               } else {
-    #               row.child(format(row.data())).show();
-    #               td.html('&CircleMinus;');
-    #               }
-    #               });"
-    # 
-    # )
-    )
-  
+  #browser()
+  if(is.null(data)) {
+    plotError("Объединенная выборка пуста.\n проверьте входные данные")
   }
-
-#match and return vectors for CC and xplot calc
-getXYvectors <- function(map1, map2) {
-  if(is.null(map1) || is.null(map2)) return(NULL)
-  mask <- map1$mat + map2$mat
-  mask[!is.na(mask)] <- TRUE
-  mask[is.na(mask)] <- FALSE
+  pal = setPaletteTransp(classPalette,getDataTransp(data[-1]))
   
-  x1 = map1$mat[as.logical(mask)]
-  x2 = map2$mat[as.logical(mask)]
-  xy = list(x1,x2)
-  names(xy) <- c(map1$fn,map2$fn)
-  return (xy)
+  if(class(model) == 'Mclust') {
+    #mclust.options(classPlotColors = pal) 
+    plot(model, pch = 16, col = pal,
+         what = "classification")
+  }
+  else if(class(model) == 'kmeans') {
+    plot(as.data.frame(data[-1]),#data[,2:length(data[1,])]),
+         #main = (capture.output(model))[1],
+         col = pal[model$cluster], pch = 16)
+    #if(class(model) == 'kmeans')
+    #  points(model$centers,pch = 4, cex = 4, lwd = 4)
+  }
+  else if(class(model) == 'hclust') {
+    #plot(model,col = pal)
+    #browser()
+    #predicted = cutree(model,min(nclass,length(model$height)))
+    if(is.null(model$ids))
+      dset = data[-1]
+    else 
+      dset = data[model$ids,-1]
+    predicted = cutree(model,min(nclass,length(model$height)))
+    model$predicted = predicted
+    plot(dset,#data[,2:length(data[1,])]),
+         #main = (capture.output(model))[1],
+         col = pal[predicted], pch = 16)
+  } else if(class(model) == 'svm') {
+    plot(as.data.frame(data[-1]),#data[,2:length(data[1,])]),
+         #main = (capture.output(model))[1],
+         col = pal[model$predicted], pch = 16)
+  }
 }
+drawModMap <- function (datplot = NULL, title = NULL , zoom = NULL, colors = mapPalette(128), interpolate = T) {
+  if(is.null(data)) return(NULL)
+  #browser()
+  dbgmes("plot=",datplot,depth = 2)
+  par(new = TRUE)
+  par(mfrow=c(1,1))
+  if(is.null(zoom))
+    plot(datplot,
+         main = title,
+         col = colors ,interpolate=interpolate)
+  else
+    plot(datplot,
+         main = title,
+         xlim = zoom[1,], ylim = zoom[2,],
+         col = colors,interpolate=interpolate)
+}
+
+drawModMapPlot <- function (data = NULL, model = NULL, zoom = NULL, sr=NULL, nClass = 3, doPlot = TRUE) {
+  if(is.null(data) || is.null(data)|| is.null(model)) return(NULL)
+  msize = 1
+  #browser()
+  if(class(model) == 'Mclust') {
+    title = (capture.output(summary(model)))[2]
+    clusters = model$classification
+  } else if(class(model) == 'kmeans') {
+    title = (capture.output(model))[1]
+    clusters = model$cluster
+  } else if(class(model) == 'svm') {
+    #browser()
+    title = (capture.output(model))[1]
+    #clusters = as.integer(predict(model$mod)) +1
+    clusters = model$predicted
+  } else if(class(model) == 'hclust') {
+    title = (capture.output(model))[5:6]
+    if(is.null(model$ids))
+      clusters = cutree(model,min(nClass,length(model$height)))
+    else {
+      clusters = rep(0,times = length(data[,1]))
+      clusters[model$ids] = cutree(model,min(nClass,length(model$height)))
+      msize = floor(model$reduceFactor/2)*2+1
+    }
+    title = paste("reduceFactor = ",model$reduceFactor,"msize =", msize)
+    #clusters = model$cluster
+  }
+  
+  lividx = data[,1]
+  
+  if(!is.null(sr) && length(sr)>1) 
+   datplot = myReactives$maps[[sr[1]]]$rstr
+  else
+   datplot = myReactives$maps[[1]]$rstr
+  names(datplot) = title
+  
+  datplot@data@values = NA
+  datplot@data@values[lividx] <- clusters
+  datplot@data@values[datplot@data@values==0] <- NA
+  datplot@data@min = min(datplot@data@values,na.rm = T)
+  datplot@data@max = max(datplot@data@values,na.rm = T)
+  # focal processing  ####
+  if(msize!=1)
+    datplot <- focal(datplot, w = matrix(1,msize,msize), fun = fill.na, 
+                     pad = TRUE, na.rm = FALSE , NAonly = T)
+  datplot = sortClasses(datplot,myReactives$wells)
+  
+  if(doPlot) {
+    colors = classPalette[1:max(clusters)]
+    #browser()
+    colors = setPaletteTransp(colors,0.5)
+    
+    drawModMap(datplot = datplot,title = title,
+               zoom = zoom,
+               colors = colors, interpolate = F)
+  }
+  return (datplot)
+}
+
+getModelMapText <- function (model_map = NULL) {
+  if(is.null(model_map)) return("")
+  cls = attributes(model_map)$cls
+  txt_gen = paste0(capture.output(model_map),"\n")
+  txt_cls =""
+  if(!is.null(cls))
+    txt_cls = paste0(capture.output(cls),"\n")
+  return(c(txt_gen,txt_cls))
+}  
+
+dmode <- function(x, ...) {
+  dx <- density(x, ...)
+  dx$x[which.max(dx$y)]
+} 
+
+fill.na <- function(x) {
+  #browser()
+  i= floor(length(x)/2)
+  if( is.na(x)[i] && length(x[!is.na(x)]) > 2 ) {
+    return( round(median(x, na.rm=TRUE),0) )
+  } else {
+    return( round(x[i],0) )
+  }
+}  
+
+calcKMeans <- function(data = NULL, nclass = 3) {
+  if(is.null(data)) return(NULL)
+  
+  #data = getLiveMapsData(maps,sr)
+  kmns = kmeans(scale(as.matrix(data[,2:length(data[1,])])),nclass)
+  #kmns = kmeans(data[,2:length(data[1,])],nclass)
+  clr=kmns$cluster
+  #plot(datplot,col = classPalette("classPlotColors")[1:max(clusters)])
+  return(kmns)
+}
+
+
+
+kmeansIC = function(fit){
+  
+  m = ncol(fit$centers)
+  n = length(fit$cluster)
+  k = nrow(fit$centers)
+  D = fit$tot.withinss
+  return(data.frame(AIC = D + 2*m*k,
+                    BIC = D + log(n)*m*k))
+}
+
+drawModBIC <- function(model=NULL,mode = "BIC") {
+  #browser()
+  if(class(model)=='Mclust') 
+    plot(model,what = mode,main = (capture.output(summary(model)))[2])
+  else if( class(model)=='kmeans') {
+    plot(kmeansIC(model))
+  }
+  
+}
+
+
+
+calcGMM <- function(data = NULL, nclass = 3) {
+  if(is.null(data)) return(NULL)
+  itmax = 50
+
+  dat = data[-1]#scale(data[-1])
+  #names(dat) = names(data[,2:length(data[1,])])
+  if(nclass > 0) {
+    gmmBIC = mclustBIC(dat,G=nclass, control = emControl(itmax = itmax))
+    gmm <- Mclust(dat,x = gmmBIC,G=nclass)
+  } else {
+    gmmBIC=mclustBIC(dat,G=classRange, control = emControl(itmax = itmax))
+    gmm <- Mclust(dat,x = gmmBIC,scale = TRUE)
+  }
+  
+  return(gmm)
+}
+
+calcHC <- function(data = NULL, nclass = 3, mode = "complete", distMode = "euclidean", maxPairs = 16000) {
+  if(is.null(data)) return(NULL)
+  #browser()
+  dat = scale(data) #data[,2:length(data[1,])]
+  #names(dat) = names(data[,2:length(data[1,])])
+  # usage of hclust require dist matrix which size would exceed the available memory
+  # in most cases hcluster requires less memory, 
+  # but still requires the data decimation by reduceFactor.
+  #reduceFactor = as.integer(max(1,length(dat[,1])/65000L^(1/(length(dat[1,])-1))))
+  reduceFactor = ceiling(length(dat[,1])/maxPairs)
+  if(reduceFactor > 1 ) {
+    ids = seq(1,length(dat[,1]),reduceFactor)
+    dat= dat[ids,]
+    ids = ids
+  } else {
+    ids = NULL
+  }
+  hcm = hcluster(dat,method = distMode, link = mode)
+  hcm$reduceFactor = reduceFactor
+  hcm$ids=ids
+#  hcm$used = dat
+  #return(list(mod = hcm, predicted = predicted))
+  return(hcm)
+}
+
+calcSVMC <- function(data = NULL, nclass = 3, type = svmModels[3]) {
+  if(is.null(data)) return(NULL)
+  #browser()
+  svcm = svm(data[-1])
+  svcm$predicted = NULL
+  return(svcm)
+}
+
+
 
 # Define server logic required to draw a histogram
 options(shiny.maxRequestSize = 500 * 1024 ^ 2)
@@ -2545,7 +2683,7 @@ X_LOCATION  Y_LOCATION  VALUE",
 
   output$kmXPlot <- renderPlot({
     recalcKMeans()
-    myReactives$km_map = drawModMapPlot(myReactives$liveMaps,myReactives$km,sr = input$table_maps_rows_selected)
+    myReactives$km_map = drawModMapPlot(myReactives$liveMaps,sr = input$table_maps_rows_selected,myReactives$km)
     par(new = TRUE)
     drawWells(wells = myReactives$wells, 
               sr = input$table_wells_rows_selected,
@@ -2596,9 +2734,8 @@ X_LOCATION  Y_LOCATION  VALUE",
   
   output$gmmXPlot <- renderPlot({
     recalcGMM()
-    myReactives$gmm_map = drawModMapPlot(myReactives$liveMaps,
-                                         myReactives$gmm,
-                                         sr = input$table_maps_rows_selected)
+    myReactives$gmm_map = drawModMapPlot(myReactives$liveMaps,sr = input$table_maps_rows_selected,
+                                         myReactives$gmm)
     par(new = TRUE)
     drawWells(wells = myReactives$wells, 
               sr = input$table_wells_rows_selected,
@@ -2611,6 +2748,42 @@ X_LOCATION  Y_LOCATION  VALUE",
     drawModBIC(model = myReactives$gmm,mode = input$gmmAuxMode)
     removeModal() 
   })
+  
+  recalcSVMC <- reactive ({
+    showModDial("Кластеризация SVM one-class...")
+    myReactives$svcm = calcSVMC(myReactives$liveMaps,type = NULL)
+  })
+  
+  redrawSVMC <- reactive ({
+    #showModDial("Кластеризация SVM one-class...")
+    #browser()
+    #data = myReactives$liveMaps[-1]
+    myReactives$svcm$predicted = as.integer(predict(myReactives$svcm))+1
+    drawModel(data = myReactives$liveMaps, model = myReactives$svcm)
+    #cls = as.integer(predict(myReactives$svcm))+1
+    #colors = setPaletteTransp(classPalette,getDataTransp(data))
+    #plot(data,col = colors[cls],pch = 16, main = "SVM one-class clustering")
+  })
+  #CB: SVMC model ####    
+  output$svPlot <- renderPlot({
+    recalcSVMC()
+    redrawSVMC()
+    removeModal() 
+  })
+  
+  output$svXPlot <- renderPlot({
+    #data = myReactives$liveMaps[-1]
+    #dbgmes("data = ",data)
+    #myReactives$svcm = svm(data)
+    #cls = as.integer(predict(myReactives$svcm$mod))+1
+    myReactives$svcm_map = drawModMapPlot(myReactives$liveMaps,sr = input$table_maps_rows_selected,
+                                          myReactives$svcm)
+    drawWells(wells = myReactives$wells, 
+              sr = input$table_wells_rows_selected,
+              srmap = input$table_maps_rows_selected)
+    removeModal() 
+  })
+  
   
   getMapPar <- function()
   {
@@ -2641,6 +2814,7 @@ X_LOCATION  Y_LOCATION  VALUE",
     mode = NULL
     mode_aux = NULL
     resmap = NULL
+    prediction = NULL
     title = ""
     if(main == 'maps') {
       if(input$maps == 'modelKM') {
@@ -2649,17 +2823,26 @@ X_LOCATION  Y_LOCATION  VALUE",
         mode = input$modelKM
         resmap = myReactives$km_map
         title = (capture.output(model))[1]
+        prediction = model$cluster
       } else if (input$maps == 'modelGM') {
         model = myReactives$gmm
         mode = input$modelGM
         mode_aux = input$gmmAuxMode
         resmap = myReactives$gmm_map
         title = (capture.output(summary(model)))[2]
+        prediction = model$classification
       } else if (input$maps == 'modelHC') {
         model = myReactives$hcm
         mode = input$modelHC
         resmap = myReactives$hcm_map
+        prediction = model$predicted
         title = paste("Hierarhical Clusteing",(capture.output(model))[5:6])
+      } else if (input$maps == 'modelSV') {
+        model = myReactives$svmc
+        mode = input$modelSV
+        resmap = myReactives$svmc_map
+        prediction = model$predicted
+        title = paste("One-class clustering (ouliers)",(capture.output(model))[1])
       }
     } else if (main == 'models') {
       if(input$models == 'nnet') {
@@ -2713,11 +2896,20 @@ X_LOCATION  Y_LOCATION  VALUE",
   #CB: HC model ####    
   recalcHCM <- reactive ({
     showModDial("Иерархическая кластеризация...")
-    myReactives$hcm <- calcHC(myReactives$liveMaps,
+    hcm <- calcHC(myReactives$liveMaps[-1],
                               mode = hcmModes_hcluster[[input$hcMode]],
                               distMode = hcmDistModes[[input$hcDistMode]])
+    #cutree(model$mod,min(nClass,length(myReactives$hcm$height)))
+    #browser()
+    # resmap = drawModMapPlot(myReactives$liveMaps,sr = input$table_maps_rows_selected,
+    #                         hcm,
+    #                         nClass = input$numClasses,
+    #                         doPlot = FALSE)
+    # hcm$predicted = resmap@data@values
+    myReactives$hcm = hcm
+    #myReactives$hcm$predicted = resmap@data@values
     removeModal() 
-    return(myReactives$hcm)
+    #return(myReactives$hcm)
    # if(input$numClassUD)
     #  updateSliderInput(session,"numClasses",value = myReactives$gmm$G)
   })
@@ -2725,7 +2917,7 @@ X_LOCATION  Y_LOCATION  VALUE",
   #CB: HC plot model ####
   output$hcPlot <- renderPlot({
     recalcHCM()
-    drawModel(myReactives$liveMaps,myReactives$hcm)
+    drawModel(myReactives$liveMaps,myReactives$hcm, nclass = input$numClasses)
   })
   
   output$hcText <- renderText({ #renderPrint renderText
@@ -2734,9 +2926,8 @@ X_LOCATION  Y_LOCATION  VALUE",
   
   output$hcXPlot <- renderPlot({
     recalcHCM()
-    myReactives$hcm_map = drawModMapPlot(myReactives$liveMaps,
+    myReactives$hcm_map = drawModMapPlot(myReactives$liveMaps,sr = input$table_maps_rows_selected,
                                          myReactives$hcm,
-                                         sr = input$table_maps_rows_selected,
                                          nClass = input$numClasses)
     par(new = TRUE)
     drawWells(wells = myReactives$wells, 
@@ -2852,7 +3043,7 @@ X_LOCATION  Y_LOCATION  VALUE",
     if(main == 'maps') {
     if (!is.null(model)) {
       if(mode == 'res'){
-        colors = mclust.options("classPlotColors")[1:resmap@data@max]
+        colors = classPalette[1:resmap@data@max]
         colors = setPaletteTransp(colors,0.5)
         drawModMap(datplot = resmap,title = title,
                    colors = colors,

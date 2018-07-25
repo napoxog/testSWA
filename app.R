@@ -1858,7 +1858,7 @@ drawModel <- function(data = NULL,model = NULL, nclass = 3) {
 drawModMap <- function (datplot = NULL, title = NULL , zoom = NULL, colors = mapPalette(128), interpolate = T) {
   if(is.null(data)) return(NULL)
   #browser()
-  dbgmes("plot=",datplot,depth = 2)
+  #dbgmes("plot=",datplot,depth = 2)
   par(new = TRUE)
   par(mfrow=c(1,1))
   if(is.null(zoom))
@@ -3053,7 +3053,7 @@ X_LOCATION  Y_LOCATION  VALUE",
                   sr = input$table_wells_rows_selected,
                   srmap = input$table_maps_rows_selected)
       } else if(mode == 'mod') {
-        drawModel(myReactives$liveMaps,model)
+        drawModel(myReactives$liveMaps,model, nclass = input$numClasses)
       } else if(mode == 'aux') {
         drawModBIC(model,mode = mode_aux)
       }

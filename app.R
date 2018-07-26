@@ -66,7 +66,7 @@
 ###   DONE: 32. Add Export format Selection (XYZ/ESRI/ZAMP?)
 ###   DONE: 33. Refine the Histogram display with density plots overlay and maybe some additional statistics (mean,median,std)
 ###   DONE: 34. Add option to add Classification/prediction results directly to input MapsList
-###   FIXME: Mpas selection with 1 additional map works oddly (select callback issue)
+###   FIXME: Maps selection with 1 additional map works oddly (select callback issue)
 ###   TODO: 35. Make the maps min and max to be used in the training datasets (in normalization)
 ###   TODO: 36. Automate the averaging influence estimation
 ###   TODO: 37. Create a batch mode for all tools depending on: averaging, inputs maps cycle, wells subset
@@ -208,6 +208,8 @@ names(mapFormatsRead) <- c("ESRI ASCII грид",
                        "Формат CSV",
                        "Формат CSV (Excel)",
                        "Разделитель - табуляция")
+
+batModels <- list ('NNET','GLM','SVM')
 
 classRange = 2:16
 classPalette = mclust.options("classPlotColors")
@@ -553,6 +555,22 @@ ui <- fluidPage(theme = shinytheme("simplex"),
           downloadButton('downloadModMap', 'Сохранить карту'),
           actionButton('addModMap2inp', 'Поместить во входные'),
           verbatimTextOutput("modelsXText")
+        ),
+        #UI: BATCH ####
+        tabPanel(
+          "Поиск", value = "batch",
+          #tabsetPanel( id = 'batch',
+                       radioButtons("batModel",
+                                    label = "",
+                                    choices = batModels,
+                                    inline=T
+                       ),
+                       plotOutput(
+                         "batPlot",
+                         #click = "plot_zoom",
+                         height = modPlot_wid
+                       )
+          #)
         )
       )
       
@@ -1518,7 +1536,7 @@ getXYvectors <- function(map1, map2) {
 
 # PREDICTION ####
 #buildNNET <- function(wells = NULL, rows = NULL, sel_maps = NULL, test_ratio = 0.25, max_iter = 100, nnet_complex = 0.1, actFunc=1){
-buildNNET <- function(wells = NULL, test_ratio = 0.25, max_iter = 100, nnet_complex = 0.1, actFunc=1){
+buildNNET <- function(wells = NULL, test_ratio = 0.20, max_iter = 100, nnet_complex = 0.1, actFunc=1){
   if(is.null(wells)) return(NULL)
   #data = prepDataSet(wells = wells@data,rows = rows,sel_maps = sel_maps)
   data = wells
@@ -1526,28 +1544,41 @@ buildNNET <- function(wells = NULL, test_ratio = 0.25, max_iter = 100, nnet_comp
   
   size = max(1,ceiling(sqrt(length(data[,1]))*nnet_complex*5*2))
   layers = max(1,ceiling(log(base = 5, size)))
+  neurons = ceiling(seq.int(size/2,3, length.out = layers))
   
   
-  #browser()
   dset0 = splitForTrainingAndTest(
-    x = data[,3:length(data[1,])],
-    y = as.matrix(data$Values), ratio = 0)
+    x = (data[,c(-1,-2)]),
+    y = (data$Values), ratio = 0)
   #nninp = dset0$targetsTrain
   dset0 = normTrainingAndTestSet(dset0,dontNormTargets = FALSE)
 
-  dset = splitForTrainingAndTest(
-    x = dset0$inputsTrain,
-    y = dset0$targetsTrain, ratio = test_ratio)
-  dbgmes(message = "dset=",dset)
-  #dset = normTrainingAndTestSet(dset0,dontNormTargets = FALSE,type = getNormParameters(dset0$inputsTrain))
-  neurons = ceiling(seq.int(size/2,3, length.out = layers))
+  #dbgmes(message = "size,layers,neurons=",c(size,layers,neurons))
+  #dbgmes(message = "test_ratio=",test_ratio)
+  #browser()
+  if(length(dset0$inputsTrain[,1])<4) {
+    test_ratio = 0
+    dset = dset0
+  } else {
+    dset = splitForTrainingAndTest(
+      x = dset0$inputsTrain,
+      y = dset0$targetsTrain, ratio = test_ratio)
+  }
+  
+  #dbgmes(message = "size,layers,neurons=",c(size,layers,neurons))
+  #dbgmes(message = "test_ratio=",test_ratio)
+  #dbgmes(message = "dset=",dset)
   #browser()
   setACtType <- function (x) {return(actFunc)} 
-  nnet = mlp(dset$inputsTrain, dset$targetsTrain, 
+  if(test_ratio > 0) nnet = mlp(dset$inputsTrain, dset$targetsTrain, 
              size = neurons, 
              learnFuncParams = c(0.5),maxit = max_iter,
              inputsTest = dset$inputsTest, targetsTest = dset$targetsTest,
              linOut = T,actfns=setACtType)
+  else nnet = mlp(dset$inputsTrain, dset$targetsTrain, 
+                  size = neurons, 
+                  learnFuncParams = c(0.5),maxit = max_iter,
+                  linOut = T,actfns=setACtType)
   rownames(dset0$inputsTrain) = (data$WELL)
   colnames(dset0$inputsTrain) = colnames(data[,3:length(data[1,])])
   nnout = predict( nnet, newdata = dset0$inputsTrain)  
@@ -1658,11 +1689,9 @@ buildGLM <- function(data = NULL, lmfunc = glm, family = gaussian){
 
   if(is.null(data)) return(NULL)
   
+  data=data[-1]
   #dbgmes("dset=",data)
-  rownames(data) = data$WELL
-  parnames = colnames(data)[2:length(data)]
-  frml = as.formula(paste("Values~", paste(parnames,collapse = "+")))
-  fit = lmfunc(formula = frml, data, family = family)
+  fit = lmfunc(formula = Values~., data, family = family)
   #browser()
   #fit$cvDelta = cv.glm(data = fit$data[!is.na(fit$data)],glmfit = fit,cost = cost,K=7)[3]
   return(fit)
@@ -1728,7 +1757,7 @@ buildSVM <- function(data = NULL, test_ratio = 0.25, type = svmModels[1]) {
 #  data = wells #prepDataSet(wells = wells@data,rows = rows,sel_maps = sel_maps)
   if(is.null(data)) return(NULL)
   svm_tune=NULL
-  dbgmes("type=", type)
+  #dbgmes("type=", type)
   #browser()
   #dset = splitForTrainingAndTest(
   #  x = data[,3:length(data[1,])],
@@ -1742,7 +1771,7 @@ buildSVM <- function(data = NULL, test_ratio = 0.25, type = svmModels[1]) {
     class = 1
   } else class = 0
   #browser()
-  dbgmes("dset=", length(dset[,1]))
+  #dbgmes("dset=", length(dset[,1]))
   if(length(dset[,1]) < 10 || class == 1) {
     svmod = svm(Values~., data = dset, 
                 type = type,
@@ -1761,7 +1790,7 @@ buildSVM <- function(data = NULL, test_ratio = 0.25, type = svmModels[1]) {
                     )
     svmod = svm_tune$best.model
   }
-  dbgmes("svmod=", svmod)
+  #dbgmes("svmod=", svmod)
    # FROM INET:
    # svmod = svm(abc$a,abc$b)
    # abcres = data.frame(cbind(abc$a,predict(svmod,abc$a)))
@@ -2041,8 +2070,183 @@ calcSVMC <- function(data = NULL, nclass = 3, type = svmModels[3]) {
   return(svcm)
 }
 
+# BATCH ####
 
+getCCvalues <- function(data = NULL,modType = NULL,
+                        test_ratio = 0.2,
+                        nnet_complex = 0.1,
+                        max_iter = 50,
+                        svmType = svmModels[1],
+                        NNactFunc = mlpActFuns[[1]]) {
+  
+  if(is.null(data)) return(NULL)  
+  
+  if(modType == "NNET"){
+    #dbgmes("bdset=",data)
+    nnet = buildNNET(data,
+                     test_ratio = test_ratio,
+                     max_iter = max_iter,
+                     nnet_complex = nnet_complex/100.,
+                     actFunc = NNactFunc)
+    measured = nnet$inp
+    predicted = nnet$out
+  } else if (modType == "GLM"){
+    glm = buildGLM(data)
+    predicted = predict(glm)#, newdata = data)
+    measured = data$Values#[data$WELL %in% names(predicted)]
+  } else if (modType == "SVM"){
+    svm = buildSVM(data,
+                   test_ratio = test_ratio,
+                   type = svmType)
+    predicted = predict(svm$mod, newdata = data)
+    measured = data$Values#[data$WELL %in% names(predicted)]
+  }
+  ccf(measured,predicted, lag.max = 0, plot = F)$acf
+  return(ccf(measured,predicted, lag.max = 0, plot = F)$acf)
+}
+getModelCCmatrix <- function (wells = NULL,minWells = 3,
+                              modType = NULL,
+                              test_ratio = 0.2,
+                              nnet_complex = 0.1,
+                              max_iter = 50,
+                              svmType = svmModels[1],
+                              NNactFunc = mlpActFuns[[1]]) {
+  if(is.null(wells)) return(NULL)  
+  test_ratio=test_ratio/100.
+  dbgmes("wells=",wells)
+  nw = length(wells[,1])
+  nm = length(wells)-2
+  cc_matrix = matrix(nrow = nm,ncol = nw,data = NA)
+  dbgmes("nw,nm=",c(nw,nm))
+  odset = list()
+  #odset <- append(odset,list(dset = wells))#list( dset = addDset , iw = iw, im = im))
+  #attr(odset[length(odset)]$dset, 'iw') <-  nw
+  #attr(odset[length(odset)]$dset, 'im') <-  nm
+  withProgress(message = "Обработка...", detail = "Ожидайте...",  value =0, {
+    for(im in 1:nm) {
+    sel_maps = combn(1:nm,im)
+    nsm = length(sel_maps[1,])
+    #dbgmes("sel_maps =",sel_maps)
+    # addDset = prepDataSet(wells = wells, rows = NULL, sel_maps = sel_map)
+    # cc_matrix[nw,im] = getCCvalues(data = addDset,modType = modType,test_ratio = test_ratio,
+    #                                nnet_complex = nnet_complex,max_iter = max_iter,
+    #                                svmType = svmType,NNactFunc = NNactFunc)
+    ism_max_cc = 0
+    ism_max_dset = NULL
+    for(ism in 1:nsm)
+    for(iw in 1:(nw-minWells)) {
 
+      sel_wells = combn(1:(nw-minWells),iw)
+      #dbgmes("sel_wells =",sel_wells)
+      nsw = length(sel_wells[1,])
+      #dbgmes("sel =",paste(list(map = sel_map,well = sel_well)))
+      #dbgmes("im,iw =",c(im,iw))
+      # NOTE: !!! sel_well - is a wells idxs to be removed from dataset !!!
+      # Add combn to generate number of datasets of size _iw_  from available
+      # _nw_ wells and calc CCF values for each. 
+      isw_max_cc = 0
+      isw_max_dset = NULL
+      for(isw in 1:nsw) {
+        #dbgmes("sel_map =",sel_maps[,ism])
+        #dbgmes("sel_wel =",sel_wells[,isw])
+        addDset = prepDataSet(wells = wells, rows = sel_wells[,isw], sel_maps = sel_maps[,ism])
+        #browser()
+        
+        cc = getCCvalues(data = addDset,modType = modType,test_ratio = test_ratio,
+                                         nnet_complex = nnet_complex,max_iter = max_iter,
+                                         svmType = svmType,NNactFunc = NNactFunc)
+        if(cc>isw_max_cc) {
+          isw_max_cc = cc
+          isw_max_dset = addDset
+        }
+      }
+      if(isw_max_cc>ism_max_cc) {
+        ism_max_cc = isw_max_cc
+        ism_max_dset = isw_max_dset
+      }
+      #browser()
+      incProgress(amount = (iw*im)/(nw*nm))
+      cc_matrix[im,(nw-iw+1)] = isw_max_cc#isw_max_dset
+    }
+    dbgmes("bestDS=",ism_max_dset)
+    dbgmes("bestCC=",ism_max_cc)
+    #dbgmes("iw,im,cc =",c(iw,im,isw_max_cc))
+    
+  }
+  })
+  #browser()
+  #return(NULL)
+  return(cc_matrix)
+}
+
+getModelCCmatrix_old <- function (wells = NULL, modType = NULL,
+                 test_ratio = 0.2,
+                 nnet_complex = 0.1,
+                 max_iter = 50,
+                 svmType = svmModels[1],
+                 NNactFunc = mlpActFuns[[1]]) {
+  if(is.null(modType) || is.null(wells)) return(NULL)
+  #browser()
+  batchDSet = makeBatchDataset(wells,minWells = 3)
+  
+  if(is.null(batchDSet)) return(NULL)
+  
+  nw = length(wells[,1])
+  nm = length(wells)-2
+  
+  cc_matrix = matrix(nrow = nm,ncol = nw,data = NA)
+  #rownames(cc_matrix)
+  #browser()
+  
+  #dbgmes("nw,nm=",c(nw,nm))
+  withProgress(message = "Обработка...", detail = "Ожидайте...",  value =0, {
+  for(id in 1:length(batchDSet)) {
+    c = attr(batchDSet[id]$dset, 'iw')
+    r = attr(batchDSet[id]$dset, 'im')
+    #dbgmes("r,c,done=",c(r,c,100*id/length(batchDSet)))
+    if(c<4) tr = 0
+    else tr = test_ratio/100.
+    if(modType == "NNET"){
+      dbgmes("bdset=",batchDSet[id]$dset)
+      nnet = buildNNET(batchDSet[id]$dset,
+                     test_ratio = tr,
+                     max_iter = max_iter,
+                     nnet_complex = nnet_complex/100.,
+                     actFunc = NNactFunc)
+      measured = nnet$inp
+      predicted = nnet$out
+    } else if (modType == "GLM"){
+      glm = buildGLM(batchDSet[id]$dset)
+      predicted = predict(glm, newdata = batchDSet[id]$dset)
+      measured = batchDSet[id]$dset$Values#[data$WELL %in% names(predicted)]
+    } else if (modType == "SVM"){
+      svm = buildSVM(batchDSet[id]$dset,
+                     test_ratio = test_ratio,
+                     type = svmType)
+      predicted = predict(svm$mod, newdata = batchDSet[id]$dset)
+      measured = batchDSet[id]$dset$Values#[data$WELL %in% names(predicted)]
+    }
+    #browser()
+    cc_matrix[r,c] = ccf(measured,predicted, lag.max = 0, plot = F)$acf
+    incProgress(amount = id/length(batchDSet))
+  }})
+  dbgmes("cc_matrix=",cc_matrix)
+  return(cc_matrix)
+}
+
+drawModelCCplot <- function(wells = NULL, CCrstr = NULL) {
+  #text(c(1,1),"text")
+  
+  nw = length(wells[,1])
+  nm = length(wells)-2
+  rstr=raster(CCrstr,xmn=1,xmx=nw,ymn=1,ymx=nm)
+  plot(rstr,yaxt="n",xaxt="n",xlab="Число скважин",ylab="Число карт",col=bpy.colors(16))
+  #browser()
+  #xaxis
+  axis(side = 1,at = c(1:nw))
+  #yaxis
+  axis(side = 2,at = c(1:nm))
+}
 # Define server logic required to draw a histogram
 options(shiny.maxRequestSize = 500 * 1024 ^ 2)
 #options(shiny.reactlog = TRUE)
@@ -2313,6 +2517,40 @@ X_LOCATION  Y_LOCATION  VALUE",
     
   })
   
+  #CB: Batch ####
+  
+  getCCmodel <- reactive({
+    cc_matrix = getModelCCmatrix(wells = myReactives$liveWells,
+                                 test_ratio = input$test_ratio,
+                                 nnet_complex = input$nnet_complex,
+                                 max_iter = input$max_iter,
+                                 svmType = input$svmModelType,
+                                 NNactFunc = mlpActFuns[[input$nnetActFunc]],
+                                 modType = input$batModel
+    )
+    if(input$batModel=="NNET") 
+      myReactives$CCmap_NNET = cc_matrix
+    else if(input$batModel=="GLM") 
+      myReactives$CCmap_GLM = cc_matrix
+    else if(input$batModel=="SVM") 
+      myReactives$CCmap_SVM = cc_matrix
+    
+    #dbgmes("cc_mat=",cc_matrix)
+  })
+  
+  output$batPlot <- renderPlot({
+    getCCmodel()
+    if(input$batModel=="NNET") 
+      CCrstr = myReactives$CCmap_NNET
+    else if(input$batModel=="GLM") 
+      CCrstr = myReactives$CCmap_GLM 
+    else if(input$batModel=="SVM") 
+      CCrstr = myReactives$CCmap_SVM
+      
+    drawModelCCplot(CCrstr = CCrstr,wells = myReactives$liveWells)
+
+  })
+    
   #CB: transposing ####
   observeEvent(input$transpose1 , {
     if(length(myReactives$maps)>1) {

@@ -121,7 +121,7 @@ def_map <- list("fn" = fn0,
                 "map" = map0,
                 "mat" = as.vector(rstr0),
                 "rstr" = rstr0)
-nDefWels = 10
+nDefWels = 7
 wells0 <- as.data.frame(list( paste0("WELL",1:nDefWels),
             runif(nDefWels,min = map0@bbox[1,1],max = map0@bbox[1,2]),
             runif(nDefWels,min = map0@bbox[2,1],max = map0@bbox[2,2]),
@@ -1150,24 +1150,25 @@ prepDataSet <- function (wells = NULL, rows = NULL, sel_maps = NULL) {
     sel_maps = sel_maps[!is.na(sel_maps)]
     data = data.frame(wells[,c(1:2,2+sel_maps)])
   }
-  
-  ddd = list()
-  if(!is.null(rows)) {
-    data[rows,] = NA
-  }
+  #dbgmes("data0=",data)
+  #ddd = list()
+  #if(!is.null(rows)) {
+    #data[rows,] = NA
+    #data = data[(-1*rows),]
+  #}
+  #dbgmes("rows0=",rows)
   for(i in 1:length(data[,1]))
-  {
-    if(all(!is.na(data[i,2:length(data[1,])])))
-    {  
-      ddd = rbind(ddd,data[i,])
-      rownames(ddd)[length(ddd[,1])] = data$WELL[i]
-    }
-  }
+    if(!all(!is.na(data[i,-1])))
+      rows = cbind(rows,i)
+  #dbgmes("rows1=",-1*rows)
+  if(!is.null(rows)) 
+    data = data[(-1*rows),]
+  
   #browser()
   #dbgmes(message = "ddd=",ddd)
-  if(length(ddd) <1) return (NULL)
-  rownames(ddd) = ddd$WELL
-  return(ddd)
+  if(length(data) <1) return (NULL)
+  #rownames(data) = ddd$WELL
+  return(data)
 }
 
 plotError <- function (message = "Error!!!") {
@@ -2112,15 +2113,15 @@ getModelCCmatrix <- function (wells = NULL,minWells = 3,
                               max_iter = 50,
                               svmType = svmModels[1],
                               NNactFunc = mlpActFuns[[1]]) {
-  if(is.null(wells)) return(NULL)  
+  if(is.null(wells) || length(wells[,1])<2) return(NULL)  
   test_ratio=test_ratio/100.
+  minWells = minWells - 1
   dbgmes("wells=",wells)
   nw = length(wells[,1])
   nm = length(wells)-2
   dbgmes("nw,nm=",c(nw,nm))
 
   sel_maps_ = list()
-  sel_wells_ = list()
   nmst = 0
   for(im in 1:nm) {
     sel_maps = combn(1:nm,im)
@@ -2129,98 +2130,99 @@ getModelCCmatrix <- function (wells = NULL,minWells = 3,
     nsm = length(sel_maps[1,])
     for(ism in 1:nsm) {
       sel_maps_ = append(sel_maps_,list(sel_maps[,ism]))
-      for(iw in 1:(nw-minWells)) {
-        sel_wells = combn(1:(nw-minWells),iw)
-        sel_wells_ = append(sel_wells_,list(ism = sel_wells))
-        #dbgmes("sel_wells=",cbind(im,iw,sel_wells))
-        nsw = length(sel_wells[1,])
-        for(isw in 1:nsw) {
-          nmst = nmst + 1
-        }
-      }
     }
   }
-  #dbgmes("sel_maps_=",sel_maps_)
+  sel_wells_ = list()
+  for(iw in 1:(nw-minWells)) {
+    sel_wells = combn(1:nw,iw)
+    #dbgmes("sel_wells=",sel_wells)
+    nsw = length(sel_wells[1,])
+    for(isw in 1:nsw) {
+      sel_wells_ = append(sel_wells_,list(sel_wells[,isw]))
+      #nmst = nmst + 1
+    }
+  }
   nsm_ = length(sel_maps_)
+  nsw_ = length(sel_wells_)
+  nmst_ = nsw_*nsm_
+  dbgmes("nsm_,nsw_,nmst_=",c(nsm_,nsw_,nmst_))
+  
   cc_matrix = matrix(nrow = nsm_,ncol = nw,data = NA)
   dset_matix = array(list(),c(nsm_,nw))
   #for(i in 1:length(sel_maps_)) dbgmes("sel_maps_I=",sel_maps_[[i]])
   #browser()
   #return(NULL)
-  #dbgmes("nmst=",nmst)
-  ism_max_cc = 0
-  ism_max_dset = NULL
-  isw_max_cc = 0
-  isw_max_dset = NULL
-  #withProgress(message = "Обработка...", detail = "Ожидайте...",  value =0, max = nmst, {
+  #for(i in 1:nsm_) dbgmes("sel_maps_=",sel_maps_[i][[1]])
+  #for(i in 1:nsw_) dbgmes("sel_wells_=",sel_wells_[i][[1]])
+  #ism_max_cc = 0
+  #ism_max_dset = NULL
+  #isw_max_cc = 0
+  #isw_max_dset = NULL
+  withProgress(message = "Обработка...", detail = "Ожидайте...",  value =0, max = nmst_, {
   for(ism_ in 1:nsm_) {
     #sel_maps = combn(1:nm,im)
-    sel_maps=sel_maps_[ism_]
+    sel_maps=sel_maps_[ism_][[1]]
     #browser()
     nsm = length(sel_maps)
-    #dbgmes("sel_maps =",sel_maps)
+    dbgmes("sel_maps =",sel_maps)
+    #return(NULL)
     # addDset = prepDataSet(wells = wells, rows = NULL, sel_maps = sel_map)
     # cc_matrix[nw,im] = getCCvalues(data = addDset,modType = modType,test_ratio = test_ratio,
     #                                nnet_complex = nnet_complex,max_iter = max_iter,
     #                                svmType = svmType,NNactFunc = NNactFunc)
-    isw_max_cc = 0
-    isw_max_dset = NULL
-    for(ism in 1:nsm) {
-      for(iw in 1:(nw-minWells)) {
+    #isw_max_cc = 0
+    #isw_max_dset = NULL
+    for(isw_ in 1:nsw_) {
+      #for(iw in 1:(nw-minWells)) {
   
-        sel_wells = combn(1:(nw-minWells),iw)
-        nsw = length(sel_wells[1,])
+        sel_wells = sel_wells_[isw_][[1]]
+        iw = length(sel_wells)
         #dbgmes("sel_wells =",sel_wells)
         #dbgmes("sel =",paste(list(map = sel_map,well = sel_well)))
         #dbgmes("im,iw =",c(im,iw))
         # NOTE: !!! sel_well - is a wells idxs to be removed from dataset !!!
         # Add combn to generate number of datasets of size _iw_  from available
         # _nw_ wells and calc CCF values for each. 
-        isw_max_cc = 0
-        isw_max_dset = NULL
-        for(isw in 1:nsw) {
-          #dbgmes("sel_map =",sel_maps[,ism])
-          #dbgmes("sel_wel =",sel_wells[,isw])
-          #dbgmes("sel_map =",sel_maps[[ism]])
-          addDset = prepDataSet(wells = wells, rows = sel_wells[,isw], sel_maps = sel_maps[[ism]])
-          #browser()
+        #addDset = prepDataSet(wells = wells, rows = sel_wells[,isw], sel_maps = sel_maps[[ism]])
+        #dbgmes("sel_wells =",sel_wells)
+        addDset = prepDataSet(wells = wells, rows = sel_wells, sel_maps = sel_maps)
+        #browser()
           
-          cc = getCCvalues(data = addDset,modType = modType,test_ratio = test_ratio,
+        cc = getCCvalues(data = addDset,modType = modType,test_ratio = test_ratio,
                                            nnet_complex = nnet_complex,max_iter = max_iter,
                                            svmType = svmType,NNactFunc = NNactFunc)
-          if(is.null(cc)) {
-            dbgmes("cc=NULL:",adDset)
-          }
-          if(cc>isw_max_cc) {
-            isw_max_cc = cc
-            isw_max_dset = addDset
-          }
+        if(is.null(cc) || is.nan(cc)) {
+          dbgmes("cc=NULL:",addDset)
+          cc=0
         }
+        #FIXME: the cc matrix first column is not consistent with minWells parm 
+        #if(cc>isw_max_cc) {
+        #  isw_max_cc = cc
+        #  isw_max_dset = addDset
+        #}
         #browser()
         c=(nw-iw+1)#(nw-iw+1)
         r=ism_
-        #dbgmes("r,c",c(r,c))
+        #dbgmes("r,c=",c(r,c,cc_matrix[r,c],cc))
         #dbgmes("nmst_idx,nmst,prc",c(nmst_idx,nmst,nmst_idx/nmst))
-        #incProgress(amount = nsw)
+        incProgress(amount = 1)
         #dbgmes("dset_matix[[r,c]] = ",dset_matix[[r,c]])
         #dbgmes("isw_max_dset = ",ism_max_dset)
-        cc_matrix[r,c] = isw_max_cc
-        dset_matix[[r,c]] = list(isw_max_dset)
+        if(is.null(cc_matrix[r,c]) || is.na(cc_matrix[r,c]) || cc>cc_matrix[r,c])
+        { 
+          cc_matrix[r,c] = cc
+          dset_matix[[r,c]] = list(addDset)
+        }
       }
-      if(isw_max_cc>ism_max_cc) {
-        ism_max_cc = isw_max_cc
-        ism_max_dset = isw_max_dset
-      }
-      dbgmes("best_isw_DS=",isw_max_dset)
-      dbgmes("best_isw_CC=",isw_max_cc)
+      #dbgmes("best_isw_DS=",isw_max_dset)
+      #dbgmes("best_isw_CC=",isw_max_cc)
     }
-    dbgmes("best_ism_DS=",ism_max_dset)
-    dbgmes("best_ism_CC=",ism_max_cc)
+    #dbgmes("best_ism_DS=",ism_max_dset)
+    #dbgmes("best_ism_CC=",ism_max_cc)
     #dbgmes("iw,im,cc =",c(iw,im,isw_max_cc))
     
-  }
   dbgmes("cc_matrix =",cc_matrix)
-  #})
+  })
   #browser()
   #return(NULL)
   return(list(ccMatrix=cc_matrix,ccDset = dset_matix))
@@ -2237,19 +2239,23 @@ drawModelCCplot <- function(wells = NULL, CCmod = NULL) {
   nm = dim(CCmod$ccMatrix)[1]
   nw = dim(CCmod$ccMatrix)[2]
   rstr=raster(CCmod$ccMatrix,xmn=1,xmx=nw,ymn=1,ymx=nm)
-  plot(rstr,yaxt="n",xaxt="n",xlab="Число скважин",ylab="Число карт",
+  plot(rstr,yaxt="n",xaxt="n",
+       xlab="Максимальное число скважин в выборке",
+       ylab="Максимальное число карт в выборке",
        main = "Коэффициент корреляции для набора моделеей",
        col=bpy.colors(16))
+  grid()
   xlabs = ""
   ylabs = list()
-  for(i in 1:dim(CCmod$ccMatrix)[1])
-    ylabs = append(ylabs,list(paste0(names(CCmod$ccDset[[i,dim(CCmod$ccMatrix)[2]]][[1]][-1:-2]),collapse='\n')))
+  #dbgmes("dset=",ylabs)
+  for(i in 1:nm)
+    ylabs = append(ylabs,list(paste0(names(CCmod$ccDset[[i,3]][[1]][-1:-2]),collapse='\n')))
   #dbgmes("ylabs=",ylabs)
   #browser()
   #xaxis
   axis(side = 1,at = c(1:nw))#, labels = rownames(wells))
   #yaxis
-  axis(side = 2,at = c(1:nm))#, labels = ylabs)
+  axis(side = 2,at = c(1:nm), labels = ylabs)
 }
 
 
@@ -2793,7 +2799,7 @@ X_LOCATION  Y_LOCATION  VALUE",
       selectRows(dtMapsProxy,as.numeric(mapsSelection))
       updateMapLists(myReactives$maps,mapsSelection)#input$table_maps_rows_selected)
       myReactives$liveMaps <- getLiveMapsData(maps = myReactives$maps, sr = mapsSelection)#input$table_maps_rows_selected)
-      myReactives$liveWells <- prepDataSet(wells = myReactives$wells, rows =input$table_wells_rows_selected  ,sel_maps =  input$table_maps_rows_selected)
+      myReactives$liveWells <- prepDataSet(wells = myReactives$wells@data, rows =input$table_wells_rows_selected  ,sel_maps =  input$table_maps_rows_selected)
       showNotification(ui = paste("Карта",map_obj$fn," добавлена во входные."),
                        type = "default")
     }

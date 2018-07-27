@@ -2188,6 +2188,9 @@ getModelCCmatrix <- function (wells = NULL,minWells = 3,
           cc = getCCvalues(data = addDset,modType = modType,test_ratio = test_ratio,
                                            nnet_complex = nnet_complex,max_iter = max_iter,
                                            svmType = svmType,NNactFunc = NNactFunc)
+          if(is.null(cc)) {
+            dbgmes("cc=NULL:",adDset)
+          }
           if(cc>isw_max_cc) {
             isw_max_cc = cc
             isw_max_dset = addDset

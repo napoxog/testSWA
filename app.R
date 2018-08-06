@@ -2559,7 +2559,7 @@ X_LOCATION  Y_LOCATION  VALUE",
   
   observeEvent(input$CCplot_get_model, {
     rc=round(c(input$CCplot_get_model$y,input$CCplot_get_model$x))
-    dbgmes("cc_click=",rc)
+    #dbgmes("cc_click=",rc)
     mod = getCurrentModel()
     #browser()
     myReactives$CCtable

@@ -110,6 +110,7 @@ require(e1071)
 require(mclust)
 require(amap)
 require(hexbin)
+require(parallel)
 #library(markdown)
 
 #default data definition
@@ -209,7 +210,7 @@ names(mapFormatsRead) <- c("ESRI ASCII грид",
                        "Формат CSV (Excel)",
                        "Разделитель - табуляция")
 
-batModels <- list ('NNET','GLM','SVM')
+batModels <- list ('GLM','NNET','SVM')
 
 classRange = 2:16
 classPalette = mclust.options("classPlotColors")
@@ -569,7 +570,9 @@ ui <- fluidPage(theme = shinytheme("simplex"),
                          "batPlot",
                          click = "CCplot_get_model",
                          height = modPlot_wid
-                       )
+                       ),
+                       sliderInput('CClimit','Минимальный коэффициент корреляции на карте',
+                                   min = 0.7,max = 0.98,value = 0.7,step = 0.02)
           #)
         )
       )
@@ -2149,15 +2152,7 @@ getModelCCmatrix <- function (wells = NULL,minWells = 3,
   
   cc_matrix = matrix(nrow = nsm_,ncol = nw,data = NA)
   dset_matix = array(list(),c(nsm_,nw))
-  #for(i in 1:length(sel_maps_)) dbgmes("sel_maps_I=",sel_maps_[[i]])
-  #browser()
-  #return(NULL)
-  #for(i in 1:nsm_) dbgmes("sel_maps_=",sel_maps_[i][[1]])
-  #for(i in 1:nsw_) dbgmes("sel_wells_=",sel_wells_[i][[1]])
-  #ism_max_cc = 0
-  #ism_max_dset = NULL
-  #isw_max_cc = 0
-  #isw_max_dset = NULL
+
   withProgress(message = "Обработка...", detail = "Ожидайте...",  value =0, max = nmst_, {
   for(ism_ in 1:nsm_) {
     #sel_maps = combn(1:nm,im)
@@ -2165,26 +2160,9 @@ getModelCCmatrix <- function (wells = NULL,minWells = 3,
     #browser()
     nsm = length(sel_maps)
     dbgmes("sel_maps =",sel_maps)
-    #return(NULL)
-    # addDset = prepDataSet(wells = wells, rows = NULL, sel_maps = sel_map)
-    # cc_matrix[nw,im] = getCCvalues(data = addDset,modType = modType,test_ratio = test_ratio,
-    #                                nnet_complex = nnet_complex,max_iter = max_iter,
-    #                                svmType = svmType,NNactFunc = NNactFunc)
-    #isw_max_cc = 0
-    #isw_max_dset = NULL
     for(isw_ in 1:nsw_) {
-      #for(iw in 1:(nw-minWells)) {
-  
         sel_wells = sel_wells_[isw_][[1]]
         iw = length(sel_wells)
-        #dbgmes("sel_wells =",sel_wells)
-        #dbgmes("sel =",paste(list(map = sel_map,well = sel_well)))
-        #dbgmes("im,iw =",c(im,iw))
-        # NOTE: !!! sel_well - is a wells idxs to be removed from dataset !!!
-        # Add combn to generate number of datasets of size _iw_  from available
-        # _nw_ wells and calc CCF values for each. 
-        #addDset = prepDataSet(wells = wells, rows = sel_wells[,isw], sel_maps = sel_maps[[ism]])
-        #dbgmes("sel_wells =",sel_wells)
         addDset = prepDataSet(wells = wells, rows = sel_wells, sel_maps = sel_maps)
         #browser()
           
@@ -2195,19 +2173,10 @@ getModelCCmatrix <- function (wells = NULL,minWells = 3,
           dbgmes("cc=NULL:",addDset)
           cc=0
         }
-        #FIXME: the cc matrix first column is not consistent with minWells parm 
-        #if(cc>isw_max_cc) {
-        #  isw_max_cc = cc
-        #  isw_max_dset = addDset
-        #}
         #browser()
         c=(nw-iw+1)#(nw-iw+1)
         r=ism_
-        #dbgmes("r,c=",c(r,c,cc_matrix[r,c],cc))
-        #dbgmes("nmst_idx,nmst,prc",c(nmst_idx,nmst,nmst_idx/nmst))
         incProgress(amount = 1)
-        #dbgmes("dset_matix[[r,c]] = ",dset_matix[[r,c]])
-        #dbgmes("isw_max_dset = ",ism_max_dset)
         if(is.null(cc_matrix[r,c]) || is.na(cc_matrix[r,c]) || cc>cc_matrix[r,c])
         { 
           cc_matrix[r,c] = cc
@@ -2228,7 +2197,119 @@ getModelCCmatrix <- function (wells = NULL,minWells = 3,
   return(list(ccMatrix=cc_matrix,ccDset = dset_matix))
 }
 
-drawModelCCplot <- function(wells = NULL, CCmod = NULL) {
+
+getModelCCmatrix_par <- function (wells = NULL,minWells = 3,
+                              modType = NULL,
+                              test_ratio = 0.2,
+                              nnet_complex = 0.1,
+                              max_iter = 50,
+                              svmType = svmModels[1],
+                              NNactFunc = mlpActFuns[[1]]) {
+  if(is.null(wells) || length(wells[,1])<2) return(NULL)  
+  test_ratio=test_ratio/100.
+  minWells = minWells - 1
+  dbgmes("wells=",wells)
+  nw = length(wells[,1])
+  nm = length(wells)-2
+  dbgmes("nw,nm=",c(nw,nm))
+  
+  sel_maps_all = list()
+  nmst = 0
+  for(im in 1:nm) {
+    sel_maps = combn(1:nm,im)
+    #dbgmes("sel_maps=",cbind(im,sel_maps))
+    #browser()
+    nsm = length(sel_maps[1,])
+    for(ism in 1:nsm) {
+      sel_maps_all = append(sel_maps_all,list(sel_maps[,ism]))
+    }
+  }
+  sel_wells_all = list()
+  for(iw in 1:(nw-minWells)) {
+    sel_wells = combn(1:nw,iw)
+    #dbgmes("sel_wells=",sel_wells)
+    nsw = length(sel_wells[1,])
+    for(isw in 1:nsw) {
+      sel_wells_all = append(sel_wells_all,list(sel_wells[,isw]))
+      #nmst = nmst + 1
+    }
+  }
+  nsm_all = length(sel_maps_all)
+  nsw_all = length(sel_wells_all)
+  nmst_ = nsw_all*nsm_all
+  dbgmes("nsm_,nsw_,nmst_=",c(nsm_all,nsw_all,nmst_))
+  
+  runIdx = apply(matrix(rep(1:nsw_all),nrow=nsw_all, ncol=nsm_all), 1, FUN=paste0, '.', c(1:nsm_all))
+  #dbgmes("runIdx:",runIdx)
+  
+  cc_matrix = matrix(nrow = nsm_all,ncol = nw,data = NA)
+  dset_matix = array(list(),c(nsm_all,nw))
+  #browser()
+  
+  applyGetCC <- function (x) {
+    q=unlist(strsplit(x,'\\.')); 
+    isw_=as.integer(q[1])
+    ism_=as.integer(q[2])
+    #dbgmes("isw_,ism_:",c(isw_,ism_))
+    sel_maps=sel_maps_all[ism_][[1]]
+    sel_wells = sel_wells_all[isw_][[1]]
+    iw = length(sel_wells)
+    #browser()
+    #shiny::isolate({
+      addDset = prepDataSet(wells = wells, rows = sel_wells, sel_maps = sel_maps)
+      
+      cc = getCCvalues(data = addDset,modType = modType,test_ratio = test_ratio,
+                       nnet_complex = nnet_complex,max_iter = max_iter,
+                       svmType = svmType,NNactFunc = NNactFunc)
+      if(is.null(cc) || is.nan(cc)) {
+        #dbgmes("cc=NULL:",addDset)
+        cc=0
+      }
+      #browser()
+      c=(nw-iw+1)#(nw-iw+1)
+      r=ism_
+      #dbgmes("incProgress")
+      shiny::incProgress(amount = 1)
+      if(is.null(cc_matrix[r,c]) || is.na(cc_matrix[r,c]) || cc>cc_matrix[r,c])
+      { 
+        #dbgmes("set CC & maT",cc)
+        cc_matrix[r,c] <<- cc
+        dset_matix[[r,c]] <<- list(addDset)
+      }
+    #})
+    #dbgmes("cc=NULL:",addDset)
+    return(x)
+  }
+  
+  #browser()
+  # myEnv = new.env(parent = globalenv())
+  # myEnv$cc_matrix = cc_matrix
+  # myEnv$dset_matix = dset_matix
+  # myEnv$nw
+  withProgress(message = "Обработка...", detail = "Ожидайте...",  value =0, max = nmst_, {
+  #isolate({
+    #no_cores = detectCores() - 1
+    #cl = makeCluster(no_cores)
+    # clusterExport(cl=cl, 
+    #               varlist=c("cc_matrix", "dset_matix","wells","modType","test_ratio",
+    #                                "nnet_complex","max_iter","NNactFunc",
+    #                                "svmType","nw","nm",
+    #                                "sel_maps_all","sel_wells_all"), envir=environment())
+    # parApply(cl = cl,X = runIdx,MARGIN = c(1,2),FUN = applyGetCC)
+    apply(runIdx,c(1,2),FUN = applyGetCC)
+    #browser()
+    #head(myEnv$cc_matrix)
+  })
+    #mapply(runIdx,FUN = applyGetCC)
+    
+  #})
+  dbgmes("cc_matrix =",cc_matrix)
+  #browser()
+  #return(NULL)
+  #stopCluster(cl)
+  return(list(ccMatrix=cc_matrix,ccDset = dset_matix))
+}
+drawModelCCplot <- function(wells = NULL, CCmod = NULL,CClimit = 0.9) {
   #text(c(1,1),"text")
   if(is.null(wells) || is.null(CCmod) || is.null(CCmod$ccMatrix)) {
     plotError(message = "Не удалось выполнить расчет. Проверьте данные")
@@ -2238,13 +2319,21 @@ drawModelCCplot <- function(wells = NULL, CCmod = NULL) {
   #nm = length(wells)-2
   nm = dim(CCmod$ccMatrix)[1]
   nw = dim(CCmod$ccMatrix)[2]
-  rstr=raster(CCmod$ccMatrix,xmn=1,xmx=nw,ymn=1,ymx=nm)
-  plot(rstr,yaxt="n",xaxt="n",
-       xlab="Максимальное число скважин в выборке",
-       ylab="Максимальное число карт в выборке",
+  #browser()
+  CCmod$ccMatrix[CCmod$ccMatrix < CClimit] = NA
+  rstr=raster(CCmod$ccMatrix,xmn=3,xmx=nw,ymn=1,ymx=nm)
+  mar = par('mar')
+  mgp = par('mgp')
+  mar[2] = 11.1
+  mgp[1] = mar[2]-1
+  par(mar = mar,mgp = mgp)
+  plot(rstr,yaxt="n",xaxt="n",xlim=c(3,nw),ylim=c(1,nm),
+       xlab="Скважин в выборке",
+       ylab="Карты в выборке",
        main = "Коэффициент корреляции для набора моделеей",
        col=bpy.colors(16))
   grid()
+  mtext("Скважин в выборке",side=1,line=2)
   xlabs = ""
   ylabs = list()
   #dbgmes("dset=",ylabs)
@@ -2533,7 +2622,7 @@ X_LOCATION  Y_LOCATION  VALUE",
   
   getCCmodel <- reactive({
     showModDial(message = paste0("Оценка эффективности модели ",input$batModel,"..."))
-    cc = getModelCCmatrix(wells = myReactives$liveWells, minWells = 3,
+    cc = getModelCCmatrix_par(wells = myReactives$liveWells, minWells = 3,
                                  test_ratio = input$test_ratio,
                                  nnet_complex = input$nnet_complex,
                                  max_iter = input$max_iter,
@@ -2553,7 +2642,12 @@ X_LOCATION  Y_LOCATION  VALUE",
       myReactives$CCmap_SVM = cc$ccMatrix
       myReactives$CCdset_SVM = cc$ccDset
     }
-    
+    # minCC=round(min(cc$ccMatrix,na.rm = T),digits = 2)-0.1
+    # CClimit = input$CClimit
+    # updateSliderInput(session,"CClimit",
+    #                   min = minCC,
+    #                   value = max(c(minCC,CClimit))
+    #                   )
     #dbgmes("cc_mat=",cc_matrix)
   })
   showCCmodel <- function (name, data,cc) {
@@ -2594,7 +2688,7 @@ X_LOCATION  Y_LOCATION  VALUE",
   output$batPlot <- renderPlot({
     getCCmodel()
     mod = getCurrentModel()
-    drawModelCCplot(CCmod = mod,wells = myReactives$liveWells)
+    drawModelCCplot(CCmod = mod,wells = myReactives$liveWells,CClimit = input$CClimit)
     removeModal()
   })
     

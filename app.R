@@ -2272,6 +2272,7 @@ getModelCCmatrix_par <- function (wells = NULL,minWells = 3,
       shiny::incProgress(amount = 1)
       if(is.null(cc_matrix[r,c]) || is.na(cc_matrix[r,c]) || cc>cc_matrix[r,c])
       { 
+        #FIXME: The CC value in result map do not corespond with the dataset somehow
         #dbgmes("set CC & maT",cc)
         cc_matrix[r,c] <<- cc
         dset_matix[[r,c]] <<- list(addDset)
@@ -2321,28 +2322,33 @@ drawModelCCplot <- function(wells = NULL, CCmod = NULL,CClimit = 0.9) {
   nw = dim(CCmod$ccMatrix)[2]
   #browser()
   CCmod$ccMatrix[CCmod$ccMatrix < CClimit] = NA
-  rstr=raster(CCmod$ccMatrix,xmn=3,xmx=nw,ymn=1,ymx=nm)
+  rstr=raster(CCmod$ccMatrix[,c(-1:-2)],xmn=1,xmx=nw-2,ymn=1,ymx=nm)
+  ylabs = list()
+  maxNm = 0
+  for(i in 1:nm) {
+    names = names(CCmod$ccDset[[i,3]][[1]][-1:-2])
+    ylabs = append(ylabs,list(paste0(names,collapse='\n')))
+    maxNm = max(maxNm,length(names))
+  }
+  #dbgmes("ylabs=",ylabs)
+  dbgmes("maxNm=",maxNm)
+  dbgmes(capture.output(rstr))
   mar = par('mar')
   mgp = par('mgp')
-  mar[2] = 11.1
+  mar[2] = maxNm+2.1
   mgp[1] = mar[2]-1
   par(mar = mar,mgp = mgp)
-  plot(rstr,yaxt="n",xaxt="n",xlim=c(3,nw),ylim=c(1,nm),
-       xlab="Скважин в выборке",
+  plot(rstr,yaxt="n",xaxt="n",xlim=c(1,nw-2),ylim=c(1,nm),
+       xlab="",
        ylab="Карты в выборке",
-       main = "Коэффициент корреляции для набора моделеей",
+       main = "Коэффициент корреляции для набора моделей",
        col=bpy.colors(16))
   grid()
   mtext("Скважин в выборке",side=1,line=2)
   xlabs = ""
-  ylabs = list()
-  #dbgmes("dset=",ylabs)
-  for(i in 1:nm)
-    ylabs = append(ylabs,list(paste0(names(CCmod$ccDset[[i,3]][[1]][-1:-2]),collapse='\n')))
-  #dbgmes("ylabs=",ylabs)
   #browser()
   #xaxis
-  axis(side = 1,at = c(1:nw))#, labels = rownames(wells))
+  axis(side = 1,at = c(1:(nw-2)), labels = paste(c(3:nw)))#, labels = rownames(wells))
   #yaxis
   axis(side = 2,at = c(1:nm), labels = ylabs)
 }

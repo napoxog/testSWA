@@ -121,7 +121,9 @@ rstr0 <- raster(map0)
 def_map <- list("fn" = fn0,
                 "map" = map0,
                 "mat" = as.vector(rstr0),
-                "rstr" = rstr0)
+                "rstr" = rstr0,
+                "prod" = FALSE
+                )
 nDefWels = 7
 wells0 <- as.data.frame(list( paste0("WELL",1:nDefWels),
             runif(nDefWels,min = map0@bbox[1,1],max = map0@bbox[1,2]),
@@ -704,11 +706,15 @@ transposeMap <- function(map_obj = NULL) {
 upscaleMap <- function(map_obj = NULL, fact = 1.0, func = mean, focalSize = 0) {
   if(is.null(map_obj)) return(NULL)
 
+  if(map_obj$prod ) return(map_obj)
+
   rstr = raster(map_obj$map)
+  
   if (fact > 1.0) 
     rstr = disaggregate(rstr,fact = fact, method = 'bilinear')
   else if (fact < 1.0) 
     rstr = aggregate(rstr,fact = ceiling(1.0/fact), expand = TRUE, fun = mean)
+  
   
   if(focalSize>0)
   {
@@ -751,10 +757,12 @@ loadMapFile <- function (file_obj = NULL, transpose = FALSE, loadFunction = "ESR
     } else {
       rstr = raster(map)
     }
+    product = FALSE
   } else {
     fn = basename(names(spgid@data))
     map = spgid
     rstr = raster(spgid)
+    product = TRUE
   }
   
   names(map@data) = fn
@@ -765,7 +773,8 @@ loadMapFile <- function (file_obj = NULL, transpose = FALSE, loadFunction = "ESR
     "fn" = fn,
     "map" = map,
     "mat" = map_m,
-    "rstr" = rstr
+    "rstr" = rstr,
+    "prod" = product
   )
   #transpose the data.frame
   if(transpose) {
@@ -2197,6 +2206,35 @@ getModelCCmatrix <- function (wells = NULL,minWells = 3,
   return(list(ccMatrix=cc_matrix,ccDset = dset_matix))
 }
 
+getModelCCMatrixGLM <- function (wells = NULL,minWells = 3,
+                                 test_ratio = 0.2,
+                                 nnet_complex = 0.1,
+                                 max_iter = 50,
+                                 svmType = svmModels[1],
+                                 NNactFunc = mlpActFuns[[1]]) {
+  getModelCCmatrix_par(wells ,minWells ,
+                       'GLM' ,test_ratio ,nnet_complex,max_iter,svmType,NNactFunc)
+}
+
+getModelCCMatrixSVM <- function (wells = NULL,minWells = 3,
+                                 test_ratio = 0.2,
+                                 nnet_complex = 0.1,
+                                 max_iter = 50,
+                                 svmType = svmModels[1],
+                                 NNactFunc = mlpActFuns[[1]]) {
+  getModelCCmatrix_par(wells ,minWells ,
+                       'SVM' ,test_ratio ,nnet_complex,max_iter,svmType,NNactFunc)
+}
+
+getModelCCMatrixNNET <- function (wells = NULL,minWells = 3,
+                                 test_ratio = 0.2,
+                                 nnet_complex = 0.1,
+                                 max_iter = 50,
+                                 svmType = svmModels[1],
+                                 NNactFunc = mlpActFuns[[1]]) {
+  getModelCCmatrix_par(wells ,minWells ,
+                       'NNET' ,test_ratio ,nnet_complex,max_iter,svmType,NNactFunc)
+}
 
 getModelCCmatrix_par <- function (wells = NULL,minWells = 3,
                               modType = NULL,
@@ -2208,10 +2246,10 @@ getModelCCmatrix_par <- function (wells = NULL,minWells = 3,
   if(is.null(wells) || length(wells[,1])<2) return(NULL)  
   test_ratio=test_ratio/100.
   minWells = minWells - 1
-  dbgmes("wells=",wells)
+  #dbgmes("wells=",wells)
   nw = length(wells[,1])
   nm = length(wells)-2
-  dbgmes("nw,nm=",c(nw,nm))
+  #dbgmes("nw,nm=",c(nw,nm))
   
   sel_maps_all = list()
   nmst = 0
@@ -2237,13 +2275,15 @@ getModelCCmatrix_par <- function (wells = NULL,minWells = 3,
   nsm_all = length(sel_maps_all)
   nsw_all = length(sel_wells_all)
   nmst_ = nsw_all*nsm_all
-  dbgmes("nsm_,nsw_,nmst_=",c(nsm_all,nsw_all,nmst_))
+  #dbgmes("nsm_,nsw_,nmst_=",c(nsm_all,nsw_all,nmst_))
   
   runIdx = apply(matrix(rep(1:nsw_all),nrow=nsw_all, ncol=nsm_all), 1, FUN=paste0, '.', c(1:nsm_all))
   #dbgmes("runIdx:",runIdx)
   
-  cc_matrix = matrix(nrow = nsm_all,ncol = nw,data = NA)
+  cc_matrix = matrix(nrow = nsm_all,ncol = nw,data = 0.85)
   dset_matix = array(list(),c(nsm_all,nw))
+  #dbgmes("cc_matrix =",cc_matrix)
+  #return(list(ccMatrix = cc_matrix,ccDset = dset_matix))
   #browser()
   
   applyGetCC <- function (x) {
@@ -2259,8 +2299,8 @@ getModelCCmatrix_par <- function (wells = NULL,minWells = 3,
       addDset = prepDataSet(wells = wells, rows = sel_wells, sel_maps = sel_maps)
       
       cc = getCCvalues(data = addDset,modType = modType,test_ratio = test_ratio,
-                       nnet_complex = nnet_complex,max_iter = max_iter,
-                       svmType = svmType,NNactFunc = NNactFunc)
+                      nnet_complex = nnet_complex,max_iter = max_iter,
+                      svmType = svmType,NNactFunc = NNactFunc)
       if(is.null(cc) || is.nan(cc)) {
         #dbgmes("cc=NULL:",addDset)
         cc=0
@@ -2288,7 +2328,7 @@ getModelCCmatrix_par <- function (wells = NULL,minWells = 3,
   # myEnv$dset_matix = dset_matix
   # myEnv$nw
   withProgress(message = "Обработка...", detail = "Ожидайте...",  value =0, max = nmst_, {
-  #isolate({
+  isolate({
     #no_cores = detectCores() - 1
     #cl = makeCluster(no_cores)
     # clusterExport(cl=cl, 
@@ -2303,21 +2343,19 @@ getModelCCmatrix_par <- function (wells = NULL,minWells = 3,
   })
     #mapply(runIdx,FUN = applyGetCC)
     
-  #})
+  })
   dbgmes("cc_matrix =",cc_matrix)
   #browser()
   #return(NULL)
   #stopCluster(cl)
-  return(list(ccMatrix=cc_matrix,ccDset = dset_matix))
+  return(list(ccMatrix = cc_matrix,ccDset = dset_matix))
 }
-drawModelCCplot <- function(wells = NULL, CCmod = NULL,CClimit = 0.9) {
+drawModelCCplot <- function(CCmod = NULL,CClimit = 0.9) {
   #text(c(1,1),"text")
-  if(is.null(wells) || is.null(CCmod) || is.null(CCmod$ccMatrix)) {
+  if(is.null(CCmod) || is.null(CCmod$ccMatrix)) {
     plotError(message = "Не удалось выполнить расчет. Проверьте данные")
     return(NULL)
   } 
-  #nw = length(wells[,1])
-  #nm = length(wells)-2
   nm = dim(CCmod$ccMatrix)[1]
   nw = dim(CCmod$ccMatrix)[2]
   #browser()
@@ -2331,8 +2369,8 @@ drawModelCCplot <- function(wells = NULL, CCmod = NULL,CClimit = 0.9) {
     maxNm = max(maxNm,length(names))
   }
   #dbgmes("ylabs=",ylabs)
-  dbgmes("maxNm=",maxNm)
-  dbgmes(capture.output(rstr))
+  #dbgmes("maxNm=",maxNm)
+  #dbgmes(capture.output(rstr))
   mar = par('mar')
   mgp = par('mgp')
   mar[2] = maxNm+2.1
@@ -2351,19 +2389,22 @@ drawModelCCplot <- function(wells = NULL, CCmod = NULL,CClimit = 0.9) {
   axis(side = 1,at = c(1:(nw-2)), labels = paste(c(3:nw)))#, labels = rownames(wells))
   #yaxis
   axis(side = 2,at = c(1:nm), labels = ylabs)
+  return(rstr)
 }
 
 
 # Define server logic required to draw a histogram
 options(shiny.maxRequestSize = 500 * 1024 ^ 2)
-#options(shiny.reactlog = TRUE)
+options(shiny.reactlog = TRUE)
 options(shiny.host = "0.0.0.0")
 options(shiny.port = 8080)
 #options(shiny.style="old")
 myReactives <- reactiveValues(wells = wells0, 
                               zoom = map_zoom, 
                               fit = NULL, 
-                              maps = NULL)
+                              maps = NULL,
+                              cc = list(NNET = NULL, GLM = NULL, SVM = NULL),
+                              ccRecalc = FALSE)
 
 
 server <- function(input, output, session) {
@@ -2626,36 +2667,77 @@ X_LOCATION  Y_LOCATION  VALUE",
   
   #CB: Batch ####
   
-  getCCmodel <- reactive({
-    showModDial(message = paste0("Оценка эффективности модели ",input$batModel,"..."))
-    cc = getModelCCmatrix_par(wells = myReactives$liveWells, minWells = 3,
-                                 test_ratio = input$test_ratio,
-                                 nnet_complex = input$nnet_complex,
-                                 max_iter = input$max_iter,
-                                 svmType = input$svmModelType,
-                                 NNactFunc = mlpActFuns[[input$nnetActFunc]],
-                                 modType = input$batModel
-    )
-    if(input$batModel=="NNET") {
-      myReactives$CCmap_NNET = cc$ccMatrix
-      myReactives$CCdset_NNET = cc$ccDset
-    }
-    else if(input$batModel=="GLM") {
-      myReactives$CCmap_GLM = cc$ccMatrix
-      myReactives$CCdset_GLM = cc$ccDset
-    }
-    else if(input$batModel=="SVM") {
-      myReactives$CCmap_SVM = cc$ccMatrix
-      myReactives$CCdset_SVM = cc$ccDset
-    }
-    # minCC=round(min(cc$ccMatrix,na.rm = T),digits = 2)-0.1
-    # CClimit = input$CClimit
-    # updateSliderInput(session,"CClimit",
-    #                   min = minCC,
-    #                   value = max(c(minCC,CClimit))
-    #                   )
-    #dbgmes("cc_mat=",cc_matrix)
+    # observeEvent(input$batModel, {
+    #   getCCmodel()
+    #   removeModal()
+    # })
+  
+  observe (label = 'recalcNNET', {
+    ActFunc <- mlpActFuns[[input$nnetActFunc]]
+    max_iter <-  input$max_iter
+    nnet_complex <- input$nnet_complex
+    test_ratio <- input$test_ratio
+    wells = myReactives$liveWells
+    isolate(myReactives$ccRecalcNNET <- TRUE)
+    #dbgmes('recalc = ',isolate(myReactives$ccRecalcNNET))
   })
+
+  observe (label = 'recalcGLM',{
+    wells = myReactives$liveWells
+    modelType = isolate(input$batModel)
+    isolate(myReactives$ccRecalcGLM <- TRUE)
+    #dbgmes('recalc = ',isolate(myReactives$ccRecalcGLM))
+  })
+  
+  observe (label = 'recalcSVM',{
+    svmType <- input$svmModelType
+    wells = myReactives$liveWells
+    isolate(myReactives$ccRecalcSVM <- TRUE)
+    #dbgmes('recalc = ',isolate(myReactives$ccRecalcSVM))
+  })
+  
+  observe (label = 'recalcBatch',{
+    isolate({
+      ActFunc <- mlpActFuns[[input$nnetActFunc]]
+      svmType <- input$svmModelType
+      max_iter <-  input$max_iter
+      nnet_complex <- input$nnet_complex
+      test_ratio <- input$test_ratio
+      wells = myReactives$liveWells
+    })
+    modelType = input$batModel
+    #input$batModel
+    input$main
+    #myReactives$ccRecalc
+    modelTypeName = paste0('cc',modelType)
+    modelTypeRecalc = paste0('ccRecalc',modelType)
+    recalc = isolate(myReactives[[modelTypeRecalc]])
+    
+    myReactives$ccRecalcGLM
+    myReactives$ccRecalcSVM
+    myReactives$ccRecalcNNET
+    
+    #dbgmes('modelName = ',modelTypeName)
+    #dbgmes('Tab = ',input$main)
+    
+    if( input$main == 'batch' && recalc) {
+      showModDial(message = paste0("Оценка эффективности модели ",modelType,"..."))
+        myReactives[[modelTypeName]] <- getModelCCmatrix_par(
+          wells = wells, minWells = 3,
+          test_ratio = test_ratio,
+          nnet_complex = nnet_complex,
+          max_iter = max_iter,
+          svmType = svmType,
+          NNactFunc = ActFunc,
+          modType = modelType
+        )
+        isolate(myReactives[[modelTypeRecalc]] <- FALSE)
+        removeModal()
+    } 
+    #dbgmes('recalc = ',isolate(myReactives[[modelTypeRecalc]]))
+  })
+
+
   showCCmodel <- function (name, data,cc) {
     modalDialog( name,size = "l",
                  tagList(paste0(capture.output(data))
@@ -2668,15 +2750,16 @@ X_LOCATION  Y_LOCATION  VALUE",
   
   observeEvent(input$CCplot_get_model, {
     rc=round(c(input$CCplot_get_model$y,input$CCplot_get_model$x))
-    #dbgmes("cc_click=",rc)
+    dbgmes("cc_click=",rc)
     mod = getCurrentModel()
     #browser()
-    myReactives$CCtable
+    #myReactives$CCtable
     if(all(dim(mod$ccMatrix)>=rc))
     {
+      rc[2]= rc[2]+2
       cc = mod$ccMatrix[[rc[1],rc[2]]]
       data = mod$ccDset[[rc[1],rc[2]]][[1]]
-      title = c(paste0("Выбранная модель ",input$batModel," (CC=",prettyNum(cc),")"))
+      title = c(paste0("Выбранная модель ",input$batch," (CC=",prettyNum(cc),")"))
       myReactives$CCtable = data
       dbgmes("cc_click=",data)
       #message = paste0(capture.output(as.data.frame(data)),sep = '\n')
@@ -2692,10 +2775,8 @@ X_LOCATION  Y_LOCATION  VALUE",
   output$CCtable <-renderTable(myReactives$CCtable)
   
   output$batPlot <- renderPlot({
-    getCCmodel()
     mod = getCurrentModel()
-    drawModelCCplot(CCmod = mod,wells = myReactives$liveWells,CClimit = input$CClimit)
-    removeModal()
+    drawModelCCplot(CCmod = mod,CClimit = input$CClimit)
   })
     
   #CB: transposing ####
@@ -3035,6 +3116,7 @@ X_LOCATION  Y_LOCATION  VALUE",
 #    observe(myReactives$glm <- fit)
     removeModal()
   })
+  
   output$glmText <- renderText({ #renderPrint
     mode = mode = input$glmAuxMode
     if(mode == "mod")
@@ -3249,18 +3331,21 @@ X_LOCATION  Y_LOCATION  VALUE",
         title = "Support Vector Machine model"
       }
     } else if (main == 'batch') {
-      if(input$batModel=="NNET") {
-        cc = myReactives$CCmap_NNET
-        dset = myReactives$CCdset_NNET
-      }
-      else if(input$batModel=="GLM") {
-        cc = myReactives$CCmap_GLM
-        dset = myReactives$CCdset_GLM
-      }
-      else if(input$batModel=="SVM") {
-        cc = myReactives$CCmap_SVM
-        dset = myReactives$CCdset_SVM
-      }
+      modelTypeName = paste0('cc',input$batModel)
+      cc = myReactives[[modelTypeName]]$ccMatrix
+      dset = myReactives[[modelTypeName]]$ccDset
+      # if(input$batModel=="NNET") {
+      #   cc = myReactives$cc$NNET$ccMatrix
+      #   dset = myReactives$cc$NNET$ccDset
+      # }
+      # else if(input$batModel=="GLM") {
+      #   cc = myReactives$cc$GLM$ccMatrix
+      #   dset = myReactives$cc$GLM$ccDset
+      # }
+      # else if(input$batModel=="SVM") {
+      #   cc = myReactives$cc$SVM$ccMatrix
+      #   dset = myReactives$cc$SVM$ccDset
+      # }
     }
     #browser()
     return(list(map = resmap,model = model, title = title,

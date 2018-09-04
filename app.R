@@ -124,7 +124,7 @@ def_map <- list("fn" = fn0,
                 "rstr" = rstr0,
                 "prod" = FALSE
                 )
-nDefWels = 7
+nDefWels = 10
 wells0 <- as.data.frame(list( paste0("WELL",1:nDefWels),
             runif(nDefWels,min = map0@bbox[1,1],max = map0@bbox[1,2]),
             runif(nDefWels,min = map0@bbox[2,1],max = map0@bbox[2,2]),
@@ -233,7 +233,7 @@ spacer_wid = 20
 ui <- fluidPage(theme = shinytheme("simplex"),
   # Application title
   titlePanel("Анализ карт и контрольных точек"),
-  shinythemes::themeSelector(),
+  #shinythemes::themeSelector(),
   # test = enc2utf8(c("привет","пока"))
   
   #UI: Sidebar with a slider input for number of bins ####
@@ -1477,8 +1477,10 @@ drawMapsTable <- function (maps_ = NULL, sr = NULL) {
   if(is.null(maps_)) return()
   
   maps = matrix(,nrow = length(maps_), ncol = 4)
+  dbgmes("maps=",maps_)
   for( row in 1:length(maps_)) {
     map = maps_[[row]]
+    dbgmes("map$fn=",map$fn)
     maps[row,] <- c(paste0("Map",row),Name = map$fn, 
                     Min = map$rstr@data@min, Max = map$rstr@data@max)
   }
@@ -2217,7 +2219,7 @@ applyGetCC_par <- function (x,wells = NULL,
                         NNactFunc = mlpActFuns[[1]],
                         sel_maps_all = NULL,
                         sel_wells_all = NULL,
-                        nw, envir = .GlobalEnv) {
+                        nw, envir = .GlobalEnv, cluster = FALSE) {
   q=unlist(strsplit(x,'\\.')); 
   isw_=as.integer(q[1])
   ism_=as.integer(q[2])
@@ -2228,7 +2230,7 @@ applyGetCC_par <- function (x,wells = NULL,
   
   #browser()
   #shiny::isolate({
-  addDset = prepDataSet(wells = wells, rows = sel_wells, sel_maps = sel_maps)
+  addDset = prepDataSet(wells = wells, rows = -sel_wells, sel_maps = sel_maps)
   #return(x)
   cc = getCCvalues(data = addDset,modType = modType,test_ratio = test_ratio,
                    nnet_complex = nnet_complex,max_iter = max_iter,
@@ -2238,11 +2240,13 @@ applyGetCC_par <- function (x,wells = NULL,
     #dbgmes("cc=NULL:",addDset)
     cc=0
   }
+  #dbgmes("dset:",addDset)
   #browser()
-  c=(nw-iw+1)#(nw-iw+1)
+  c=(iw)#(nw-iw+1)
   r=ism_
+  #dbgmes("rc=:",c(r,c))
   #dbgmes("incProgress")
-  #shiny::incProgress(amount = 1)
+  if(!cluster) shiny::incProgress(amount = 1)
   if(is.null(envir$cc_matrix[r,c]) || is.na(envir$cc_matrix[r,c]) || cc>envir$cc_matrix[r,c])
   { 
     #FIXME: The CC value in result map do not corespond with the dataset somehow
@@ -2284,7 +2288,8 @@ getModelCCmatrix_par <- function (wells = NULL,minWells = 3,
     }
   }
   sel_wells_all = list()
-  for(iw in 1:(nw-minWells)) {
+  #for(iw in 1:(nw-minWells-1)) {
+  for(iw in 3:nw) {
     sel_wells = combn(1:nw,iw)
     #dbgmes("sel_wells=",sel_wells)
     nsw = length(sel_wells[1,])
@@ -2296,7 +2301,7 @@ getModelCCmatrix_par <- function (wells = NULL,minWells = 3,
   nsm_all = length(sel_maps_all)
   nsw_all = length(sel_wells_all)
   nmst_ = nsw_all*nsm_all
-  #dbgmes("nsm_,nsw_,nmst_=",c(nsm_all,nsw_all,nmst_))
+  dbgmes("nsm_,nsw_,nmst_=",c(nsm_all,nsw_all,nmst_))
   
   runIdx = apply(matrix(rep(1:nsw_all),nrow=nsw_all, ncol=nsm_all), 1, FUN=paste0, '.', c(1:nsm_all))
   #dbgmes("runIdx:",runIdx)
@@ -2317,7 +2322,8 @@ getModelCCmatrix_par <- function (wells = NULL,minWells = 3,
   #withProgress(message = "Обработка...", detail = "Ожидайте...",  value =0, max = nmst_, {
   #isolate({
   env=environment()
-  if(nsm_all*nw > 10) {
+  withProgress(message = "Обработка...", detail = "Ожидайте...",  value =0, max = nmst_, {
+  if(nmst_ > 10000) {
     nCores = detectCores() - 1
     cl = makeCluster(nCores)
     clusterExport(cl=cl,varlist=c("applyGetCC_par",ls(),ls("package:shiny"),ls("package:RSNNS"),ls("package:stats"),ls("package:e1071")),
@@ -2326,7 +2332,7 @@ getModelCCmatrix_par <- function (wells = NULL,minWells = 3,
              test_ratio = test_ratio,nnet_complex = nnet_complex,max_iter = max_iter,
              svmType = svmType,NNactFunc = NNactFunc,
              nw = nw, sel_maps_all = sel_maps_all, sel_wells_all = sel_wells_all,
-             envir = env)
+             envir = env,cluster = TRUE)
     stopCluster(cl)
     #browser()
     lapply(res,FUN = function(x,env) {
@@ -2343,20 +2349,11 @@ getModelCCmatrix_par <- function (wells = NULL,minWells = 3,
         test_ratio = test_ratio, nnet_complex = nnet_complex, max_iter = max_iter,
         svmType = svmType, NNactFunc = NNactFunc,
         nw = nw, sel_maps_all = sel_maps_all, sel_wells_all = sel_wells_all,
-        envir = env)
-  }
-    #browser()
-    #head(myEnv$cc_matrix)
-    #head(myEnv$dset_matix)
-  #})
-    #mapply(runIdx,FUN = applyGetCC)
-    
-  #})
-  #cc_matrix=.GlobalEnv$cc_matrix
-  #dset_matix=.GlobalEnv$dset_matix
+        envir = env,cluster = FALSE)
+    }
+  })
   dbgmes("cc_matrix =",cc_matrix)
   #browser()
-  #return(NULL)
   return(list(ccMatrix = cc_matrix,ccDset = dset_matix))
 }
 
@@ -2386,7 +2383,7 @@ drawModelCCplot <- function(CCmod = NULL,CClimit = 0.9) {
   mar[2] = maxNm+2.1
   mgp[1] = mar[2]-1
   par(mar = mar,mgp = mgp)
-  plot(rstr,yaxt="n",xaxt="n",xlim=c(1,nw-2),ylim=c(1,nm),
+  plot(rstr,yaxt="n",xaxt="n",xlim=c(1,nw-1),ylim=c(1,nm),
        xlab="",
        ylab="Карты в выборке",
        main = "Коэффициент корреляции для набора моделей",
@@ -2396,7 +2393,10 @@ drawModelCCplot <- function(CCmod = NULL,CClimit = 0.9) {
   xlabs = ""
   #browser()
   #xaxis
-  axis(side = 1,at = c(1:(nw-2)), labels = paste(c(3:nw)))#, labels = rownames(wells))
+  xlabs = c(1:(nw-1))
+  names(xlabs) <- paste(c(3:nw))
+  #dbgmes("xlabs=",xlabs)
+  axis(side = 1,at = xlabs, labels = names(xlabs))#, labels = rownames(wells))
   #yaxis
   axis(side = 2,at = c(1:nm), labels = ylabs)
   return(rstr)
@@ -2771,6 +2771,7 @@ X_LOCATION  Y_LOCATION  VALUE",
       data = mod$ccDset[[rc[1],rc[2]]][[1]]
       title = c(paste0("Выбранная модель ",input$batch," (CC=",prettyNum(cc),")"))
       myReactives$CCtable = data
+      dbgmes("cc_click=",cc)
       dbgmes("cc_click=",data)
       #message = paste0(capture.output(as.data.frame(data)),sep = '\n')
       #browser()
@@ -3261,6 +3262,10 @@ X_LOCATION  Y_LOCATION  VALUE",
     removeModal() 
   })
   
+  observeEvent(input$addSVMap2inp , {
+    putMap2inp()
+  })
+  
   
   getMapPar <- function()
   {
@@ -3315,11 +3320,11 @@ X_LOCATION  Y_LOCATION  VALUE",
         mode = input$modelHC
         resmap = myReactives$hcm_map
         prediction = model$predicted
-        title = paste("Hierarhical Clusteing",(capture.output(model))[5:6])
+        title = paste("Hierarhical Clusteing",(capture.output(model))[5:6])[1]
       } else if (input$maps == 'modelSV') {
         model = myReactives$svmc
         mode = input$modelSV
-        resmap = myReactives$svmc_map
+        resmap = myReactives$svcm_map
         prediction = model$predicted
         title = paste("One-class clustering (ouliers)",(capture.output(model))[1])
       }

@@ -1145,20 +1145,21 @@ drawHex <- function (xy = NULL, cells = 30) {
 
 
 
-prepDataSet <- function (wells = NULL, rows = NULL, sel_maps = NULL) {
+prepDataSet <- function (wells = NULL, rows = NULL, sel_maps = NULL, nmap = +Inf) {
   #browser()
   if(is.null(wells) || length(wells[1,])<4) return(NULL)
   if(is.null(sel_maps) || length(sel_maps)<1)
     data = wells
   else {
-    # FIXED: check and fix the 'sel_maps' contents 
+    # NOT FIXED: check and fix the 'sel_maps' contents 
     #        by the size of maps array (issue after map deletion)
+    #  due to reactivity context this FIX doesn't suit
     #browser()
-    nmap = length(myReactives$maps)
+    # nmap = length(maps)
     sel_maps = sapply(sel_maps,FUN = function(x) {
       if(x>nmap) return(NA)
       else return(x)
-    })    
+    })
     sel_maps = sel_maps[!is.na(sel_maps)]
     data = data.frame(wells[,c(1:2,2+sel_maps)])
   }
@@ -2206,34 +2207,54 @@ getModelCCmatrix <- function (wells = NULL,minWells = 3,
   return(list(ccMatrix=cc_matrix,ccDset = dset_matix))
 }
 
-getModelCCMatrixGLM <- function (wells = NULL,minWells = 3,
-                                 test_ratio = 0.2,
-                                 nnet_complex = 0.1,
-                                 max_iter = 50,
-                                 svmType = svmModels[1],
-                                 NNactFunc = mlpActFuns[[1]]) {
-  getModelCCmatrix_par(wells ,minWells ,
-                       'GLM' ,test_ratio ,nnet_complex,max_iter,svmType,NNactFunc)
-}
 
-getModelCCMatrixSVM <- function (wells = NULL,minWells = 3,
-                                 test_ratio = 0.2,
-                                 nnet_complex = 0.1,
-                                 max_iter = 50,
-                                 svmType = svmModels[1],
-                                 NNactFunc = mlpActFuns[[1]]) {
-  getModelCCmatrix_par(wells ,minWells ,
-                       'SVM' ,test_ratio ,nnet_complex,max_iter,svmType,NNactFunc)
-}
-
-getModelCCMatrixNNET <- function (wells = NULL,minWells = 3,
-                                 test_ratio = 0.2,
-                                 nnet_complex = 0.1,
-                                 max_iter = 50,
-                                 svmType = svmModels[1],
-                                 NNactFunc = mlpActFuns[[1]]) {
-  getModelCCmatrix_par(wells ,minWells ,
-                       'NNET' ,test_ratio ,nnet_complex,max_iter,svmType,NNactFunc)
+applyGetCC_par <- function (x,wells = NULL,
+                        modType = NULL,
+                        test_ratio = 0.2,
+                        nnet_complex = 0.1,
+                        max_iter = 50,
+                        svmType = svmModels[1],
+                        NNactFunc = mlpActFuns[[1]],
+                        sel_maps_all = NULL,
+                        sel_wells_all = NULL,
+                        nw, envir = .GlobalEnv) {
+  q=unlist(strsplit(x,'\\.')); 
+  isw_=as.integer(q[1])
+  ism_=as.integer(q[2])
+  #dbgmes("isw_,ism_:",c(isw_,ism_))
+  sel_maps=sel_maps_all[ism_][[1]]
+  sel_wells = sel_wells_all[isw_][[1]]
+  iw = length(sel_wells)
+  
+  #browser()
+  #shiny::isolate({
+  addDset = prepDataSet(wells = wells, rows = sel_wells, sel_maps = sel_maps)
+  #return(x)
+  cc = getCCvalues(data = addDset,modType = modType,test_ratio = test_ratio,
+                   nnet_complex = nnet_complex,max_iter = max_iter,
+                   svmType = svmType,NNactFunc = NNactFunc)
+  #cc=length(addDset)
+  if(is.null(cc) || is.nan(cc)) {
+    #dbgmes("cc=NULL:",addDset)
+    cc=0
+  }
+  #browser()
+  c=(nw-iw+1)#(nw-iw+1)
+  r=ism_
+  #dbgmes("incProgress")
+  #shiny::incProgress(amount = 1)
+  if(is.null(envir$cc_matrix[r,c]) || is.na(envir$cc_matrix[r,c]) || cc>envir$cc_matrix[r,c])
+  { 
+    #FIXME: The CC value in result map do not corespond with the dataset somehow
+    #dbgmes("set CC & maT",cc)
+    envir$cc_matrix[r,c] = cc
+    envir$dset_matix[[r,c]] = list(addDset)
+    #assign("cc_matrix",value = envir$cc_matrix,envir = envir)
+    #assign("dset_matix",value = envir$dset_matix,envir = envir)
+  }
+  #})
+  #dbgmes("cc=NULL:",addDset)
+  return(list(rc = c(r,c), cc = envir$cc_matrix[r,c],dset = envir$dset_matix[[r,c]]))
 }
 
 getModelCCmatrix_par <- function (wells = NULL,minWells = 3,
@@ -2280,76 +2301,65 @@ getModelCCmatrix_par <- function (wells = NULL,minWells = 3,
   runIdx = apply(matrix(rep(1:nsw_all),nrow=nsw_all, ncol=nsm_all), 1, FUN=paste0, '.', c(1:nsm_all))
   #dbgmes("runIdx:",runIdx)
   
-  cc_matrix = matrix(nrow = nsm_all,ncol = nw,data = 0.85)
+  cc_matrix = matrix(nrow = nsm_all,ncol = nw,data = NA)
   dset_matix = array(list(),c(nsm_all,nw))
+  
+  #par_matrix = array(list(cc = NA, dset = list() ),c(nsm_all,nw))
   #dbgmes("cc_matrix =",cc_matrix)
   #return(list(ccMatrix = cc_matrix,ccDset = dset_matix))
   #browser()
-  
-  applyGetCC <- function (x) {
-    q=unlist(strsplit(x,'\\.')); 
-    isw_=as.integer(q[1])
-    ism_=as.integer(q[2])
-    #dbgmes("isw_,ism_:",c(isw_,ism_))
-    sel_maps=sel_maps_all[ism_][[1]]
-    sel_wells = sel_wells_all[isw_][[1]]
-    iw = length(sel_wells)
-    #browser()
-    #shiny::isolate({
-      addDset = prepDataSet(wells = wells, rows = sel_wells, sel_maps = sel_maps)
-      
-      cc = getCCvalues(data = addDset,modType = modType,test_ratio = test_ratio,
-                      nnet_complex = nnet_complex,max_iter = max_iter,
-                      svmType = svmType,NNactFunc = NNactFunc)
-      if(is.null(cc) || is.nan(cc)) {
-        #dbgmes("cc=NULL:",addDset)
-        cc=0
-      }
-      #browser()
-      c=(nw-iw+1)#(nw-iw+1)
-      r=ism_
-      #dbgmes("incProgress")
-      shiny::incProgress(amount = 1)
-      if(is.null(cc_matrix[r,c]) || is.na(cc_matrix[r,c]) || cc>cc_matrix[r,c])
-      { 
-        #FIXME: The CC value in result map do not corespond with the dataset somehow
-        #dbgmes("set CC & maT",cc)
-        cc_matrix[r,c] <<- cc
-        dset_matix[[r,c]] <<- list(addDset)
-      }
-    #})
-    #dbgmes("cc=NULL:",addDset)
-    return(x)
-  }
   
   #browser()
   # myEnv = new.env(parent = globalenv())
   # myEnv$cc_matrix = cc_matrix
   # myEnv$dset_matix = dset_matix
   # myEnv$nw
-  withProgress(message = "Обработка...", detail = "Ожидайте...",  value =0, max = nmst_, {
-  isolate({
-    #no_cores = detectCores() - 1
-    #cl = makeCluster(no_cores)
-    # clusterExport(cl=cl, 
-    #               varlist=c("cc_matrix", "dset_matix","wells","modType","test_ratio",
-    #                                "nnet_complex","max_iter","NNactFunc",
-    #                                "svmType","nw","nm",
-    #                                "sel_maps_all","sel_wells_all"), envir=environment())
-    # parApply(cl = cl,X = runIdx,MARGIN = c(1,2),FUN = applyGetCC)
-    apply(runIdx,c(1,2),FUN = applyGetCC)
+  #withProgress(message = "Обработка...", detail = "Ожидайте...",  value =0, max = nmst_, {
+  #isolate({
+  env=environment()
+  if(nsm_all*nw > 10) {
+    nCores = detectCores() - 1
+    cl = makeCluster(nCores)
+    clusterExport(cl=cl,varlist=c("applyGetCC_par",ls(),ls("package:shiny"),ls("package:RSNNS"),ls("package:stats"),ls("package:e1071")),
+                  envir=env)
+    res = parApply(cl = cl,X = runIdx,MARGIN = c(1,2),FUN = applyGetCC_par,wells = wells,modType = modType,
+             test_ratio = test_ratio,nnet_complex = nnet_complex,max_iter = max_iter,
+             svmType = svmType,NNactFunc = NNactFunc,
+             nw = nw, sel_maps_all = sel_maps_all, sel_wells_all = sel_wells_all,
+             envir = env)
+    stopCluster(cl)
+    #browser()
+    lapply(res,FUN = function(x,env) {
+      r=x$rc[1]
+      c=x$rc[2]
+      if(is.null(env$cc_matrix[r,c]) || is.na(env$cc_matrix[r,c]) || x$cc>env$cc_matrix[r,c])
+      {
+        env$cc_matrix[r,c] = x$cc
+        env$dset_matix[[r,c]] = x$dset
+      }
+      },env)
+  } else {
+    apply(X = runIdx,MARGIN = c(1,2),FUN = applyGetCC_par,wells = wells,modType = modType,
+        test_ratio = test_ratio, nnet_complex = nnet_complex, max_iter = max_iter,
+        svmType = svmType, NNactFunc = NNactFunc,
+        nw = nw, sel_maps_all = sel_maps_all, sel_wells_all = sel_wells_all,
+        envir = env)
+  }
     #browser()
     #head(myEnv$cc_matrix)
-  })
+    #head(myEnv$dset_matix)
+  #})
     #mapply(runIdx,FUN = applyGetCC)
     
-  })
+  #})
+  #cc_matrix=.GlobalEnv$cc_matrix
+  #dset_matix=.GlobalEnv$dset_matix
   dbgmes("cc_matrix =",cc_matrix)
   #browser()
   #return(NULL)
-  #stopCluster(cl)
   return(list(ccMatrix = cc_matrix,ccDset = dset_matix))
 }
+
 drawModelCCplot <- function(CCmod = NULL,CClimit = 0.9) {
   #text(c(1,1),"text")
   if(is.null(CCmod) || is.null(CCmod$ccMatrix)) {
@@ -2395,7 +2405,7 @@ drawModelCCplot <- function(CCmod = NULL,CClimit = 0.9) {
 
 # Define server logic required to draw a histogram
 options(shiny.maxRequestSize = 500 * 1024 ^ 2)
-options(shiny.reactlog = TRUE)
+#options(shiny.reactlog = TRUE)
 options(shiny.host = "0.0.0.0")
 options(shiny.port = 8080)
 #options(shiny.style="old")
@@ -2444,7 +2454,7 @@ server <- function(input, output, session) {
       myReactives$maps <- append(myReactives$maps,list(def_map))
       myReactives$maps <- append(myReactives$maps,list(def_map))
       myReactives$liveMaps <- getLiveMapsData(maps = myReactives$maps, sr = input$table_maps_rows_selected)
-      myReactives$liveWells <- prepDataSet(wells = myReactives$wells@data, rows =input$table_wells_rows_selected  ,sel_maps =  input$table_maps_rows_selected)
+      myReactives$liveWells <- prepDataSet(wells = myReactives$wells@data, rows =input$table_wells_rows_selected  ,sel_maps =  input$table_maps_rows_selected, nmap = length(myReactives$maps))
       updateMapLists(myReactives$maps,input$table_maps_rows_selected)
     }
     showModDial("Обработка карт...")
@@ -2458,7 +2468,7 @@ server <- function(input, output, session) {
       }
     })
     myReactives$liveMaps <- getLiveMapsData(maps = myReactives$maps, sr = input$table_maps_rows_selected)
-    myReactives$liveWells <- prepDataSet(wells = myReactives$wells@data, rows =input$table_wells_rows_selected  ,sel_maps =  input$table_maps_rows_selected)
+    myReactives$liveWells <- prepDataSet(wells = myReactives$wells@data, rows =input$table_wells_rows_selected  ,sel_maps =  input$table_maps_rows_selected, nmap = length(myReactives$maps))
     #myReactives$liveMaps <- getLiveMapsData(maps = myReactives$maps, sr = input$table_maps_rows_selected)
     #updateMapLists(myReactives$maps,input$table_maps_rows_selected)
     selectRows(dtMapsProxy,as.numeric(mapsSelection))
@@ -2489,7 +2499,7 @@ WELL  X_LOCATION  Y_LOCATION",
         wls <- extractMap2Well(wls,myReactives$maps[[i]]$rstr, paste0("Map",i))
       }
       myReactives$wells <- wls
-      myReactives$liveWells <- prepDataSet(wells = myReactives$wells@data, rows =input$table_wells_rows_selected  ,sel_maps =  input$table_maps_rows_selected)
+      myReactives$liveWells <- prepDataSet(wells = myReactives$wells@data, rows =input$table_wells_rows_selected  ,sel_maps =  input$table_maps_rows_selected, nmap = length(myReactives$maps))
     }
   })
   
@@ -2505,7 +2515,7 @@ X_LOCATION  Y_LOCATION  VALUE",
       showNotification(ui = paste(length(wls@data$Values[!is.na(wls@data$Values)])," из ",length(wls[,1])," скважин обновлено"),
                        type = "default")
       myReactives$wells <- wls
-      myReactives$liveWells <- prepDataSet(wells = myReactives$wells@data, rows =input$table_wells_rows_selected  ,sel_maps =  input$table_maps_rows_selected)
+      myReactives$liveWells <- prepDataSet(wells = myReactives$wells@data, rows =input$table_wells_rows_selected  ,sel_maps =  input$table_maps_rows_selected, nmap = length(myReactives$maps))
     }
   })
 
@@ -2587,7 +2597,7 @@ X_LOCATION  Y_LOCATION  VALUE",
                 }
               })
     myReactives$liveMaps <- getLiveMapsData(maps = myReactives$maps, sr = input$table_maps_rows_selected)
-    myReactives$liveWells <- prepDataSet(wells = myReactives$wells@data, rows =input$table_wells_rows_selected  ,sel_maps =  input$table_maps_rows_selected)
+    myReactives$liveWells <- prepDataSet(wells = myReactives$wells@data, rows =input$table_wells_rows_selected  ,sel_maps =  input$table_maps_rows_selected, nmap = length(myReactives$maps))
     selectRows(dtMapsProxy,as.numeric(mapsSelection))
     updateMapLists(myReactives$maps,input$table_maps_rows_selected)
     removeModal()
@@ -2617,7 +2627,7 @@ X_LOCATION  Y_LOCATION  VALUE",
       #dbgmes("sel1=",input$table_maps_rows_selected)
     }
     myReactives$liveMaps <- getLiveMapsData(maps = myReactives$maps)
-    myReactives$liveWells <- prepDataSet(wells = myReactives$wells@data, rows =input$table_wells_rows_selected  ,sel_maps =  input$table_maps_rows_selected)
+    myReactives$liveWells <- prepDataSet(wells = myReactives$wells@data, rows =input$table_wells_rows_selected  ,sel_maps =  input$table_maps_rows_selected, nmap = length(myReactives$maps))
     updateMapLists(myReactives$maps)
   })
   
@@ -2648,7 +2658,7 @@ X_LOCATION  Y_LOCATION  VALUE",
   #   #browser()
     #dbgmes(message = "selected = ",input$table_maps_rows_selected)
      myReactives$liveMaps <- getLiveMapsData(maps = myReactives$maps, sr = input$table_maps_rows_selected)
-     myReactives$liveWells <- prepDataSet(wells = myReactives$wells@data, rows =input$table_wells_rows_selected  ,sel_maps =  input$table_maps_rows_selected)
+     myReactives$liveWells <- prepDataSet(wells = myReactives$wells@data, rows =input$table_wells_rows_selected  ,sel_maps =  input$table_maps_rows_selected, nmap = length(myReactives$maps))
    #selectRows(proxy = dtMapsProxy,selected = input$table_maps_rows_selected)
      updateMapLists(maps = myReactives$maps,sr = input$table_maps_rows_selected)
 
@@ -2659,7 +2669,7 @@ X_LOCATION  Y_LOCATION  VALUE",
     #   #browser()
     #dbgmes(message = "selected = ",input$table_maps_rows_selected)
     #myReactives$liveMaps <- getLiveMapsData(maps = myReactives$maps, sr = input$table_maps_rows_selected)
-    myReactives$liveWells <- prepDataSet(wells = myReactives$wells@data, rows =input$table_wells_rows_selected  ,sel_maps =  input$table_maps_rows_selected)
+    myReactives$liveWells <- prepDataSet(wells = myReactives$wells@data, rows =input$table_wells_rows_selected  ,sel_maps =  input$table_maps_rows_selected, nmap = length(myReactives$maps))
     #selectRows(proxy = dtMapsProxy,selected = input$table_maps_rows_selected)
     #updateMapLists(maps = myReactives$maps,sr = input$table_maps_rows_selected)
     
@@ -2788,7 +2798,7 @@ X_LOCATION  Y_LOCATION  VALUE",
       myReactives$wells <- extractMap2Well(myReactives$wells,map_obj$rstr, paste0 ("Map",map_idx))
       myReactives$maps[[map_idx]] <- map_obj
       myReactives$liveMaps <- getLiveMapsData(maps = myReactives$maps, sr = input$table_maps_rows_selected)
-      myReactives$liveWells <- prepDataSet(wells = myReactives$wells@data, rows =input$table_wells_rows_selected  ,sel_maps =  input$table_maps_rows_selected)
+      myReactives$liveWells <- prepDataSet(wells = myReactives$wells@data, rows =input$table_wells_rows_selected  ,sel_maps =  input$table_maps_rows_selected, nmap = length(myReactives$maps))
       selectRows(dtMapsProxy,mapsSelection)
       #selectRows(dtMapsProxy,as.numeric(getLiveMapsIds(maps = myReactives$maps, sr = input$table_maps_rows_selected)))
     }
@@ -2802,7 +2812,7 @@ X_LOCATION  Y_LOCATION  VALUE",
       myReactives$wells <- extractMap2Well(myReactives$wells,map_obj$rstr, paste0 ("Map",map_idx))
       myReactives$maps[[map_idx]] <- map_obj
       myReactives$liveMaps <- getLiveMapsData(maps = myReactives$maps, sr = input$table_maps_rows_selected)
-      myReactives$liveWells <- prepDataSet(wells = myReactives$wells@data, rows =input$table_wells_rows_selected  ,sel_maps =  input$table_maps_rows_selected)
+      myReactives$liveWells <- prepDataSet(wells = myReactives$wells@data, rows =input$table_wells_rows_selected  ,sel_maps =  input$table_maps_rows_selected, nmap = length(myReactives$maps))
       selectRows(dtMapsProxy,as.numeric(mapsSelection))
     }
   })
@@ -2980,7 +2990,7 @@ X_LOCATION  Y_LOCATION  VALUE",
       selectRows(dtMapsProxy,as.numeric(mapsSelection))
       updateMapLists(myReactives$maps,mapsSelection)#input$table_maps_rows_selected)
       myReactives$liveMaps <- getLiveMapsData(maps = myReactives$maps, sr = mapsSelection)#input$table_maps_rows_selected)
-      myReactives$liveWells <- prepDataSet(wells = myReactives$wells@data, rows =input$table_wells_rows_selected  ,sel_maps =  input$table_maps_rows_selected)
+      myReactives$liveWells <- prepDataSet(wells = myReactives$wells@data, rows =input$table_wells_rows_selected  ,sel_maps =  input$table_maps_rows_selected, nmap = length(myReactives$maps))
       showNotification(ui = paste("Карта",map_obj$fn," добавлена во входные."),
                        type = "default")
     }

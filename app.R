@@ -109,7 +109,7 @@ require(RSNNS)
 require(e1071)
 require(mclust)
 require(amap)
-require(hexbin)
+#require(hexbin)
 require(parallel)
 #library(markdown)
 
@@ -124,7 +124,7 @@ def_map <- list("fn" = fn0,
                 "rstr" = rstr0,
                 "prod" = FALSE
                 )
-nDefWels = 10
+nDefWels = 7
 wells0 <- as.data.frame(list( paste0("WELL",1:nDefWels),
             runif(nDefWels,min = map0@bbox[1,1],max = map0@bbox[1,2]),
             runif(nDefWels,min = map0@bbox[2,1],max = map0@bbox[2,2]),
@@ -571,10 +571,12 @@ ui <- fluidPage(theme = shinytheme("simplex"),
                        plotOutput(
                          "batPlot",
                          click = "CCplot_get_model",
+                         hover = "CCplot_hover_plot",
                          height = modPlot_wid
                        ),
                        sliderInput('CClimit','Минимальный коэффициент корреляции на карте',
-                                   min = 0.7,max = 0.98,value = 0.7,step = 0.02)
+                                   min = 0.7,max = 0.98,value = 0.7,step = 0.02),
+                       verbatimTextOutput("batchText")
           #)
         )
       )
@@ -1477,10 +1479,10 @@ drawMapsTable <- function (maps_ = NULL, sr = NULL) {
   if(is.null(maps_)) return()
   
   maps = matrix(,nrow = length(maps_), ncol = 4)
-  dbgmes("maps=",maps_)
+  #dbgmes("maps=",maps_)
   for( row in 1:length(maps_)) {
     map = maps_[[row]]
-    dbgmes("map$fn=",map$fn)
+    #dbgmes("map$fn=",map$fn)
     maps[row,] <- c(paste0("Map",row),Name = map$fn, 
                     Min = map$rstr@data@min, Max = map$rstr@data@max)
   }
@@ -2249,12 +2251,8 @@ applyGetCC_par <- function (x,wells = NULL,
   if(!cluster) shiny::incProgress(amount = 1)
   if(is.null(envir$cc_matrix[r,c]) || is.na(envir$cc_matrix[r,c]) || cc>envir$cc_matrix[r,c])
   { 
-    #FIXME: The CC value in result map do not corespond with the dataset somehow
-    #dbgmes("set CC & maT",cc)
     envir$cc_matrix[r,c] = cc
     envir$dset_matix[[r,c]] = list(addDset)
-    #assign("cc_matrix",value = envir$cc_matrix,envir = envir)
-    #assign("dset_matix",value = envir$dset_matix,envir = envir)
   }
   #})
   #dbgmes("cc=NULL:",addDset)
@@ -2303,7 +2301,11 @@ getModelCCmatrix_par <- function (wells = NULL,minWells = 3,
   nmst_ = nsw_all*nsm_all
   dbgmes("nsm_,nsw_,nmst_=",c(nsm_all,nsw_all,nmst_))
   
-  runIdx = apply(matrix(rep(1:nsw_all),nrow=nsw_all, ncol=nsm_all), 1, FUN=paste0, '.', c(1:nsm_all))
+  runIdx = unlist(as.list(apply(matrix(rep(1:nsw_all), nrow=nsw_all, ncol=nsm_all),
+                                1, FUN=paste0, '.', c(1:nsm_all))
+                          ))
+  #browser()
+  runIdx = sample(runIdx)
   #dbgmes("runIdx:",runIdx)
   
   cc_matrix = matrix(nrow = nsm_all,ncol = nw,data = NA)
@@ -2314,26 +2316,25 @@ getModelCCmatrix_par <- function (wells = NULL,minWells = 3,
   #return(list(ccMatrix = cc_matrix,ccDset = dset_matix))
   #browser()
   
-  #browser()
-  # myEnv = new.env(parent = globalenv())
-  # myEnv$cc_matrix = cc_matrix
-  # myEnv$dset_matix = dset_matix
-  # myEnv$nw
-  #withProgress(message = "Обработка...", detail = "Ожидайте...",  value =0, max = nmst_, {
   #isolate({
   env=environment()
   withProgress(message = "Обработка...", detail = "Ожидайте...",  value =0, max = nmst_, {
   if(nmst_ > 10000) {
     nCores = detectCores() - 1
     cl = makeCluster(nCores)
-    clusterExport(cl=cl,varlist=c("applyGetCC_par",ls(),ls("package:shiny"),ls("package:RSNNS"),ls("package:stats"),ls("package:e1071")),
+    clusterExport(cl=cl,varlist=c("applyGetCC_par",ls(),ls("package:RSNNS"),ls("package:stats"),ls("package:e1071")),
                   envir=env)
-    res = parApply(cl = cl,X = runIdx,MARGIN = c(1,2),FUN = applyGetCC_par,wells = wells,modType = modType,
-             test_ratio = test_ratio,nnet_complex = nnet_complex,max_iter = max_iter,
-             svmType = svmType,NNactFunc = NNactFunc,
-             nw = nw, sel_maps_all = sel_maps_all, sel_wells_all = sel_wells_all,
-             envir = env,cluster = TRUE)
-    stopCluster(cl)
+    # res = parApply(cl = cl,X = runIdx,MARGIN = c(1,2),FUN = applyGetCC_par,wells = wells,modType = modType,
+    #          test_ratio = test_ratio,nnet_complex = nnet_complex,max_iter = max_iter,
+    #          svmType = svmType,NNactFunc = NNactFunc,
+    #          nw = nw, sel_maps_all = sel_maps_all, sel_wells_all = sel_wells_all,
+    #          envir = env,cluster = TRUE)
+    res = parLapplyLB(cl = cl,X = runIdx, fun = applyGetCC_par,wells = wells,modType = modType,
+                   test_ratio = test_ratio,nnet_complex = nnet_complex,max_iter = max_iter,
+                   svmType = svmType,NNactFunc = NNactFunc,
+                   nw = nw, sel_maps_all = sel_maps_all, sel_wells_all = sel_wells_all,
+                   envir = env,cluster = TRUE)
+    on.exit(stopCluster(cl))
     #browser()
     lapply(res,FUN = function(x,env) {
       r=x$rc[1]
@@ -2345,7 +2346,8 @@ getModelCCmatrix_par <- function (wells = NULL,minWells = 3,
       }
       },env)
   } else {
-    apply(X = runIdx,MARGIN = c(1,2),FUN = applyGetCC_par,wells = wells,modType = modType,
+    lapply(X = runIdx,#MARGIN = c(1,2),
+        FUN = applyGetCC_par,wells = wells,modType = modType,
         test_ratio = test_ratio, nnet_complex = nnet_complex, max_iter = max_iter,
         svmType = svmType, NNactFunc = NNactFunc,
         nw = nw, sel_maps_all = sel_maps_all, sel_wells_all = sel_wells_all,
@@ -2431,6 +2433,7 @@ server <- function(input, output, session) {
   }
   
   dtMapsProxy = dataTableProxy("table_maps")  
+  dtWellsProxy = dataTableProxy("table_wells")  
   #CB: Busy Modal diaplay ####
   output$cycle <- renderImage ({
     return(list(
@@ -2732,6 +2735,7 @@ X_LOCATION  Y_LOCATION  VALUE",
     
     if( input$main == 'batch' && recalc) {
       showModDial(message = paste0("Оценка эффективности модели ",modelType,"..."))
+        calcTime <- Sys.time()
         myReactives[[modelTypeName]] <- getModelCCmatrix_par(
           wells = wells, minWells = 3,
           test_ratio = test_ratio,
@@ -2741,6 +2745,8 @@ X_LOCATION  Y_LOCATION  VALUE",
           NNactFunc = ActFunc,
           modType = modelType
         )
+        calcTime <- Sys.time() - calcTime
+        dbgmes("duration = ", calcTime)
         isolate(myReactives[[modelTypeRecalc]] <- FALSE)
         removeModal()
     } 
@@ -2764,7 +2770,7 @@ X_LOCATION  Y_LOCATION  VALUE",
     mod = getCurrentModel()
     #browser()
     #myReactives$CCtable
-    if(all(dim(mod$ccMatrix)>=rc))
+    if(all(dim(mod$ccMatrix)>=rc && all(rc>0)))
     {
       rc[2]= rc[2]+2
       cc = mod$ccMatrix[[rc[1],rc[2]]]
@@ -2778,10 +2784,52 @@ X_LOCATION  Y_LOCATION  VALUE",
       #showModDial(message = message)
       showModal(modalDialog( title = title,size = "m",
                    tagList(fluidRow(tableOutput('CCtable'))),
-                   footer = tagList(modalButton("Закрыть")))
+                   footer = tagList(actionButton("setCCselectionDset","Задать входные в соответствии"),modalButton("Закрыть")))
       )
     }
   })
+  
+  #CB: BAT: update inputs selection ####
+  observeEvent(input$setCCselectionDset, {
+    #browser()
+    wellssSelection = match(myReactives$CCtable$WELL ,myReactives$wells$WELL)
+    mapsSelection = gsub(x = colnames(myReactives$CCtable)[c(-1,-2)],pattern = "Map",replacement = "")
+    #myReactives$wells[myReactives$CCtable$WELL,]
+    updateTabsetPanel(session, "main", selected = 'wells')
+    selectRows(dtMapsProxy,as.integer(mapsSelection))
+    selectRows(dtWellsProxy,as.integer(wellssSelection))
+
+    myReactives$liveMaps <- getLiveMapsData(maps = myReactives$maps)
+    myReactives$liveWells <- prepDataSet(wells = myReactives$wells@data, rows =input$table_wells_rows_selected  ,sel_maps =  input$table_maps_rows_selected, nmap = length(myReactives$maps))
+    updateMapLists(myReactives$maps)
+    removeModal()
+
+  })
+  
+  output$batchText <- renderText({
+    xy = c(input$CCplot_hover_plot$y,input$CCplot_hover_plot$x)
+    if(all(is.null(xy))) paste("NA")
+    else {
+      rc=round(xy)
+      mod = getCurrentModel()
+      #dbgmes("cc_hover=",rbind(dim(mod$ccMatrix),rc,xy))
+      #browser()
+      if(all(dim(mod$ccMatrix)>=rc && all(rc>0)))
+      {
+        rc[2]= rc[2]+2
+        cc = mod$ccMatrix[[rc[1],rc[2]]]
+        data = mod$ccDset[[rc[1],rc[2]]][[1]]
+        maps = colnames(data)[c(-1,-2)]
+        title = c(paste0(input$batch,"CC=",prettyNum(cc)))
+        #paste0(title,cc,data ,paste0(rc[1],rc[2],"\n"))
+        paste0(c(title,'\n', paste0(rbind('Maps:','No. of wells:'),list(maps,rc[2]),"\n")))
+      } else paste("NA")
+    }
+  })
+  
+  # observeEvent(input$CCplot_hover_plot, {
+  #   updateT
+  # })
   
   output$CCtable <-renderTable(myReactives$CCtable)
   

@@ -124,6 +124,12 @@ def_map <- list("fn" = fn0,
                 "rstr" = rstr0,
                 "prod" = FALSE
                 )
+
+def_map1 = def_map
+def_map1$map@data = sample(def_map1$map@data)
+def_map1$rstr = raster(def_map1$map)
+def_map1$fn = paste0(def_map1$fn,1)
+
 nDefWels = 7
 wells0 <- as.data.frame(list( paste0("WELL",1:nDefWels),
             runif(nDefWels,min = map0@bbox[1,1],max = map0@bbox[1,2]),
@@ -984,7 +990,10 @@ selectMap <- function (maps = NULL, sr = NULL, idx = -1) {
 }
 
 # Draw single map
-drawMap <- function (map = def_map$map, fact = 1.0, zoom = NULL, pal = NULL, alpha = 0) {
+drawMap <- function (map = NULL, fact = 1.0, zoom = NULL, pal = NULL, alpha = 0) {
+  if(is.null(map)) {
+    plotError("error")
+  }
   meanx = (map@bbox[1, 1] + map@bbox[1, 2]) / 2
   meany = (map@bbox[2, 1] + map@bbox[2, 2]) / 2
   
@@ -1049,8 +1058,11 @@ drawMap <- function (map = def_map$map, fact = 1.0, zoom = NULL, pal = NULL, alp
 }
 
 
-drawRstr <- function (map = def_map$rstr, zoom = NULL,  pal = mapPalette, alpha = 0, contours = F, interpolate = TRUE) {
+drawRstr <- function (map = NULL, zoom = NULL,  pal = mapPalette, alpha = 0, contours = F, interpolate = TRUE) {
   colors = pal(128)
+  if(is.null(map)) {
+    plotError("error")
+  }
   if(!is.null(alpha))
     colors = setPaletteTransp(colors,1-alpha)
 
@@ -1200,14 +1212,15 @@ drawModelQC <- function(fit = NULL){
 
 drawModelXplot <- function(data = NULL, lmfit = NULL, srows = NULL) {
   
-  dbgmes(message = "data=",data)
+  #dbgmes(message = "data=",data)
+  #dbgmes(message = "fit=",lmfit)
   #data = prepDataSet(data)
   predicted = predict(lmfit, newdata = data)
   #browser()
   measured = data$Values#[data$WELL %in% names(predicted)]
-  
+  #names(measured) <- data$WELL
   #measured = data$Values[rownames(data) %in% names(predicted)]
-  dbgmes(message = "res=",cbind(measured,predicted))
+  #dbgmes(message = "res=",cbind(measured,predicted))
   abl = lm(predicted~measured)
   
   xccf = ccf(measured, predicted, lag.max = 0, plot = F)
@@ -1218,10 +1231,48 @@ drawModelXplot <- function(data = NULL, lmfit = NULL, srows = NULL) {
        ylim = bbexpand(c(min(predicted),max(predicted)),0.1))
   abline(abl)
   
-  text(measured,predicted, labels = names(predicted), pos = 1)
+  text(measured,predicted, labels = data$WELL, pos = 1)
   
   
 }
+
+getModelText <- function(fit = NULL) {
+  if(is.null(fit)) return("No model provided" )
+  names = names(attributes(fit$terms)$dataClasses)
+  frm = paste(names[1],"=",prettyNum(fit$coefficients[1]))
+  for( par in 2:length(fit$coefficients)) {
+    frm = paste(frm,
+                "+" , names(fit$coefficients)[par], 
+                "*",prettyNum(fit$coefficients[par]))
+  }
+  #browser()
+  return(frm)
+}
+
+getModelXplotText <- function(data = NULL, lmfit = NULL, srows = NULL) {
+  if(is.null(data)) {
+    return(paste(lmfit$call$formula[2]," = ", lmfit$call$formula[3]," * ",prettyNum(lmfit$coefficients[2]),"+",prettyNum(lmfit$coefficients[1])))  } 
+  if(is.null(lmfit)) return("No model built")
+  #dbgmes("data=",data)
+  #sel = c( 1:length(data$WELL))
+  #sel[srows] = NA
+  #sel = sel[!is.na(data$Values)]
+  #sel = sel[!is.na(sel)]
+  predicted = predict(lmfit, newdata = data)
+  #measured = data$Values[sel]
+  measured = data$Values#[data$WELL %in% names(predicted)]
+  
+  #dbgmes("xplot data = ", c((predicted),(measured)))
+  #dbgmes("length = ", c(length(predicted),length(measured)))
+  abl = lm(predicted~measured)
+  res = paste(abl$call$formula[2]," = ", abl$call$formula[3]," * ",
+              prettyNum(abl$coefficients[2]),"+",
+              prettyNum(abl$coefficients[1]))
+  res
+  return(res)
+  #plot(anova(myReactives$glm))
+}
+
 getLiveMapsIds <- function (maps = NULL, sr = NULL) {
   if(is.null(maps)) return(NULL)
   nsr = length(sr)
@@ -1498,11 +1549,11 @@ drawMapsTable <- function (maps_ = NULL, sr = NULL) {
     #editable = TRUE,
     class = "compact",
     rownames = FALSE,
-    selection = list (
-      mode = 'multiple',
-      #      selection  = sr,
-      target = 'row'
-    ),
+    # selection = list (
+    #   mode = 'multiple',
+    #   #      selection  = sr,
+    #   target = 'row'
+    # ),
     options = list(
       pagingType = "simple",
       paging = FALSE,
@@ -1630,16 +1681,24 @@ drawNNETmodel <-function (nnet = NULL, mode = input$nnetAuxMode) {
   {
     par(mfrow=c(2,1))
     #par(new = TRUE)
-    
-    plot(nnet$net$IterativeTestError,col="red", type = "l",
-         xlab = "Iteration",ylab = "Error",
-         ylim=c(0,max(nnet$net$IterativeTestError,nnet$net$IterativeFitError)))
-    lines(nnet$net$IterativeFitError)
-    plot(nnet$net$IterativeFitError,myReactives$nnet$net$IterativeTestError,
-         col = heat.colors(length(nnet$net$IterativeTestError))[1:length(nnet$net$IterativeTestError)],
-         pch = 16,
-         xlab = "Learning Error",ylab = "Test set Error"
-    )
+    #browser()
+    if(is.null(nnet$net$IterativeTestError)) {
+      ylim = c(0,max(nnet$net$IterativeFitError))
+      plot(nnet$net$IterativeFitError, type = "l",
+           xlab = "Iteration",ylab = "Error",
+           ylim=ylim)
+    } else {
+      ylim = c(0,max(nnet$net$IterativeTestError,nnet$net$IterativeFitError))
+      plot(nnet$net$IterativeFitError, type = "l",
+           xlab = "Iteration",ylab = "Error",
+           ylim=ylim)
+      lines(nnet$net$IterativeTestError,col="red")
+      plot(nnet$net$IterativeFitError,myReactives$nnet$net$IterativeTestError,
+           col = heat.colors(length(nnet$net$IterativeTestError))[1:length(nnet$net$IterativeTestError)],
+           pch = 16,
+           xlab = "Learning Error",ylab = "Test set Error"
+      )
+    }
     #browser()
     #plotRegressionError(net$net$targetsTrain,nnet$net$fitted.values)
     #plotROC(fitted.values(nnet$net), nnet$dset$targetsTrain)
@@ -1819,41 +1878,6 @@ buildSVM <- function(data = NULL, test_ratio = 0.25, type = svmModels[1]) {
    #                  ranges = list(epsilon = seq(0,1,0.01), cost = 2^(2:9))
    # )
   return(list(mod=svmod,tune=svm_tune, class = class))
-}
-getModelText <- function(fit = NULL) {
-  if(is.null(fit)) return("No model provided" )
-  names = names(attributes(fit$terms)$dataClasses)
-  frm = paste(names[1],"=",prettyNum(fit$coefficients[1]))
-  for( par in 2:length(fit$coefficients)) {
-    frm = paste(frm,
-                "+" , names(fit$coefficients)[par], 
-                "*",prettyNum(fit$coefficients[par]))
-  }
-  #browser()
-  return(frm)
-}
-
-getModelXplotText <- function(data = NULL, lmfit = NULL, srows = NULL) {
-  if(is.null(data)) {
-    return(paste(lmfit$call$formula[2]," = ", lmfit$call$formula[3]," * ",prettyNum(lmfit$coefficients[2]),"+",prettyNum(lmfit$coefficients[1])))  } 
-  if(is.null(lmfit)) return("No model built")
-  #dbgmes("data=",data)
-  #sel = c( 1:length(data$WELL))
-  #sel[srows] = NA
-  #sel = sel[!is.na(data$Values)]
-  #sel = sel[!is.na(sel)]
-  predicted = predict.lm(lmfit)
-  #measured = data$Values[sel]
-  measured = data$Values[data$WELL %in% names(predicted)]
-  
-  #dbgmes("xplot data = ", c((predicted),(measured)))
-  #dbgmes("length = ", c(length(predicted),length(measured)))
-  abl = lm(predicted~measured)
-  res = paste(abl$call$formula[2]," = ", abl$call$formula[3]," * ",
-              prettyNum(abl$coefficients[2]),"+",
-              prettyNum(abl$coefficients[1]))
-  return(res)
-  #plot(anova(myReactives$glm))
 }
 
 
@@ -2369,7 +2393,12 @@ drawModelCCplot <- function(CCmod = NULL,CClimit = 0.9) {
   nw = dim(CCmod$ccMatrix)[2]
   #browser()
   CCmod$ccMatrix[CCmod$ccMatrix < CClimit] = NA
-  rstr=raster(CCmod$ccMatrix[,c(-1:-2)],xmn=1,xmx=nw-2,ymn=1,ymx=nm)
+  data = CCmod$ccMatrix[,c(-1:-2)]
+  if(all(dim(data) < 2)) {
+    plotError(message = "Не удалось выполнить расчет. Проверьте данные")
+    return(NULL)
+  }
+  rstr=raster(data,xmn=1,xmx=nw-2,ymn=1,ymx=nm)
   ylabs = list()
   maxNm = 0
   for(i in 1:nm) {
@@ -2657,22 +2686,25 @@ X_LOCATION  Y_LOCATION  VALUE",
   #   updateMapLists(maps = myReactives$maps,sr = input$table_maps_rows_selected)
   #   selectRows(proxy = dtMapsProxy,selected = input$table_maps_rows_selected)
   # }, label = "MapTable_select")
-  observeEvent(eventExpr = input$table_maps_rows_selected, handlerExpr = {
-  #   #browser()
-    #dbgmes(message = "selected = ",input$table_maps_rows_selected)
-     myReactives$liveMaps <- getLiveMapsData(maps = myReactives$maps, sr = input$table_maps_rows_selected)
-     myReactives$liveWells <- prepDataSet(wells = myReactives$wells@data, rows =input$table_wells_rows_selected  ,sel_maps =  input$table_maps_rows_selected, nmap = length(myReactives$maps))
+  
+  observe(label = 'MapTable',{
+    input$table_maps_rows_selected
+    #browser()
+    #dbgmes(message = "selected_maps = ",input$table_maps_rows_selected)
+     myReactives$liveMaps <- isolate(getLiveMapsData(maps = myReactives$maps, sr = input$table_maps_rows_selected))
+     myReactives$liveWells <- isolate(prepDataSet(wells = myReactives$wells@data, rows =input$table_wells_rows_selected  ,sel_maps =  input$table_maps_rows_selected, nmap = length(myReactives$maps)))
    #selectRows(proxy = dtMapsProxy,selected = input$table_maps_rows_selected)
      updateMapLists(maps = myReactives$maps,sr = input$table_maps_rows_selected)
 
   })
   
   #CB: WellTable select ####
-  observeEvent(eventExpr = input$table_wells_rows_selected, handlerExpr = {
+  observe(label = 'WellTable', {
+    input$table_wells_rows_selected
     #   #browser()
-    #dbgmes(message = "selected = ",input$table_maps_rows_selected)
+    #dbgmes(message = "selected_wells = ",input$table_wells_rows_selected)
     #myReactives$liveMaps <- getLiveMapsData(maps = myReactives$maps, sr = input$table_maps_rows_selected)
-    myReactives$liveWells <- prepDataSet(wells = myReactives$wells@data, rows =input$table_wells_rows_selected  ,sel_maps =  input$table_maps_rows_selected, nmap = length(myReactives$maps))
+    myReactives$liveWells <- isolate(prepDataSet(wells = myReactives$wells@data, rows =input$table_wells_rows_selected  ,sel_maps =  input$table_maps_rows_selected, nmap = length(myReactives$maps)))
     #selectRows(proxy = dtMapsProxy,selected = input$table_maps_rows_selected)
     #updateMapLists(maps = myReactives$maps,sr = input$table_maps_rows_selected)
     
@@ -2792,18 +2824,15 @@ X_LOCATION  Y_LOCATION  VALUE",
   #CB: BAT: update inputs selection ####
   observeEvent(input$setCCselectionDset, {
     #browser()
-    wellssSelection = match(myReactives$CCtable$WELL ,myReactives$wells$WELL)
-    mapsSelection = gsub(x = colnames(myReactives$CCtable)[c(-1,-2)],pattern = "Map",replacement = "")
-    #myReactives$wells[myReactives$CCtable$WELL,]
-    updateTabsetPanel(session, "main", selected = 'wells')
-    selectRows(dtMapsProxy,as.integer(mapsSelection))
-    selectRows(dtWellsProxy,as.integer(wellssSelection))
 
-    myReactives$liveMaps <- getLiveMapsData(maps = myReactives$maps)
-    myReactives$liveWells <- prepDataSet(wells = myReactives$wells@data, rows =input$table_wells_rows_selected  ,sel_maps =  input$table_maps_rows_selected, nmap = length(myReactives$maps))
-    updateMapLists(myReactives$maps)
+    wellssSelection = isolate({as.integer(c(1:length(myReactives$wells)) [-match(myReactives$CCtable$WELL ,myReactives$wells$WELL)])})
+    mapsSelection = isolate({as.integer(gsub(x = colnames(myReactives$CCtable)[c(-1,-2)],pattern = "Map",replacement = ""))})
+    selectRows(dtWellsProxy,wellssSelection)
+    selectRows(dtMapsProxy,mapsSelection)
+    #browser()
+    updateTabsetPanel(session, "main", selected = 'maps')
     removeModal()
-
+    
   })
   
   output$batchText <- renderText({
@@ -3006,6 +3035,7 @@ X_LOCATION  Y_LOCATION  VALUE",
                 sr = input$table_wells_rows_selected,
                 srmap = input$table_maps_rows_selected)
     } else {
+      #browser()
       drawNNETmodel(nnet = myReactives$nnet, mode = input$nnetAuxMode)
     }
     removeModal()

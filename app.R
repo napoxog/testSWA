@@ -1484,7 +1484,7 @@ drawXYplot <- function (xy = NULL, transp = 1) {
 drawWellsTable <- function (wells_ = NULL) {
   if(is.null(wells_)) return()
   wells = as.data.frame(wells_)
-  datatable(
+  DT::datatable(
     cbind(' ' = '&oplus;', wells ), escape = 0,
     caption = "Скважины: ",
     filter = "none",
@@ -1495,6 +1495,7 @@ drawWellsTable <- function (wells_ = NULL) {
     options = list(
       pagingType = "simple",
       paging = FALSE,
+      searching = FALSE,
       ColumnRender = prettyNum,
       scrollY = "400px",
       scrollCollapse = TRUE,
@@ -1526,22 +1527,31 @@ drawWellsTable <- function (wells_ = NULL) {
   
   }
 
-drawMapsTable <- function (maps_ = NULL, sr = NULL) {
+drawMapsTable <- function (maps_ = NULL, sr = NULL, proxy = NULL) {
   if(is.null(maps_)) return()
   
-  maps = matrix(,nrow = length(maps_), ncol = 4)
+  #maps = list() #matrix(data = NULL,nrow = length(maps_), ncol = 4)
   #dbgmes("maps=",maps_)
+  mapsSelection=sr
+  #browser()
+  maps=NULL
   for( row in 1:length(maps_)) {
     map = maps_[[row]]
+    mrow = data.frame(list(Ref = paste0("Map",row),Name = map$fn, 
+                           Min = map$rstr@data@min, Max = map$rstr@data@max))
+    maps = rbind(maps, mrow)
     #dbgmes("map$fn=",map$fn)
-    maps[row,] <- c(paste0("Map",row),Name = map$fn, 
-                    Min = map$rstr@data@min, Max = map$rstr@data@max)
+ #   maps[row,] <- c(paste0("Map",row),Name = map$fn, 
+#                    Min = map$rstr@data@min, Max = map$rstr@data@max)
   }
+  #dbgmes("data=",maps)
+  #maps = as.data.frame(maps)
   #names(maps) <- ' '
+  #dbgmes("data=",maps)
   #dbgmes("sel=",sr)
-  colnames(maps) <- c("Ref","Name","Min","Max")
+  #colnames(maps) <- c("Ref","Name","Min","Max")
   
-  datatable(
+  dt = DT::datatable(
     maps, escape = 0,
     caption = "Доступные карты: ",
     filter = "none",
@@ -1549,19 +1559,17 @@ drawMapsTable <- function (maps_ = NULL, sr = NULL) {
     #editable = TRUE,
     class = "compact",
     rownames = FALSE,
-    # selection = list (
-    #   mode = 'multiple',
-    #   #      selection  = sr,
-    #   target = 'row'
-    # ),
     options = list(
       pagingType = "simple",
       paging = FALSE,
+      searching = FALSE,
       ColumnRender = prettyNum,
       scrollY = "400px",
       scrollCollapse = TRUE,
       #      stateSave = TRUE,
-      pageLength = 10#,
+      pageLength = 10
+      #selection = list(mode='multiple',
+      #                 selected = sr)
       # columnDefs = list(
       #   list(visible = FALSE, targets = c(2:3)),
       #   list(orderable = FALSE, className = 'details-control', targets = 0)
@@ -1586,7 +1594,8 @@ drawMapsTable <- function (maps_ = NULL, sr = NULL) {
     # 
     # )
   )
-  
+  #selectRows(isolate(proxy),isolate(mapsSelection))
+  return(dt)
 }
 
 #match and return vectors for CC and xplot calc
@@ -2436,7 +2445,7 @@ drawModelCCplot <- function(CCmod = NULL,CClimit = 0.9) {
 
 # Define server logic required to draw a histogram
 options(shiny.maxRequestSize = 500 * 1024 ^ 2)
-#options(shiny.reactlog = TRUE)
+options(shiny.reactlog = TRUE)
 options(shiny.host = "0.0.0.0")
 options(shiny.port = 8080)
 #options(shiny.style="old")
@@ -2460,9 +2469,6 @@ server <- function(input, output, session) {
                                 message),
                            title = "Ожидайте...", footer = modalButton("Закрыть")))
   }
-  
-  dtMapsProxy = dataTableProxy("table_maps")  
-  dtWellsProxy = dataTableProxy("table_wells")  
   #CB: Busy Modal diaplay ####
   output$cycle <- renderImage ({
     return(list(
@@ -2479,32 +2485,35 @@ server <- function(input, output, session) {
                               c(input$plot_brush$ymin,input$plot_brush$ymax))
   })
   
-  recalcMaps <- reactive ({
+  recalcMaps <- reactive (label = 'recalcMaps', {
     #return()
-    invalidateLater(5000, session)
-    if(is.null(myReactives$maps) || length(myReactives$maps) == 0 ) {
-      myReactives$maps <- append(myReactives$maps,list(def_map))
-      myReactives$maps <- append(myReactives$maps,list(def_map))
-      myReactives$liveMaps <- getLiveMapsData(maps = myReactives$maps, sr = input$table_maps_rows_selected)
-      myReactives$liveWells <- prepDataSet(wells = myReactives$wells@data, rows =input$table_wells_rows_selected  ,sel_maps =  input$table_maps_rows_selected, nmap = length(myReactives$maps))
-      updateMapLists(myReactives$maps,input$table_maps_rows_selected)
+    #invalidateLater(5000, session)
+    maps = isolate(myReactives$maps)
+    dbgmes(message = "recalc0000=",c(length(isolate(myReactives$liveMaps)),length(maps)))
+    mapsSelection =  as.numeric(isolate(input$table_maps_rows_selected))
+    if(is.null(maps) || length(maps) == 0 ) {
+      maps <- append(maps,list(def_map))
+      maps <- append(maps,list(def_map))
+      #isolate(myReactives$liveMaps <- getLiveMapsData(maps = maps, sr = mapsSelection))
+      #isolate(myReactives$liveWells <- prepDataSet(wells = myReactives$wells@data, rows =input$table_wells_rows_selected  ,sel_maps =  mapsSelection, nmap = length(maps)))
+      updateMapLists(maps,mapsSelection)
     }
     showModDial("Обработка карт...")
-    mapsSelection =  input$table_maps_rows_selected 
     withProgress(message = "Обработка карт...", detail = "Ожидайте...",  value =0, {
-      for (i in 1:length(myReactives$maps)) {
-        map_obj = upscaleMap(myReactives$maps[[i]],input$rstr_fact,func = flist[[input$focalMethod]],focalSize = input$rstr_focal)
-        incProgress(detail = paste0('"',map_obj$fn,'"'), amount = 1./length(myReactives$maps))
-        myReactives$wells <- extractMap2Well(myReactives$wells,map_obj$rstr, paste0 ("Map",i))
-        myReactives$maps[[i]] <- map_obj
+      for (i in 1:length(maps)) {
+        map_obj = upscaleMap(maps[[i]],input$rstr_fact,func = flist[[input$focalMethod]],focalSize = input$rstr_focal)
+        incProgress(detail = paste0('"',map_obj$fn,'"'), amount = 1./length(maps))
+        isolate({myReactives$wells <- extractMap2Well(myReactives$wells,map_obj$rstr, paste0 ("Map",i))})
+        maps[[i]] <- map_obj
       }
     })
-    myReactives$liveMaps <- getLiveMapsData(maps = myReactives$maps, sr = input$table_maps_rows_selected)
-    myReactives$liveWells <- prepDataSet(wells = myReactives$wells@data, rows =input$table_wells_rows_selected  ,sel_maps =  input$table_maps_rows_selected, nmap = length(myReactives$maps))
+    isolate(myReactives$maps <- maps)
+    #isolate(myReactives$liveMaps <- getLiveMapsData(maps = maps, sr = mapsSelection))
+    #isolate(myReactives$liveWells <- prepDataSet(wells = myReactives$wells@data, rows =input$table_wells_rows_selected  ,sel_maps =  mapsSelection, nmap = length(maps)))
     #myReactives$liveMaps <- getLiveMapsData(maps = myReactives$maps, sr = input$table_maps_rows_selected)
     #updateMapLists(myReactives$maps,input$table_maps_rows_selected)
-    selectRows(dtMapsProxy,as.numeric(mapsSelection))
-    #dbgmes(message = "upscaling=",c(length(myReactives$liveMaps),length(myReactives$maps)))
+    #selectRows(dtMapsProxy,mapsSelection)
+    dbgmes(message = "recalc1111=",c(length(myReactives$liveMaps),length(maps)))
     removeModal()
   })
 
@@ -2628,9 +2637,10 @@ X_LOCATION  Y_LOCATION  VALUE",
                   }
                 }
               })
-    myReactives$liveMaps <- getLiveMapsData(maps = myReactives$maps, sr = input$table_maps_rows_selected)
-    myReactives$liveWells <- prepDataSet(wells = myReactives$wells@data, rows =input$table_wells_rows_selected  ,sel_maps =  input$table_maps_rows_selected, nmap = length(myReactives$maps))
-    selectRows(dtMapsProxy,as.numeric(mapsSelection))
+    #myReactives$liveMaps <- getLiveMapsData(maps = myReactives$maps, sr = input$table_maps_rows_selected)
+    #myReactives$liveWells <- prepDataSet(wells = myReactives$wells@data, rows =input$table_wells_rows_selected  ,sel_maps =  input$table_maps_rows_selected, nmap = length(myReactives$maps))
+    #selectRows(dtMapsProxy,as.numeric(mapsSelection))
+    dbgmes(message = "MapsFile1111=",c(length(isolate(myReactives$liveMaps)),length(isolate(myReactives$maps))))
     updateMapLists(myReactives$maps,input$table_maps_rows_selected)
     removeModal()
   })
@@ -2658,11 +2668,14 @@ X_LOCATION  Y_LOCATION  VALUE",
       selectRows(proxy = dtMapsProxy,selected = sel)
       #dbgmes("sel1=",input$table_maps_rows_selected)
     }
-    myReactives$liveMaps <- getLiveMapsData(maps = myReactives$maps)
-    myReactives$liveWells <- prepDataSet(wells = myReactives$wells@data, rows =input$table_wells_rows_selected  ,sel_maps =  input$table_maps_rows_selected, nmap = length(myReactives$maps))
+    #myReactives$liveMaps <- getLiveMapsData(maps = myReactives$maps)
+    #myReactives$liveWells <- prepDataSet(wells = myReactives$wells@data, rows =input$table_wells_rows_selected  ,sel_maps =  input$table_maps_rows_selected, nmap = length(myReactives$maps))
     updateMapLists(myReactives$maps)
   })
   
+  #CB: Tables proxy ####
+  dtMapsProxy = dataTableProxy("table_maps")  
+  dtWellsProxy = dataTableProxy("table_wells")  
   #CB: select maps ####
   updateMapLists <- function (maps = NULL, sr = NULL) {
     #browser()
@@ -2690,11 +2703,11 @@ X_LOCATION  Y_LOCATION  VALUE",
   observe(label = 'MapTable',{
     input$table_maps_rows_selected
     #browser()
-    #dbgmes(message = "selected_maps = ",input$table_maps_rows_selected)
-     myReactives$liveMaps <- isolate(getLiveMapsData(maps = myReactives$maps, sr = input$table_maps_rows_selected))
-     myReactives$liveWells <- isolate(prepDataSet(wells = myReactives$wells@data, rows =input$table_wells_rows_selected  ,sel_maps =  input$table_maps_rows_selected, nmap = length(myReactives$maps)))
-   #selectRows(proxy = dtMapsProxy,selected = input$table_maps_rows_selected)
-     updateMapLists(maps = myReactives$maps,sr = input$table_maps_rows_selected)
+    dbgmes(message = "selected_maps = ",isolate(input$table_maps_rows_selected))
+    myReactives$liveMaps <- isolate(getLiveMapsData(maps = myReactives$maps, sr = input$table_maps_rows_selected))
+    myReactives$liveWells <- isolate(prepDataSet(wells = myReactives$wells@data, rows =input$table_wells_rows_selected  ,sel_maps =  input$table_maps_rows_selected, nmap = length(myReactives$maps)))
+    #selectRows(proxy = dtMapsProxy,selected = input$table_maps_rows_selected)
+    #updateMapLists(maps = myReactives$maps,sr = input$table_maps_rows_selected)
 
   })
   
@@ -2702,7 +2715,7 @@ X_LOCATION  Y_LOCATION  VALUE",
   observe(label = 'WellTable', {
     input$table_wells_rows_selected
     #   #browser()
-    #dbgmes(message = "selected_wells = ",input$table_wells_rows_selected)
+    dbgmes(message = "selected_wells = ",isolate(input$table_wells_rows_selected))
     #myReactives$liveMaps <- getLiveMapsData(maps = myReactives$maps, sr = input$table_maps_rows_selected)
     myReactives$liveWells <- isolate(prepDataSet(wells = myReactives$wells@data, rows =input$table_wells_rows_selected  ,sel_maps =  input$table_maps_rows_selected, nmap = length(myReactives$maps)))
     #selectRows(proxy = dtMapsProxy,selected = input$table_maps_rows_selected)
@@ -2824,15 +2837,18 @@ X_LOCATION  Y_LOCATION  VALUE",
   #CB: BAT: update inputs selection ####
   observeEvent(input$setCCselectionDset, {
     #browser()
-
-    wellssSelection = isolate({as.integer(c(1:length(myReactives$wells)) [-match(myReactives$CCtable$WELL ,myReactives$wells$WELL)])})
-    mapsSelection = isolate({as.integer(gsub(x = colnames(myReactives$CCtable)[c(-1,-2)],pattern = "Map",replacement = ""))})
+    removeModal()
+    #invalidateLater(5000, session)
+    wellssSelection = as.integer(c(1:length(myReactives$wells)) [-match(myReactives$CCtable$WELL ,myReactives$wells$WELL)])
+    mapsSelection = as.integer(gsub(x = colnames(myReactives$CCtable)[c(-1,-2)],pattern = "Map",replacement = ""))
+    updateTabsetPanel(session, "main", selected = 'wells')
+    #browser()
+#    updateTabsetPanel(session, "main", selected = 'maps')
     selectRows(dtWellsProxy,wellssSelection)
     selectRows(dtMapsProxy,mapsSelection)
-    #browser()
-    updateTabsetPanel(session, "main", selected = 'maps')
-    removeModal()
-    
+    # dbgmes("wellssSelection=",wellssSelection)
+    # dbgmes("mapsSelection=",mapsSelection)
+    # dbgmes("mapsSelection_class=",class(mapsSelection))
   })
   
   output$batchText <- renderText({
@@ -2868,29 +2884,44 @@ X_LOCATION  Y_LOCATION  VALUE",
   })
     
   #CB: transposing ####
-  observeEvent(input$transpose1 , {
-    if(length(myReactives$maps)>1) {
-      mapsSelection=input$table_maps_rows_selected
-      map_idx = selectMap(maps = myReactives$maps, idx = input$selectMap1)
-      map_obj = transposeMap(myReactives$maps[[map_idx]])
-      myReactives$wells <- extractMap2Well(myReactives$wells,map_obj$rstr, paste0 ("Map",map_idx))
-      myReactives$maps[[map_idx]] <- map_obj
-      myReactives$liveMaps <- getLiveMapsData(maps = myReactives$maps, sr = input$table_maps_rows_selected)
-      myReactives$liveWells <- prepDataSet(wells = myReactives$wells@data, rows =input$table_wells_rows_selected  ,sel_maps =  input$table_maps_rows_selected, nmap = length(myReactives$maps))
-      selectRows(dtMapsProxy,mapsSelection)
-      #selectRows(dtMapsProxy,as.numeric(getLiveMapsIds(maps = myReactives$maps, sr = input$table_maps_rows_selected)))
+  observeEvent(input$transpose1 ,label = "transpose1", {
+    if(length(isolate(myReactives$maps))>1) {
+      #browser()
+      #invalidateLater(5000,session)
+      mapsSelection=isolate(input$table_maps_rows_selected)
+      wellsSelection=isolate(input$table_Wells_rows_selected)
+      #isolate(selectRows(dtMapsProxy,NULL))
+      map_idx = selectMap(maps = isolate(myReactives$maps), idx = isolate(input$selectMap1))
+      map_obj = transposeMap(isolate(myReactives$maps[[map_idx]]))
+      isolate(myReactives$wells <- extractMap2Well(isolate(myReactives$wells),map_obj$rstr, paste0 ("Map",map_idx)))
+      isolate(myReactives$maps[[map_idx]] <- map_obj)
+      
+      liveMaps = getLiveMapsData(maps = isolate(myReactives$maps), sr = mapsSelection)
+      
+      isolate(myReactives$liveMaps <- liveMaps)
+      
+      liveWells = prepDataSet(wells = isolate(myReactives$wells@data), 
+                              rows =isolate(input$table_wells_rows_selected)  ,
+                              sel_maps =  mapsSelection, nmap = length(isolate(myReactives$maps)))
+      isolate(myReactives$liveWells <- liveWells)
+      #dbgmes("mapsSelection=",isolate(input$table_maps_rows_selected))
+      #browser()
+      #dtMapsProxy$deferUntilFlush = TRUE #FALSE
+      selectRows(isolate(dtMapsProxy),isolate(mapsSelection))
+      #selectRows(isolate(dtWellsProxy),isolate(wellsSelection))
+      #reloadData(dtMapsProxy, resetPaging = F, clearSelection = "none")
+      #dtMapsProxy$deferUntilFlush = TRUE
     }
-    
   })
-  observeEvent(input$transpose2 , {
+  observeEvent(input$transpose2 ,label = "transpose2", {
     if(length(myReactives$maps)>1) {
       mapsSelection=input$table_maps_rows_selected
       map_idx = selectMap(maps = myReactives$maps, idx = input$selectMap2)
       map_obj = transposeMap(myReactives$maps[[map_idx]])
-      myReactives$wells <- extractMap2Well(myReactives$wells,map_obj$rstr, paste0 ("Map",map_idx))
-      myReactives$maps[[map_idx]] <- map_obj
-      myReactives$liveMaps <- getLiveMapsData(maps = myReactives$maps, sr = input$table_maps_rows_selected)
-      myReactives$liveWells <- prepDataSet(wells = myReactives$wells@data, rows =input$table_wells_rows_selected  ,sel_maps =  input$table_maps_rows_selected, nmap = length(myReactives$maps))
+      myReactives$wells <- isolate(extractMap2Well(myReactives$wells,map_obj$rstr, paste0 ("Map",map_idx)))
+      isolate(myReactives$maps[[map_idx]] <- map_obj)
+      #myReactives$liveMaps <- getLiveMapsData(maps = myReactives$maps, sr = input$table_maps_rows_selected)
+      #myReactives$liveWells <- prepDataSet(wells = myReactives$wells@data, rows =input$table_wells_rows_selected  ,sel_maps =  input$table_maps_rows_selected, nmap = length(myReactives$maps))
       selectRows(dtMapsProxy,as.numeric(mapsSelection))
     }
   })
@@ -2898,24 +2929,6 @@ X_LOCATION  Y_LOCATION  VALUE",
   #CB: upscaling  ####
   observeEvent(input$rstr_fact , {
     recalcMaps()
-    return()
-    #showModal(modalDialog( "Обработка карт...",title = "Ожидайте...", footer = modalButton("Закрыть")))
-    showModDial("Обработка карт...")
-    mapsSelection=input$table_maps_rows_selected
-    
-    withProgress(message = "Обработка карт...", detail = "Ожидайте...",  value =0, {
-      recalcMaps()
-    #   for (i in 1:length(myReactives$maps)) {
-    #   map_obj = upscaleMap(myReactives$maps[[i]],input$rstr_fact,func = flist[[input$focalMethod]],focalSize = input$rstr_focal)
-    #   incProgress(detail = paste0('"',map_obj$fn,'"'), amount = 1./length(myReactives$maps))
-    #   myReactives$wells <- extractMap2Well(myReactives$wells,map_obj$rstr, paste0 ("Map",i))
-    #   myReactives$maps[[i]] <- map_obj
-    # }
-      })
-    #myReactives$liveMaps <- getLiveMapsData(maps = myReactives$maps, sr = input$table_maps_rows_selected)
-    selectRows(dtMapsProxy,as.numeric(mapsSelection))
-    #dbgmes(message = "upscaling=",c(length(myReactives$liveMaps),length(myReactives$maps)))
-    removeModal()
   })
   
   #CB: plot maps ####
@@ -3066,7 +3079,7 @@ X_LOCATION  Y_LOCATION  VALUE",
       #dbgmes("sel=",mapsSelection)
       myReactives$maps <- append(myReactives$maps,list(map_obj))
       isolate({myReactives$wells <- extractMap2Well(myReactives$wells,map_obj$rstr, paste0 ("Map",length(myReactives$maps)))})
-      selectRows(dtMapsProxy,as.numeric(mapsSelection))
+      #selectRows(dtMapsProxy,as.numeric(mapsSelection))
       updateMapLists(myReactives$maps,mapsSelection)#input$table_maps_rows_selected)
       myReactives$liveMaps <- getLiveMapsData(maps = myReactives$maps, sr = mapsSelection)#input$table_maps_rows_selected)
       myReactives$liveWells <- prepDataSet(wells = myReactives$wells@data, rows =input$table_wells_rows_selected  ,sel_maps =  input$table_maps_rows_selected, nmap = length(myReactives$maps))
@@ -3674,7 +3687,7 @@ X_LOCATION  Y_LOCATION  VALUE",
   
   #CB: draw maps Table ####
   output$table_maps <- renderDataTable({
-    drawMapsTable(myReactives$maps,input$table_maps_rows_selected)
+    drawMapsTable(myReactives$maps,isolate(input$table_maps_rows_selected))
   })
 
   #CB: set Tabs names ####

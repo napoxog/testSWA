@@ -1074,7 +1074,7 @@ drawRstr <- function (map = NULL, zoom = NULL,  pal = mapPalette, alpha = 0, con
     zoom <- NULL
     par(new = TRUE)
     plot(map,interpolate=interpolate,col = colors)
-    if(contours) contour(map,add=T)
+    if(contours) contour(map,add=T,col = "gray50",labcex = 0.8)
   }
 }
 

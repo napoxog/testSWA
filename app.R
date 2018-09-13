@@ -130,7 +130,7 @@ def_map1$map@data = sample(def_map1$map@data,replace = T)
 def_map1$rstr = raster(def_map1$map)
 def_map1$fn = paste0(def_map1$fn,1)
 
-nDefWels = 7
+nDefWels = 12
 wells0 <- as.data.frame(list( paste0("WELL",1:nDefWels),
             runif(nDefWels,min = map0@bbox[1,1],max = map0@bbox[1,2]),
             runif(nDefWels,min = map0@bbox[2,1],max = map0@bbox[2,2]),
@@ -574,6 +574,7 @@ ui <- fluidPage(theme = shinytheme("simplex"),
                                     choices = batModels,
                                     inline=T
                        ),
+                       actionButton('runBatch', 'Рассчитать карту корреляции по текущей выборке...'),
                        plotOutput(
                          "batPlot",
                          click = "CCplot_get_model",
@@ -2357,16 +2358,16 @@ getModelCCmatrix_par <- function (wells = NULL,minWells = 3,
     cl = makeCluster(nCores)
     clusterExport(cl=cl,varlist=c("applyGetCC_par",ls(),ls("package:RSNNS"),ls("package:stats"),ls("package:e1071")),
                   envir=env)
-    # res = parApply(cl = cl,X = runIdx,MARGIN = c(1,2),FUN = applyGetCC_par,wells = wells,modType = modType,
-    #          test_ratio = test_ratio,nnet_complex = nnet_complex,max_iter = max_iter,
-    #          svmType = svmType,NNactFunc = NNactFunc,
-    #          nw = nw, sel_maps_all = sel_maps_all, sel_wells_all = sel_wells_all,
-    #          envir = env,cluster = TRUE)
-    res = parLapplyLB(cl = cl,X = runIdx, fun = applyGetCC_par,wells = wells,modType = modType,
-                   test_ratio = test_ratio,nnet_complex = nnet_complex,max_iter = max_iter,
-                   svmType = svmType,NNactFunc = NNactFunc,
-                   nw = nw, sel_maps_all = sel_maps_all, sel_wells_all = sel_wells_all,
-                   envir = env,cluster = TRUE)
+    res = parApply(cl = cl,X = runIdx,MARGIN = c(1,2),FUN = applyGetCC_par,wells = wells,modType = modType,
+             test_ratio = test_ratio,nnet_complex = nnet_complex,max_iter = max_iter,
+             svmType = svmType,NNactFunc = NNactFunc,
+             nw = nw, sel_maps_all = sel_maps_all, sel_wells_all = sel_wells_all,
+             envir = env,cluster = TRUE)
+    # res = parLapplyLB(cl = cl,X = runIdx, fun = applyGetCC_par,wells = wells,modType = modType,
+    #                test_ratio = test_ratio,nnet_complex = nnet_complex,max_iter = max_iter,
+    #                svmType = svmType,NNactFunc = NNactFunc,
+    #                nw = nw, sel_maps_all = sel_maps_all, sel_wells_all = sel_wells_all,
+    #                envir = env,cluster = TRUE)
     on.exit(stopCluster(cl))
     #browser()
     lapply(res,FUN = function(x,env) {
@@ -2445,7 +2446,7 @@ drawModelCCplot <- function(CCmod = NULL,CClimit = 0.9) {
 
 # Define server logic required to draw a histogram
 options(shiny.maxRequestSize = 500 * 1024 ^ 2)
-options(shiny.reactlog = TRUE)
+#options(shiny.reactlog = TRUE)
 options(shiny.host = "0.0.0.0")
 options(shiny.port = 8080)
 #options(shiny.style="old")
@@ -2514,8 +2515,8 @@ server <- function(input, output, session) {
     #isolate(myReactives$liveWells <- prepDataSet(wells = myReactives$wells@data, rows =input$table_wells_rows_selected  ,sel_maps =  mapsSelection, nmap = length(maps)))
     #myReactives$liveMaps <- getLiveMapsData(maps = myReactives$maps, sr = input$table_maps_rows_selected)
     #updateMapLists(myReactives$maps,input$table_maps_rows_selected)
-    selectRows(dtMapsProxy,mapsSelection)
-    dbgmes(message = "recalc1111=",c(length(isolate(myReactives$liveMaps)),length(isolate(isolate(myReactives$liveWells)))))
+    selectRows(dtMapsProxy,list(mapsSelection))
+    #dbgmes(message = "recalc1111=",c(length(isolate(myReactives$liveMaps)),length(isolate(isolate(myReactives$liveWells)))))
     removeModal()
   })
   
@@ -2725,8 +2726,8 @@ X_LOCATION  Y_LOCATION  VALUE",
     if(is.null(sel2)) sel2 = names(sr)[1]
     updateSelectInput(session = session,"selectMap1",choices = c(sr))#,selected = sel1)
     updateSelectInput(session = session,"selectMap2",choices = c(sr))#,selected = sel2)
-    dbgmes(message = "choices = ",sr)
-    dbgmes(message = "selected_out = ",c(sel1,sel2))
+    #dbgmes(message = "choices = ",sr)
+    #dbgmes(message = "selected_out = ",c(sel1,sel2))
   }
   
   #CB: MapTable select ####
@@ -2743,7 +2744,7 @@ X_LOCATION  Y_LOCATION  VALUE",
     maps = isolate(myReactives$maps)
     wells = isolate(myReactives$wells@data)
     #browser()
-    dbgmes(message = "selected_maps = ",mapSelection)
+    #dbgmes(message = "selected_maps = ",mapSelection)
     myReactives$liveMaps <- getLiveMapsData(maps = maps, sr = mapSelection)
     myReactives$liveWells <- prepDataSet(wells = wells, rows = wellSelection  ,sel_maps =  mapSelection, nmap = length(maps))
     #selectRows(proxy = dtMapsProxy,selected = input$table_maps_rows_selected)
@@ -2758,7 +2759,7 @@ X_LOCATION  Y_LOCATION  VALUE",
     maps = isolate(myReactives$maps)
     wells = isolate(myReactives$wells@data)
     #   #browser()
-    dbgmes(message = "selected_wells = ",wellSelection)
+    #dbgmes(message = "selected_wells = ",wellSelection)
     #myReactives$liveMaps <- getLiveMapsData(maps = myReactives$maps, sr = input$table_maps_rows_selected)
     myReactives$liveWells <- isolate(prepDataSet(wells = wells, rows = wellSelection  ,sel_maps =  mapSelection, nmap = length(maps)))
     #selectRows(proxy = dtMapsProxy,selected = input$table_maps_rows_selected)
@@ -2797,7 +2798,8 @@ X_LOCATION  Y_LOCATION  VALUE",
     #dbgmes('recalc = ',isolate(myReactives$ccRecalcSVM))
   })
   
-  observe (label = 'recalcBatch',{
+  #observe (label = 'recalcBatch',{
+  observeEvent(input$runBatch, {
     modelType = input$batModel
     modelTypeName = paste0('cc',modelType)
     modelTypeRecalc = paste0('ccRecalc',modelType)
@@ -2884,13 +2886,13 @@ X_LOCATION  Y_LOCATION  VALUE",
     wellssSelection = as.integer(c(1:length(wells)) [-match(ccTable$WELL ,isolate(wells$WELL))])
     mapsSelection = as.integer(gsub(x = colnames(ccTable)[c(-1,-2)],pattern = "Map",replacement = ""))
 #    updateTabsetPanel(session, "main", selected = 'wells')
-    #browser()
-    isolate(selectRows(dtWellsProxy,wellssSelection))
+    browser()
     updateTabsetPanel(session, "main", selected = 'maps')
-    invalidateLater(5000, session)
+    #invalidateLater(5000, session)
     
-    isolate(selectRows(dtMapsProxy,mapsSelection))
-    dbgmes("Selection=",list(wellssSelection,mapsSelection))
+    selectRows(dtMapsProxy,list(mapsSelection))
+    selectRows(dtWellsProxy,wellssSelection)
+    #dbgmes("Selection=",list(wellssSelection,mapsSelection))
     #dbgmes("mapsSelection=",mapsSelection)
     # dbgmes("mapsSelection_class=",class(mapsSelection))
   })
@@ -3124,7 +3126,7 @@ X_LOCATION  Y_LOCATION  VALUE",
       #dbgmes("sel=",mapsSelection)
       myReactives$maps <- append(myReactives$maps,list(map_obj))
       isolate({myReactives$wells <- extractMap2Well(myReactives$wells,map_obj$rstr, paste0 ("Map",length(myReactives$maps)))})
-      #selectRows(dtMapsProxy,as.numeric(mapsSelection))
+      selectRows(dtMapsProxy,list(mapsSelection))
       updateMapLists(maps = myReactives$maps,sr = mapsSelection)#, sel1 = isolate(input$selectMap1), sel2 = isolate(input$selectMap2))#input$table_maps_rows_selected)
       myReactives$liveMaps <- getLiveMapsData(maps = myReactives$maps, sr = mapsSelection)#input$table_maps_rows_selected)
       myReactives$liveWells <- prepDataSet(wells = myReactives$wells@data, rows =input$table_wells_rows_selected  ,sel_maps =  input$table_maps_rows_selected, nmap = length(myReactives$maps))

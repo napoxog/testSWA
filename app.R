@@ -2334,7 +2334,7 @@ getModelCCmatrix_par <- function (wells = NULL,minWells = 3,
   nsw_all = length(sel_wells_all)
   nmst_ = nsw_all*nsm_all
   dbgmes("nsm_,nsw_,nmst_=",c(nsm_all,nsw_all,nmst_))
-  
+
   runIdx = unlist(as.list(apply(matrix(rep(1:nsw_all), nrow=nsw_all, ncol=nsm_all),
                                 1, FUN=paste0, '.', c(1:nsm_all))
                           ))
@@ -2355,20 +2355,22 @@ getModelCCmatrix_par <- function (wells = NULL,minWells = 3,
   withProgress(message = "Обработка...", detail = "Ожидайте...",  value =0, max = nmst_, {
   if(nmst_ > 10000) {
     nCores = detectCores() - 1
+    dbgmes("running on cores",nCores)
     cl = makeCluster(nCores)
     clusterExport(cl=cl,varlist=c("applyGetCC_par",ls(),ls("package:RSNNS"),ls("package:stats"),ls("package:e1071")),
                   envir=env)
-    res = parApply(cl = cl,X = runIdx,MARGIN = c(1,2),FUN = applyGetCC_par,wells = wells,modType = modType,
-             test_ratio = test_ratio,nnet_complex = nnet_complex,max_iter = max_iter,
-             svmType = svmType,NNactFunc = NNactFunc,
-             nw = nw, sel_maps_all = sel_maps_all, sel_wells_all = sel_wells_all,
-             envir = env,cluster = TRUE)
-    # res = parLapplyLB(cl = cl,X = runIdx, fun = applyGetCC_par,wells = wells,modType = modType,
-    #                test_ratio = test_ratio,nnet_complex = nnet_complex,max_iter = max_iter,
-    #                svmType = svmType,NNactFunc = NNactFunc,
-    #                nw = nw, sel_maps_all = sel_maps_all, sel_wells_all = sel_wells_all,
-    #                envir = env,cluster = TRUE)
-    on.exit(stopCluster(cl))
+    # res = parApply(cl = cl,X = runIdx,MARGIN = c(1,2),FUN = applyGetCC_par,wells = wells,modType = modType,
+    #          test_ratio = test_ratio,nnet_complex = nnet_complex,max_iter = max_iter,
+    #          svmType = svmType,NNactFunc = NNactFunc,
+    #          nw = nw, sel_maps_all = sel_maps_all, sel_wells_all = sel_wells_all,
+    #          envir = env,cluster = TRUE)
+    res = parLapplyLB(cl = cl,X = runIdx, fun = applyGetCC_par,wells = wells,modType = modType,
+                   test_ratio = test_ratio,nnet_complex = nnet_complex,max_iter = max_iter,
+                   svmType = svmType,NNactFunc = NNactFunc,
+                   nw = nw, sel_maps_all = sel_maps_all, sel_wells_all = sel_wells_all,
+                   envir = env,cluster = TRUE)
+    stopCluster(cl)
+    #on.exit(stopCluster(cl))
     #browser()
     lapply(res,FUN = function(x,env) {
       r=x$rc[1]
@@ -2380,6 +2382,7 @@ getModelCCmatrix_par <- function (wells = NULL,minWells = 3,
       }
       },env)
   } else {
+    dbgmes("running on 1 CPU:")
     lapply(X = runIdx,#MARGIN = c(1,2),
         FUN = applyGetCC_par,wells = wells,modType = modType,
         test_ratio = test_ratio, nnet_complex = nnet_complex, max_iter = max_iter,

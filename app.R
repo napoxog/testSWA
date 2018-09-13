@@ -370,14 +370,6 @@ ui <- fluidPage(theme = shinytheme("simplex"),
                        #UI: model KM ####
                        tabPanel( "K-Means", value = "modelKM",
                                  tabsetPanel( id = "modelKM",
-                                              tabPanel( "Модель", value = "mod",
-                                                        plotOutput(
-                                                          "kmPlot",
-                                                          click = "plot_zoom",
-                                                          height = modPlot_wid
-                                                        ),
-                                                        verbatimTextOutput("kmText")
-                                              ),
                                               tabPanel( "Результат", value = "res",
                                                         plotOutput(
                                                           "kmXPlot",
@@ -387,20 +379,20 @@ ui <- fluidPage(theme = shinytheme("simplex"),
                                                         downloadButton('downloadKMMap', 'Сохранить карту'),
                                                         actionButton('addKMMap2inp', 'Поместить во входные'),
                                                         verbatimTextOutput("kmXText")
+                                              ),
+                                              tabPanel( "Модель", value = "mod",
+                                                        plotOutput(
+                                                          "kmPlot",
+                                                          click = "plot_zoom",
+                                                          height = modPlot_wid
+                                                        ),
+                                                        verbatimTextOutput("kmText")
                                               )
                                  )
                        ),
                        #UI: model GMM ####
                        tabPanel(  "GMM", value = "modelGM",
                                   tabsetPanel( id = "modelGM",
-                                               tabPanel( "Модель", value = "mod",
-                                                         plotOutput(
-                                                           "gmmPlot",
-                                                           click = "plot_zoom",
-                                                           height = modPlot_wid
-                                                         ),
-                                                         verbatimTextOutput("gmmText")
-                                               ),
                                                tabPanel( "Результат", value = "res",
                                                          plotOutput(
                                                            "gmmXPlot",
@@ -410,6 +402,14 @@ ui <- fluidPage(theme = shinytheme("simplex"),
                                                          downloadButton('downloadGMMap', 'Сохранить карту'),
                                                          actionButton('addGMMap2inp', 'Поместить во входные'),
                                                          verbatimTextOutput("gmmXText")
+                                               ),
+                                               tabPanel( "Модель", value = "mod",
+                                                         plotOutput(
+                                                           "gmmPlot",
+                                                           click = "plot_zoom",
+                                                           height = modPlot_wid
+                                                         ),
+                                                         verbatimTextOutput("gmmText")
                                                ),
                                                tabPanel( "Дополнительно", value = "aux",
                                                          plotOutput(
@@ -427,6 +427,16 @@ ui <- fluidPage(theme = shinytheme("simplex"),
                        #UI: model HC ####
                        tabPanel(  "Иерархич.", value = "modelHC",
                                   tabsetPanel( id = "modelHC",
+                                               tabPanel( "Результат", value = "res",
+                                                         plotOutput(
+                                                           "hcXPlot",
+                                                           click = "plot_zoom",
+                                                           height = modPlot_wid
+                                                         ),
+                                                         downloadButton('downloadHCmap', 'Сохранить карту'),
+                                                         actionButton('addHCMap2inp', 'Поместить во входные'),
+                                                         verbatimTextOutput("hcXText")
+                                               ),
                                                tabPanel( "Модель", value = "mod",
                                                          plotOutput(
                                                            "hcPlot",
@@ -440,30 +450,12 @@ ui <- fluidPage(theme = shinytheme("simplex"),
                                                                      ,choices = names(hcmDistModes), width = modPlot_wid
                                                          ),
                                                          verbatimTextOutput("hcText")
-                                               ),
-                                               tabPanel( "Результат", value = "res",
-                                                         plotOutput(
-                                                           "hcXPlot",
-                                                           click = "plot_zoom",
-                                                           height = modPlot_wid
-                                                         ),
-                                                         downloadButton('downloadHCmap', 'Сохранить карту'),
-                                                         actionButton('addHCMap2inp', 'Поместить во входные'),
-                                                         verbatimTextOutput("hcXText")
                                                )
                                   )
                                   ),#,                                  verbatimTextOutput("hcXText")
                        #UI: model SVMC ####
                        tabPanel(  "SVM", value = "modelSV",
                                   tabsetPanel( id = "modelSV",
-                                               tabPanel( "Модель", value = "mod",
-                                                         plotOutput(
-                                                           "svPlot",
-                                                           click = "plot_zoom",
-                                                           height = modPlot_wid
-                                                         ),
-                                                         verbatimTextOutput("svText")
-                                               ),
                                                tabPanel( "Результат", value = "res",
                                                          plotOutput(
                                                            "svXPlot",
@@ -473,6 +465,14 @@ ui <- fluidPage(theme = shinytheme("simplex"),
                                                          downloadButton('downloadSVmap', 'Сохранить карту'),
                                                          actionButton('addSVMap2inp', 'Поместить во входные'),
                                                          verbatimTextOutput("svXText")
+                                               ),
+                                               tabPanel( "Модель", value = "mod",
+                                                         plotOutput(
+                                                           "svPlot",
+                                                           click = "plot_zoom",
+                                                           height = modPlot_wid
+                                                         ),
+                                                         verbatimTextOutput("svText")
                                                )
                                   )#,                                  verbatimTextOutput("hcXText")
                        )
@@ -2406,12 +2406,13 @@ drawModelCCplot <- function(CCmod = NULL,CClimit = 0.9) {
   nw = dim(CCmod$ccMatrix)[2]
   #browser()
   CCmod$ccMatrix[CCmod$ccMatrix < CClimit] = NA
-  data = CCmod$ccMatrix[,c(-1:-2)]
+  data = CCmod$ccMatrix#[,c(-1:-2)]
   if(all(dim(data) < 2)) {
     plotError(message = "Не удалось выполнить расчет. Проверьте данные")
     return(NULL)
   }
-  rstr=raster(data,xmn=1,xmx=nw-2,ymn=1,ymx=nm)
+  #browser()
+  rstr=raster(data,xmn=1,xmx=nw,ymn=1,ymx=nm)
   ylabs = list()
   maxNm = 0
   for(i in 1:nm) {
@@ -2427,7 +2428,7 @@ drawModelCCplot <- function(CCmod = NULL,CClimit = 0.9) {
   mar[2] = maxNm+2.1
   mgp[1] = mar[2]-1
   par(mar = mar,mgp = mgp)
-  plot(rstr,yaxt="n",xaxt="n",xlim=c(1,nw-1),ylim=c(1,nm),
+  plot(rstr,yaxt="n",xaxt="n",xlim=c(1,nw),ylim=c(1,nm),
        xlab="",
        ylab="Карты в выборке",
        main = "Коэффициент корреляции для набора моделей",
@@ -2437,8 +2438,8 @@ drawModelCCplot <- function(CCmod = NULL,CClimit = 0.9) {
   xlabs = ""
   #browser()
   #xaxis
-  xlabs = c(1:(nw-1))
-  names(xlabs) <- paste(c(3:nw))
+  xlabs = c(1:nw)
+  names(xlabs) <- paste(xlabs)
   #dbgmes("xlabs=",xlabs)
   axis(side = 1,at = xlabs, labels = names(xlabs))#, labels = rownames(wells))
   #yaxis
@@ -2677,8 +2678,8 @@ X_LOCATION  Y_LOCATION  VALUE",
     #recalcMaps()
     myReactives$liveMaps <- getLiveMapsData(maps = myReactives$maps, sr = input$table_maps_rows_selected)
     myReactives$liveWells <- prepDataSet(wells = myReactives$wells@data, rows =input$table_wells_rows_selected  ,sel_maps =  input$table_maps_rows_selected, nmap = length(myReactives$maps))
-    #selectRows(dtMapsProxy,as.numeric(mapsSelection))
-    dbgmes(message = "MapsFile1111=",c(length(isolate(myReactives$liveMaps)),length(isolate(myReactives$maps))))
+    selectRows(dtMapsProxy,list(as.numeric(mapsSelection)))
+    #dbgmes(message = "MapsFile1111=",c(length(isolate(myReactives$liveMaps)),length(isolate(myReactives$maps))))
     updateMapLists(maps = myReactives$maps,mapsSelection)#, sel1 = isolate(input$selectMap1), sel2 = isolate(input$selectMap2))
     removeModal()
   })
@@ -2854,17 +2855,31 @@ X_LOCATION  Y_LOCATION  VALUE",
     )
   }
   
-  observeEvent(input$CCplot_get_model, {
-    rc=round(c(input$CCplot_get_model$y,input$CCplot_get_model$x))
-    dbgmes("cc_click=",rc)
+  getCCdataByXY <- function ( xy = c(0,0))  {
+    def = list(cc = NA,dset = NULL)
+    
+    #dbgmes("cc_click: xy=",xy)
+    if(all(is.null(xy))) return(def)
+    
+    rc=round(xy)
     mod = getCurrentModel()
-    #browser()
-    #myReactives$CCtable
-    if(all(dim(mod$ccMatrix)>=rc && all(rc>0)))
+    sz = dim(mod$ccMatrix)
+    #dbgmes("cc_click=",rc)
+    
+    if(all(sz>=rc) && all(rc>0))
+      return(list(cc = mod$ccMatrix[[rc[1],rc[2]]],dset = mod$ccDset[[rc[1],rc[2]]][[1]]))
+    else 
+      return(def)
+  }
+  
+  observeEvent(input$CCplot_get_model, {
+    xy = c(input$CCplot_hover_plot$y,input$CCplot_hover_plot$x)
+    CC = getCCdataByXY(xy)
+    
+    if(!is.null(CC$dset))
     {
-      rc[2]= rc[2]+2
-      cc = mod$ccMatrix[[rc[1],rc[2]]]
-      data = mod$ccDset[[rc[1],rc[2]]][[1]]
+      cc = CC$cc
+      data = CC$dset
       title = c(paste0("Выбранная модель ",input$batch," (CC=",prettyNum(cc),")"))
       myReactives$CCtable = data
       dbgmes("cc_click=",cc)
@@ -2902,23 +2917,18 @@ X_LOCATION  Y_LOCATION  VALUE",
   
   output$batchText <- renderText({
     xy = c(input$CCplot_hover_plot$y,input$CCplot_hover_plot$x)
-    if(all(is.null(xy))) paste("NA")
-    else {
-      rc=round(xy)
-      mod = getCurrentModel()
-      #dbgmes("cc_hover=",rbind(dim(mod$ccMatrix),rc,xy))
-      #browser()
-      if(all(dim(mod$ccMatrix)>=rc && all(rc>0)))
-      {
-        rc[2]= rc[2]+2
-        cc = mod$ccMatrix[[rc[1],rc[2]]]
-        data = mod$ccDset[[rc[1],rc[2]]][[1]]
-        maps = colnames(data)[c(-1,-2)]
-        title = c(paste0(input$batch,"CC=",prettyNum(cc)))
-        #paste0(title,cc,data ,paste0(rc[1],rc[2],"\n"))
-        paste0(c(title,'\n', paste0(rbind('Maps:','No. of wells:'),list(maps,rc[2]),"\n")))
-      } else paste("NA")
-    }
+    CC = getCCdataByXY(xy)
+    
+    if(!is.null(CC$dset))
+    {
+      cc = CC$cc
+      data = CC$dset
+      maps = colnames(data)[c(-1,-2)]
+      wells = rownames(data)
+      title = c(paste0(input$batch,"CC=",prettyNum(cc)))
+      #paste0(title,cc,data ,paste0(rc[1],rc[2],"\n"))
+      paste0(c(title,'\n', paste0(rbind('Maps:','Wells:'),list(maps,wells),"\n")))
+    } else paste("NA")
   })
   
   # observeEvent(input$CCplot_hover_plot, {
@@ -2944,34 +2954,17 @@ X_LOCATION  Y_LOCATION  VALUE",
       map_obj = transposeMap(isolate(myReactives$maps[[map_idx]]))
       isolate(myReactives$wells <- extractMap2Well(isolate(myReactives$wells),map_obj$rstr, paste0 ("Map",map_idx)))
       isolate(myReactives$maps[[map_idx]] <- map_obj)
-      
-      #liveMaps = getLiveMapsData(maps = isolate(myReactives$maps), sr = mapsSelection)
-      
-      #isolate(myReactives$liveMaps <- liveMaps)
-      
-      #liveWells = prepDataSet(wells = isolate(myReactives$wells@data), 
-      #                        rows =isolate(input$table_wells_rows_selected)  ,
-      #                        sel_maps =  mapsSelection, nmap = length(isolate(myReactives$maps)))
-      #isolate(myReactives$liveWells <- liveWells)
-      #dbgmes("mapsSelection=",isolate(input$table_maps_rows_selected))
-      #browser()
-      #dtMapsProxy$deferUntilFlush = TRUE #FALSE
-      #selectRows(isolate(dtMapsProxy),isolate(mapsSelection))
-      #selectRows(isolate(dtWellsProxy),isolate(wellsSelection))
-      #reloadData(dtMapsProxy, resetPaging = F, clearSelection = "none")
-      #dtMapsProxy$deferUntilFlush = TRUE
     }
   })
   observeEvent(input$transpose2 ,label = "transpose2", {
     if(length(myReactives$maps)>1) {
-      mapsSelection=input$table_maps_rows_selected
-      map_idx = selectMap(maps = myReactives$maps, idx = input$selectMap2)
-      map_obj = transposeMap(myReactives$maps[[map_idx]])
-      myReactives$wells <- isolate(extractMap2Well(myReactives$wells,map_obj$rstr, paste0 ("Map",map_idx)))
+      mapsSelection=isolate(input$table_maps_rows_selected)
+      wellsSelection=isolate(input$table_Wells_rows_selected)
+      #isolate(selectRows(dtMapsProxy,NULL))
+      map_idx = selectMap(maps = isolate(myReactives$maps), idx = isolate(input$selectMap2))
+      map_obj = transposeMap(isolate(myReactives$maps[[map_idx]]))
+      isolate(myReactives$wells <- extractMap2Well(isolate(myReactives$wells),map_obj$rstr, paste0 ("Map",map_idx)))
       isolate(myReactives$maps[[map_idx]] <- map_obj)
-      #myReactives$liveMaps <- getLiveMapsData(maps = myReactives$maps, sr = input$table_maps_rows_selected)
-      #myReactives$liveWells <- prepDataSet(wells = myReactives$wells@data, rows =input$table_wells_rows_selected  ,sel_maps =  input$table_maps_rows_selected, nmap = length(myReactives$maps))
-      selectRows(dtMapsProxy,as.numeric(mapsSelection))
     }
   })
   
@@ -3392,6 +3385,8 @@ X_LOCATION  Y_LOCATION  VALUE",
   })
   
   output$svXPlot <- renderPlot({
+    recalcSVMC()
+    myReactives$svcm$predicted = as.integer(predict(myReactives$svcm))+1
     #data = myReactives$liveMaps[-1]
     #dbgmes("data = ",data)
     #myReactives$svcm = svm(data)

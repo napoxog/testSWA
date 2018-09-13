@@ -2889,7 +2889,7 @@ X_LOCATION  Y_LOCATION  VALUE",
     wellssSelection = as.integer(c(1:length(wells)) [-match(ccTable$WELL ,isolate(wells$WELL))])
     mapsSelection = as.integer(gsub(x = colnames(ccTable)[c(-1,-2)],pattern = "Map",replacement = ""))
 #    updateTabsetPanel(session, "main", selected = 'wells')
-    browser()
+    #browser()
     updateTabsetPanel(session, "main", selected = 'maps')
     #invalidateLater(5000, session)
     

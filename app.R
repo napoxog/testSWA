@@ -2406,13 +2406,17 @@ drawModelCCplot <- function(CCmod = NULL,CClimit = 0.9) {
   nw = dim(CCmod$ccMatrix)[2]
   #browser()
   CCmod$ccMatrix[CCmod$ccMatrix < CClimit] = NA
-  data = CCmod$ccMatrix#[,c(-1:-2)]
+  data = apply( CCmod$ccMatrix,2,rev)#[,c(-1:-2)]
+  
   if(all(dim(data) < 2)) {
     plotError(message = "Не удалось выполнить расчет. Проверьте данные")
     return(NULL)
   }
   #browser()
-  rstr=raster(data,xmn=1,xmx=nw,ymn=1,ymx=nm)
+  dbgmes("data=",data)
+  #rstr=raster(data,xmn=1,xmx=nw,ymn=1,ymx=nm)
+  rstr = raster(ncols = nw,nrows = nm,xmn=0.5,xmx=nw+0.5,ymn=0.5,ymx=nm+0.5,resolution = c(1,1))
+  rstr = setValues(rstr,data)
   ylabs = list()
   maxNm = 0
   for(i in 1:nm) {
@@ -2707,6 +2711,8 @@ X_LOCATION  Y_LOCATION  VALUE",
       selectRows(proxy = dtMapsProxy,selected = sel)
       #dbgmes("sel1=",input$table_maps_rows_selected)
     }
+    myReactives$mapDT <- drawMapsTable(maps_ = myReactives$maps)
+    myReactives$wellDT <- drawWellsTable(wells_ = myReactives$wells)
     #myReactives$liveMaps <- getLiveMapsData(maps = myReactives$maps)
     #myReactives$liveWells <- prepDataSet(wells = myReactives$wells@data, rows =input$table_wells_rows_selected  ,sel_maps =  input$table_maps_rows_selected, nmap = length(myReactives$maps))
     updateMapLists(myReactives$maps)
@@ -2873,7 +2879,7 @@ X_LOCATION  Y_LOCATION  VALUE",
   }
   
   observeEvent(input$CCplot_get_model, {
-    xy = c(input$CCplot_hover_plot$y,input$CCplot_hover_plot$x)
+    xy = c(input$CCplot_get_model$y,input$CCplot_get_model$x)
     CC = getCCdataByXY(xy)
     
     if(!is.null(CC$dset))
@@ -2908,7 +2914,7 @@ X_LOCATION  Y_LOCATION  VALUE",
     updateTabsetPanel(session, "main", selected = 'maps')
     #invalidateLater(5000, session)
     
-    selectRows(dtMapsProxy,list(mapsSelection))
+    selectRows(dtMapsProxy,mapsSelection)
     selectRows(dtWellsProxy,wellssSelection)
     #dbgmes("Selection=",list(wellssSelection,mapsSelection))
     #dbgmes("mapsSelection=",mapsSelection)

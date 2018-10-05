@@ -5,10 +5,25 @@ library(shiny)
     checkboxGroupInput("inCheckboxGroup", "Input checkbox",
                        c("Item A", "Item B", "Item C")),
     selectInput("inSelect", "Select input",
-                c("Item A", "Item B", "Item C"))
+                c("Item A", "Item B", "Item C")),
+    dataTableOutput('dt')
   )
   
   server <- function(input, output, session) {
+    output$dt <- renderDataTable({
+      data = data.frame(cbind(c(1:10),c(21:30)))
+      datatable(data)
+    })
+    
+    observeEvent(input$dt_cell_clicked,{
+      print(c("click",input$dt_rows_selected))
+    })
+
+    observe({
+      input$dt_rows_selected
+      print(c("row",input$dt_rows_selected))
+    })
+    
     observe({
       x <- input$inCheckboxGroup
       

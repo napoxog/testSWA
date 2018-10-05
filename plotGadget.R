@@ -1,6 +1,7 @@
 library(shiny)
 library(miniUI)
 
+
 plotZoom <- function (name,data) {
   ui <- miniPage(
     gadgetTitleBar(name),
@@ -25,3 +26,4 @@ plotZoom <- function (name,data) {
   
   runGadget(ui, server)
 }
+

@@ -73,8 +73,9 @@
 ###   TODO: 38. Add Supervised classification option
 ###   TODO: 38.1 option: Add loading of well CP classes (lithology)
 ###   TODO: 38.2 option: Add option to make the Wells CP a Factor to be used for SVCLS
-###   TODO: 39 Add flag (add model copy fieled? ) to the map object to indicate that map is result of local processing and to not apply the upscaling to it in this case - to make it consistent with inputs. (issue: if upscaling chaned, maps hould be recalculated. maybe automatically?)
-
+###   TODO: 39. Add flag (add model copy fieled? ) to the map object to indicate that map is result of local processing and to not apply the upscaling to it in this case - to make it consistent with inputs. (issue: if upscaling chaned, maps hould be recalculated. maybe automatically?)
+###   TODO: 40. Add Random Forest models
+###   TODO: 41. Make the CC batch plot be proportional to data
 
 
 #### QC regression model
@@ -219,6 +220,10 @@ names(mapFormatsRead) <- c("ESRI ASCII грид",
                        "Разделитель - табуляция")
 
 batModels <- list ('GLM','NNET','SVM')
+
+batPars <- list (1,2,3)
+batParsVals <- list (R1 = expression('R'^2),R2 = 'R',R3 = expression('(log'[10]*'(1-R'^2*'))'^-1))
+names(batPars) <- c('Коэффициент линейности','Коэффициент корреляции','Логарифмическая шкала')
 
 classRange = 2:16
 classPalette = mclust.options("classPlotColors")
@@ -575,14 +580,19 @@ ui <- fluidPage(theme = shinytheme("simplex"),
                                     inline=T
                        ),
                        actionButton('runBatch', 'Рассчитать карту корреляции по текущей выборке...'),
+                       sliderInput('CClimit','Минимальный коэффициент корреляции на карте',
+                                   min = 0.7,max = 0.98,value = 0.7,step = 0.02),
+                       radioButtons("batPar",
+                                    label = "",
+                                    choices = batPars,
+                                    inline=T
+                       ),
                        plotOutput(
                          "batPlot",
                          click = "CCplot_get_model",
                          hover = "CCplot_hover_plot",
-                         height = modPlot_wid
+                         height = "700px"
                        ),
-                       sliderInput('CClimit','Минимальный коэффициент корреляции на карте',
-                                   min = 0.7,max = 0.98,value = 0.7,step = 0.02),
                        verbatimTextOutput("batchText")
           #)
         )
@@ -1193,7 +1203,7 @@ prepDataSet <- function (wells = NULL, rows = NULL, sel_maps = NULL, nmap = +Inf
     data = data[(-1*rows),]
   
   #browser()
-  #dbgmes(message = "ddd=",ddd)
+  dbgmes(message = "out_wells=",data)
   if(length(data) <1) return (NULL)
   #rownames(data) = ddd$WELL
   return(data)
@@ -1213,9 +1223,10 @@ drawModelQC <- function(fit = NULL){
 
 drawModelXplot <- function(data = NULL, lmfit = NULL, srows = NULL) {
   
-  #dbgmes(message = "data=",data)
-  #dbgmes(message = "fit=",lmfit)
+  dbgmes(message = "data=",data)
+  #dbgmes(message = "fit=",class(lmfit))
   #data = prepDataSet(data)
+  browser()
   predicted = predict(lmfit, newdata = data)
   #browser()
   measured = data$Values#[data$WELL %in% names(predicted)]
@@ -1619,7 +1630,7 @@ buildNNET <- function(wells = NULL, test_ratio = 0.20, max_iter = 100, nnet_comp
   if(is.null(wells)) return(NULL)
   #data = prepDataSet(wells = wells@data,rows = rows,sel_maps = sel_maps)
   data = wells
-  if(is.null(data)) return(NULL)
+  if(is.null(data) || prod(dim(data)) <4) return(NULL)
   
   size = max(1,ceiling(sqrt(length(data[,1]))*nnet_complex*5*2))
   layers = max(1,ceiling(log(base = 5, size)))
@@ -1744,7 +1755,8 @@ drawGLMmap <- function (data = NULL ,sr = NULL, glm = NULL,zoom = NULL, colors =
 
   #dset = data[,2:length(data)]
   dset = data.frame(data[,2:length(data)])
-  #dbgmes("dset=",dset)
+  dbgmes("dset=",dset)
+  browser()
   #rownames(dset) = 
   if(is.null(sr)) {
     #names(dset) = c(paste0("Map",1:length(dset)))
@@ -1774,10 +1786,10 @@ drawGLMmap <- function (data = NULL ,sr = NULL, glm = NULL,zoom = NULL, colors =
 
 buildGLM <- function(data = NULL, lmfunc = glm, family = gaussian){
 
-  if(is.null(data)) return(NULL)
+  if(is.null(data) || prod(dim(data)) <4) return(NULL)
   
   data=data[-1]
-  #dbgmes("dset=",data)
+  dbgmes("dset=",data)
   fit = lmfunc(formula = Values~., data, family = family)
   #browser()
   #fit$cvDelta = cv.glm(data = fit$data[!is.na(fit$data)],glmfit = fit,cost = cost,K=7)[3]
@@ -1842,7 +1854,7 @@ drawSVMmap2 <- function (data = NULL ,sr = NULL, svmod = NULL,zoom = NULL) {
 buildSVM <- function(data = NULL, test_ratio = 0.25, type = svmModels[1], dontTune = F) {
 #  if(is.null(wells)) return(NULL)
 #  data = wells #prepDataSet(wells = wells@data,rows = rows,sel_maps = sel_maps)
-  if(is.null(data)) return(NULL)
+  if(is.null(data) || prod(dim(data)) <4) return(NULL)
   svm_tune=NULL
   #dbgmes("type=", type)
   #browser()
@@ -1937,7 +1949,7 @@ drawModel <- function(data = NULL,model = NULL, nclass = 3) {
   }
 }
 drawModMap <- function (datplot = NULL, title = NULL , zoom = NULL, colors = mapPalette(128), interpolate = T) {
-  if(is.null(data)){
+  if(is.null(datplot)){
     plotError(message = "Не удалось выполнить расчет. Проверьте данные")
     return(NULL)
   } 
@@ -2460,7 +2472,7 @@ getModelCCmatrix_par <- function (wells = NULL,minWells = 3,
   return(list(ccMatrix = cc_matrix,ccDset = dset_matrix))
 }
 
-drawModelCCplot <- function(CCmod = NULL,CClimit = 0.9, colors = bpy.colors(16)) {
+drawModelCCplot <- function(CCmod = NULL,CClimit = 0.9, colors = bpy.colors(16), plotPar = 1) {
   #text(c(1,1),"text")
   if(is.null(CCmod) || is.null(CCmod$ccMatrix)) {
     plotError(message = "Не удалось выполнить расчет. Проверьте данные")
@@ -2470,14 +2482,23 @@ drawModelCCplot <- function(CCmod = NULL,CClimit = 0.9, colors = bpy.colors(16))
   nw = dim(CCmod$ccMatrix)[2]
   #browser()
   CCmod$ccMatrix[CCmod$ccMatrix < CClimit] = NA
-  data = apply( CCmod$ccMatrix,2,rev)#[,c(-1:-2)]
+  
+  par_calc = switch(as.integer(plotPar),
+                    function(x) {rev(x)},
+                    function(x) {sqrt(rev(x))},
+                    function(x) {rev(1/log10(1-x))})
+  data = apply( CCmod$ccMatrix,2,FUN = par_calc)#[,c(-1:-2)]
+  par_label = switch(as.integer(plotPar), 
+                     batParsVals[[1]],
+                     batParsVals[[2]],
+                     batParsVals[[3]])
   
   if(all(dim(data) < 2)) {
-    plotError(message = "Не удалось выполнить расчет. Проверьте данные")
+    plotError(message = "Нет данных для вывода. Выполните расчет.")
     return(NULL)
   }
   #browser()
-  #dbgmes("data=",data)
+  #dbgmes("cc_plot=",data)
   #rstr=raster(data,xmn=1,xmx=nw,ymn=1,ymx=nm)
   rstr = raster(ncols = nw,nrows = nm,xmn=0.5,xmx=nw+0.5,ymn=0.5,ymx=nm+0.5,resolution = c(1,1))
   rstr = setValues(rstr,data)
@@ -2496,10 +2517,10 @@ drawModelCCplot <- function(CCmod = NULL,CClimit = 0.9, colors = bpy.colors(16))
   mar[2] = maxNm+2.1
   mgp[1] = mar[2]-1
   par(mar = mar,mgp = mgp)
-  plot(rstr,yaxt="n",xaxt="n",xlim=c(1,nw),ylim=c(1,nm),
+  plot(rstr,yaxt="n",xaxt="n",xlim=c(1,nw+1),ylim=c(1,nm+1),
        xlab="",
        ylab="Карты в выборке",
-       main = bquote('R'^2),#'Коэффициент детерминации для набора моделей',
+       main = par_label,#'Коэффициент детерминации для набора моделей',
        col=colors)
   grid()
   mtext("Скважин в выборке",side=1,line=2)
@@ -3009,7 +3030,7 @@ X_LOCATION  Y_LOCATION  VALUE",
   
   output$batPlot <- renderPlot({
     mod = getCurrentModel()
-    drawModelCCplot(CCmod = mod,CClimit = input$CClimit)#,colors = getMapPar()$col)
+    drawModelCCplot(CCmod = mod,CClimit = input$CClimit,plotPar = input$batPar)#,colors = getMapPar()$col)
   })
     
   #CB: transposing ####
@@ -3263,7 +3284,7 @@ X_LOCATION  Y_LOCATION  VALUE",
                               myReactives$svm$tune$best.parameters))
            )
       else 
-        plotError("asd")
+        plotError("Модель оптимизации не рссчитана. Недостаточно данных.")
       #points(myReactives$svm$tune$best.parameters,pch = 16)
       #text(myReactives$svm$tune$best.parameters,"Best", pos=1)
       
@@ -3744,7 +3765,7 @@ X_LOCATION  Y_LOCATION  VALUE",
     mode_aux = mod$mode_aux
     resmap = mod$map
     title = mod$title
-    
+    #dbgmes("mode = ",mode)
     #browser()
     
     if(main == 'maps') {
@@ -3769,12 +3790,13 @@ X_LOCATION  Y_LOCATION  VALUE",
       if(input$models == 'nnet') {
         if( mode_aux != 'res')
           drawNNETmodel(nnet = model , mode = mode)
-      } else if(input$models == 'glm') {
+      } else {#if(input$models == 'glm') {
         if(mode == 'mod'){
           par(mfrow = c(2,2))
           plot(model)
         } else if (mode == 'xplot') {
-          drawModelXplot (myReactives$wells@data, model, input$table_wells_rows_selected)
+          drawModelXplot (myReactives$liveWells, model, input$table_wells_rows_selected)
+          #drawModelXplot (myReactives$wells@data, model, input$table_wells_rows_selected)
         }
       }
       if( mode == 'res'){

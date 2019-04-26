@@ -607,7 +607,7 @@ ui <- fluidPage(theme = shinytheme("simplex"),
         # UI: Tabs with Maps and related ####
         tabPanel(
           #UI: Tab1 ####
-          uiOutput("tab1"), value = "mapTab1",
+          title = uiOutput("tab1"), value = "mapTab1",
           flowLayout(
             flowLayout(
               verticalLayout(
@@ -653,7 +653,7 @@ ui <- fluidPage(theme = shinytheme("simplex"),
         ),
         tabPanel(
           #UI: Tab2 ####
-          uiOutput("tab2"), value = "mapTab2", 
+          title = uiOutput("tab2"), value = "mapTab2", 
           flowLayout(
             flowLayout(
               verticalLayout(
@@ -1226,7 +1226,7 @@ drawModelXplot <- function(data = NULL, lmfit = NULL, srows = NULL) {
   dbgmes(message = "data=",data)
   #dbgmes(message = "fit=",class(lmfit))
   #data = prepDataSet(data)
-  browser()
+  #browser()
   predicted = predict(lmfit, newdata = data)
   #browser()
   measured = data$Values#[data$WELL %in% names(predicted)]
@@ -1756,7 +1756,7 @@ drawGLMmap <- function (data = NULL ,sr = NULL, glm = NULL,zoom = NULL, colors =
   #dset = data[,2:length(data)]
   dset = data.frame(data[,2:length(data)])
   dbgmes("dset=",dset)
-  browser()
+  #browser()
   #rownames(dset) = 
   if(is.null(sr)) {
     #names(dset) = c(paste0("Map",1:length(dset)))
@@ -2417,7 +2417,7 @@ getModelCCmatrix_par <- function (wells = NULL,minWells = 3,
   env=environment()
   env$applyGetCC_par = applyGetCC_par
   withProgress(message = "Обработка...", detail = "Ожидайте...",  value =0, max = nmst_, {
-  if(nmst_ > 5000) {
+  if(nmst_ > 50000) {
     nCores = as.integer(detectCores(logical = TRUE)*3/4)
     dbgmes("running on cores",nCores)
     #browser()
@@ -2538,11 +2538,7 @@ drawModelCCplot <- function(CCmod = NULL,CClimit = 0.9, colors = bpy.colors(16),
 
 
 # Define server logic required to draw a histogram
-options(shiny.maxRequestSize = 500 * 1024 ^ 2)
-#options(shiny.reactlog = TRUE)
-options(shiny.host = "0.0.0.0")
-options(shiny.port = 8080)
-#options(shiny.style="old")
+
 myReactives <- reactiveValues(wells = wells0, 
                               zoom = map_zoom, 
                               fit = NULL, 
@@ -2557,7 +2553,11 @@ myReactives$maps <- maps
 
 
 server <- function(input, output, session) {
-  # if(is.null(myReactives$maps)) {
+  options(shiny.maxRequestSize = 500 * 1024 ^ 2)
+  #options(shiny.reactlog = TRUE)
+  options(shiny.host = "0.0.0.0")
+  options(shiny.port = 8080)
+  #options(shiny.style="old")  # if(is.null(myReactives$maps)) {
   #   myReactives$maps <- list(def_map,def_map)
   # }
     showModDial <- function(message = "Ожидайте...") {
@@ -2729,8 +2729,7 @@ X_LOCATION  Y_LOCATION  VALUE",
     mapsSelection =  input$table_maps_rows_selected 
     
     showModDial("Обработка карт...")
-    withProgress(message = "обработка карт...", detail = "Ожидайте......", 
-                 value =0, {
+    withProgress(message = "обработка карт...", detail = "Ожидайте......", value =0, {
                 selIdx =1
                    
                 for(i in 1:length(input$Mapsfile[,1])) {
@@ -3073,6 +3072,7 @@ X_LOCATION  Y_LOCATION  VALUE",
         myReactives$wells <- extractMap2Well(myReactives$wells,myReactives$maps[[i]]$rstr, paste0 ("Map",i))
     }
     map_idx = selectMap(maps = myReactives$maps, idx = input$selectMap1)
+    map_idx2 = selectMap(maps = myReactives$maps, idx = input$selectMap2)
     #dbgmes(message = "map_idx=",map_idx)
     if(is.na(map_idx)) return()
     #browser()
@@ -3081,18 +3081,19 @@ X_LOCATION  Y_LOCATION  VALUE",
              alpha = input$mapPalAlpha1,
              contours = input$showContours1,
              interpolate = input$interpMap1)
-    drawWells(myReactives$wells, myReactives$maps[[map_idx]]$rstr, sr = input$table_wells_rows_selected,srmap = input$table_maps_rows_selected)
+    drawWells(myReactives$wells, myReactives$maps[[map_idx]]$rstr, sr = input$table_wells_rows_selected,srmap = c(map_idx,map_idx2))#input$table_maps_rows_selected)
   })
   
   output$mapPlot2 <- renderPlot({
     if(length(myReactives$maps)>1) {
       map_idx = selectMap(maps = myReactives$maps, idx = input$selectMap2)
+      map_idx1 = selectMap(maps = myReactives$maps, idx = input$selectMap1)
       drawRstr(myReactives$maps[[map_idx]]$rstr,myReactives$zoom, 
                pal = mapPalList[[input$mapPalSelect2]],
                alpha = input$mapPalAlpha2,
                contours = input$showContours2,
                interpolate = input$interpMap2)
-      drawWells(myReactives$wells, myReactives$maps[[map_idx]]$rstr, sr = input$table_wells_rows_selected,srmap = input$table_maps_rows_selected)
+      drawWells(myReactives$wells, myReactives$maps[[map_idx]]$rstr, sr = input$table_wells_rows_selected,srmap = c(map_idx1,map_idx))#input$table_maps_rows_selected)
     }
   })
 
